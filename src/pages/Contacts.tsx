@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, CONTACT_STATUS_LABELS, CONTACT_STATUS_COLORS, PRIORITY_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical } from 'lucide-react';
+import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Network, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -16,16 +16,21 @@ import type { Tables } from '@/integrations/supabase/types';
 
 type Contact = Tables<'contacts'>;
 
-function ContactForm({ onSuccess, stages, initialData, onDelete }: {
+function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, onAddToNetwork }: {
   onSuccess: () => void;
   stages: Tables<'pipeline_stages'>[];
   initialData?: Contact | null;
   onDelete?: () => void;
+  teamMembers?: any[];
+  onAddToNetwork?: (contact: Contact) => void;
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEdit = !!initialData;
+
+  // Check if this contact is already in the network
+  const isInNetwork = isEdit && teamMembers?.some(m => m.contact_id === initialData?.id);
 
   const [form, setForm] = useState({
     first_name: initialData?.first_name || '',
@@ -134,13 +139,30 @@ function ContactForm({ onSuccess, stages, initialData, onDelete }: {
       >
         {mutation.isPending ? (isEdit ? 'Enregistrement...' : 'Création...') : (isEdit ? 'Enregistrer les modifications' : 'Créer le contact')}
       </button>
+      {isEdit && !isInNetwork && onAddToNetwork && (
+        <button
+          type="button"
+          onClick={() => onAddToNetwork(initialData)}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl"
+        >
+          <Network className="h-4 w-4" />
+          Ajouter au réseau
+        </button>
+      )}
+      {isEdit && isInNetwork && (
+        <div className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-50 text-emerald-600 font-medium rounded-xl border border-emerald-200">
+          <Network className="h-4 w-4" />
+          Déjà dans le réseau
+        </div>
+      )}
       {isEdit && (
         <button
           type="button"
           disabled={deleteMutation.isPending}
           onClick={() => deleteMutation.mutate()}
-          className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl disabled:opacity-50"
         >
+          <Trash2 className="h-4 w-4" />
           {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
         </button>
       )}
@@ -150,6 +172,8 @@ function ContactForm({ onSuccess, stages, initialData, onDelete }: {
 
 export default function Contacts() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
@@ -184,6 +208,47 @@ export default function Contacts() {
     enabled: !!user,
   });
 
+  // Fetch team_members to know which contacts are already in the network
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['team-members', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from('team_members')
+        .select('id, contact_id, first_name, last_name')
+        .eq('user_id', user.id);
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const addToNetwork = useMutation({
+    mutationFn: async (contact: Contact) => {
+      if (!user) throw new Error('Non connecté');
+      const { error } = await supabase.from('team_members').insert({
+        user_id: user.id,
+        contact_id: contact.id,
+        first_name: contact.first_name,
+        last_name: contact.last_name,
+        phone: contact.phone || null,
+        email: contact.email || null,
+        level: 1,
+        joined_at: new Date().toISOString().split('T')[0],
+        matching_names: [`${contact.first_name} ${contact.last_name}`.toLowerCase()],
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      toast({ title: 'Membre ajouté au réseau' });
+      setEditingContact(null);
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  // Set of contact_ids that are already in the network
+  const networkContactIds = new Set(teamMembers.filter(m => m.contact_id).map(m => m.contact_id));
+
   const filtered = contacts.filter((c) => {
     const matchesSearch = !search || `${c.first_name} ${c.last_name} ${c.email || ''} ${c.phone || ''}`.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
@@ -200,20 +265,23 @@ export default function Contacts() {
     <AppLayout
       title="Contacts"
       actions={
-        <Dialog open={showForm} onOpenChange={setShowForm}>
-          <DialogTrigger asChild>
-            <Button className="bg-[#3b82f6] hover:bg-[#3b82f6]/90">
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau contact
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Nouveau contact</DialogTitle></DialogHeader>
-            <ContactForm onSuccess={() => setShowForm(false)} stages={stages} />
-          </DialogContent>
-        </Dialog>
+        <button
+          onClick={() => { setEditingContact(null); setShowForm(true); }}
+          className="flex items-center gap-2 px-4 py-2 bg-[#3b82f6] text-white font-semibold rounded-xl active:bg-[#3b82f6]/80"
+        >
+          <Plus className="h-4 w-4" />
+          Nouveau contact
+        </button>
       }
     >
+      {/* New contact dialog */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Nouveau contact</DialogTitle></DialogHeader>
+          <ContactForm onSuccess={() => setShowForm(false)} stages={stages} teamMembers={teamMembers} />
+        </DialogContent>
+      </Dialog>
+
       <div className="space-y-4">
         {/* Toolbar */}
         <div className="flex flex-col md:flex-row gap-3">
@@ -270,7 +338,12 @@ export default function Contacts() {
                 {filtered.map((contact) => (
                   <tr key={contact.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setEditingContact(contact)}>
                     <td className="px-4 py-3">
-                      <span className="font-medium text-gray-900">{contact.first_name} {contact.last_name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900">{contact.first_name} {contact.last_name}</span>
+                        {networkContactIds.has(contact.id) && (
+                          <Network className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <div className="flex items-center gap-3 text-gray-500">
@@ -314,7 +387,12 @@ export default function Contacts() {
                 <div className="space-y-2">
                   {stage.contacts.map((contact) => (
                     <div key={contact.id} className="bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setEditingContact(contact)}>
-                      <p className="font-medium text-sm text-gray-900">{contact.first_name} {contact.last_name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm text-gray-900">{contact.first_name} {contact.last_name}</p>
+                        {networkContactIds.has(contact.id) && (
+                          <Network className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                        )}
+                      </div>
                       {contact.phone && <p className="text-xs text-gray-400 mt-1">{contact.phone}</p>}
                       <div className="flex items-center gap-2 mt-2">
                         <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium ${CONTACT_STATUS_COLORS[contact.status]}`}>
@@ -346,6 +424,8 @@ export default function Contacts() {
               stages={stages}
               onSuccess={() => setEditingContact(null)}
               onDelete={() => setEditingContact(null)}
+              teamMembers={teamMembers}
+              onAddToNetwork={(contact) => addToNetwork.mutate(contact)}
             />
           )}
         </DialogContent>

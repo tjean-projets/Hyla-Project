@@ -86,13 +86,41 @@ function MemberForm({
           .update(payload)
           .eq('id', initialData.id);
         if (error) throw error;
+        // Also update linked contact if exists
+        if (initialData.contact_id) {
+          await supabase.from('contacts').update({
+            first_name: form.first_name,
+            last_name: form.last_name,
+            phone: form.phone || null,
+            email: form.email || null,
+          }).eq('id', initialData.contact_id);
+        }
       } else {
-        const { error } = await supabase.from('team_members').insert(payload);
+        // Create contact first, then link team_member to it
+        const { data: newContact, error: contactError } = await supabase
+          .from('contacts')
+          .insert({
+            user_id: user.id,
+            first_name: form.first_name,
+            last_name: form.last_name,
+            phone: form.phone || null,
+            email: form.email || null,
+            source: 'Réseau',
+            status: 'actif' as any,
+          })
+          .select('id')
+          .single();
+        if (contactError) throw contactError;
+        const { error } = await supabase.from('team_members').insert({
+          ...payload,
+          contact_id: newContact.id,
+        });
         if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
       toast({ title: isEdit ? 'Membre modifié' : 'Membre ajouté' });
       onSuccess();
     },
