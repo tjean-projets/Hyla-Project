@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -15,32 +14,70 @@ import type { Tables } from '@/integrations/supabase/types';
 
 type Deal = Tables<'deals'>;
 
-function DealForm({ onSuccess, contacts }: { onSuccess: () => void; contacts: Tables<'contacts'>[] }) {
+function DealForm({ onSuccess, contacts, initialData, onDelete }: {
+  onSuccess: () => void;
+  contacts: Tables<'contacts'>[];
+  initialData?: any | null;
+  onDelete?: () => void;
+}) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isEdit = !!initialData;
+
   const [form, setForm] = useState({
     contact_id: '', amount: '', product: '', deal_type: '', status: 'en_cours' as Deal['status'], notes: '',
   });
 
+  useEffect(() => {
+    if (initialData) {
+      setForm({
+        contact_id: initialData.contact_id || '',
+        amount: initialData.amount?.toString() || '',
+        product: initialData.product || '',
+        deal_type: initialData.deal_type || '',
+        status: initialData.status || 'en_cours',
+        notes: initialData.notes || '',
+      });
+    }
+  }, [initialData]);
+
   const mutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
-      const { error } = await supabase.from('deals').insert({
-        user_id: user.id,
-        contact_id: form.contact_id || null,
-        amount: parseFloat(form.amount) || 0,
-        product: form.product || null,
-        deal_type: form.deal_type || null,
-        status: form.status,
-        notes: form.notes || null,
-        signed_at: form.status === 'signee' ? new Date().toISOString() : null,
-      });
-      if (error) throw error;
+
+      if (isEdit) {
+        const updateData: any = {
+          contact_id: form.contact_id || null,
+          amount: parseFloat(form.amount) || 0,
+          product: form.product || null,
+          deal_type: form.deal_type || null,
+          status: form.status,
+          notes: form.notes || null,
+        };
+        // Set signed_at if status changed to 'signee' and it wasn't already set
+        if (form.status === 'signee' && !initialData.signed_at) {
+          updateData.signed_at = new Date().toISOString();
+        }
+        const { error } = await supabase.from('deals').update(updateData).eq('id', initialData.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('deals').insert({
+          user_id: user.id,
+          contact_id: form.contact_id || null,
+          amount: parseFloat(form.amount) || 0,
+          product: form.product || null,
+          deal_type: form.deal_type || null,
+          status: form.status,
+          notes: form.notes || null,
+          signed_at: form.status === 'signee' ? new Date().toISOString() : null,
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
-      toast({ title: 'Vente créée' });
+      toast({ title: isEdit ? 'Vente modifiée' : 'Vente créée' });
       onSuccess();
     },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
@@ -51,7 +88,7 @@ function DealForm({ onSuccess, contacts }: { onSuccess: () => void; contacts: Ta
       <div>
         <Label>Cliente</Label>
         <Select value={form.contact_id} onValueChange={(v) => setForm({ ...form, contact_id: v })}>
-          <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+          <SelectTrigger className="h-11"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
           <SelectContent>
             {contacts.map(c => (
               <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name}</SelectItem>
@@ -62,12 +99,12 @@ function DealForm({ onSuccess, contacts }: { onSuccess: () => void; contacts: Ta
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Montant (€) *</Label>
-          <Input type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
+          <Input className="h-11" type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
         </div>
         <div>
           <Label>Statut</Label>
           <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Deal['status'] })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
             <SelectContent>
               {Object.entries(DEAL_STATUS_LABELS).map(([k, v]) => (
                 <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -79,29 +116,37 @@ function DealForm({ onSuccess, contacts }: { onSuccess: () => void; contacts: Ta
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Produit / Pack</Label>
-          <Input value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} />
+          <Input className="h-11" value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} />
         </div>
         <div>
           <Label>Type de vente</Label>
-          <Input placeholder="Directe, Parrainage..." value={form.deal_type} onChange={(e) => setForm({ ...form, deal_type: e.target.value })} />
+          <Input className="h-11" placeholder="Directe, Parrainage..." value={form.deal_type} onChange={(e) => setForm({ ...form, deal_type: e.target.value })} />
         </div>
       </div>
       <div>
         <Label>Notes</Label>
         <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
       </div>
-      <Button type="submit" disabled={mutation.isPending} className="w-full bg-[#3b82f6] hover:bg-[#3b82f6]/90">
-        {mutation.isPending ? 'Création...' : 'Créer la vente'}
-      </Button>
+      <button type="submit" disabled={mutation.isPending} className="w-full py-3 bg-[#3b82f6] text-white font-semibold rounded-xl hover:bg-[#3b82f6]/90 disabled:opacity-50">
+        {mutation.isPending ? (isEdit ? 'Enregistrement...' : 'Création...') : (isEdit ? 'Enregistrer' : 'Créer la vente')}
+      </button>
+      {isEdit && onDelete && (
+        <button type="button" onClick={onDelete} className="w-full py-3 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700">
+          Supprimer
+        </button>
+      )}
     </form>
   );
 }
 
 export default function Deals() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
+  const [editingDeal, setEditingDeal] = useState<any | null>(null);
 
   const { data: deals = [], isLoading } = useQuery({
     queryKey: ['deals', user?.id],
@@ -127,6 +172,19 @@ export default function Deals() {
     enabled: !!user,
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (dealId: string) => {
+      const { error } = await supabase.from('deals').delete().eq('id', dealId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      toast({ title: 'Vente supprimée' });
+      setEditingDeal(null);
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
   const filtered = deals.filter((d: any) => {
     const name = d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : '';
     const matchesSearch = !search || `${name} ${d.product || ''}`.toLowerCase().includes(search.toLowerCase());
@@ -142,10 +200,10 @@ export default function Deals() {
       actions={
         <Dialog open={showForm} onOpenChange={setShowForm}>
           <DialogTrigger asChild>
-            <Button className="bg-[#3b82f6] hover:bg-[#3b82f6]/90">
+            <button className="inline-flex items-center px-4 py-2 bg-[#3b82f6] text-white font-semibold rounded-xl hover:bg-[#3b82f6]/90 text-sm">
               <Plus className="h-4 w-4 mr-2" />
               Nouvelle vente
-            </Button>
+            </button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader><DialogTitle>Nouvelle vente</DialogTitle></DialogHeader>
@@ -154,6 +212,21 @@ export default function Deals() {
         </Dialog>
       }
     >
+      {/* Edit dialog */}
+      <Dialog open={!!editingDeal} onOpenChange={(open) => { if (!open) setEditingDeal(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Modifier la vente</DialogTitle></DialogHeader>
+          {editingDeal && (
+            <DealForm
+              onSuccess={() => setEditingDeal(null)}
+              contacts={contacts}
+              initialData={editingDeal}
+              onDelete={() => deleteMutation.mutate(editingDeal.id)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       <div className="space-y-4">
         {/* KPI row */}
         <div className="grid grid-cols-3 gap-4">
@@ -202,7 +275,7 @@ export default function Deals() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filtered.map((deal: any) => (
-                <tr key={deal.id} className="hover:bg-gray-50">
+                <tr key={deal.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setEditingDeal(deal)}>
                   <td className="px-4 py-3 font-medium text-gray-900">
                     {deal.contacts ? `${deal.contacts.first_name} ${deal.contacts.last_name}` : '—'}
                   </td>

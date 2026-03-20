@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Users, UserPlus, Star, Trophy, Crown, Award, ChevronUp, Zap } from 'lucide-react';
+import { Plus, Search, Users, UserPlus, Star, Trophy, Crown, Award, ChevronUp, Zap, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -27,19 +27,47 @@ function getTier(level: number) {
   return [...TIERS].reverse().find(t => level >= t.min) || TIERS[0];
 }
 
-function MemberForm({ onSuccess, members }: { onSuccess: () => void; members: TeamMember[] }) {
+function MemberForm({
+  onSuccess,
+  members,
+  initialData,
+  onDelete,
+}: {
+  onSuccess: () => void;
+  members: TeamMember[];
+  initialData?: TeamMember | null;
+  onDelete?: () => void;
+}) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isEdit = !!initialData;
+
   const [form, setForm] = useState({
     first_name: '', last_name: '', internal_id: '', phone: '', email: '',
     sponsor_id: '', level: '1', joined_at: '', notes: '',
   });
 
+  useEffect(() => {
+    if (initialData) {
+      setForm({
+        first_name: initialData.first_name || '',
+        last_name: initialData.last_name || '',
+        internal_id: initialData.internal_id || '',
+        phone: initialData.phone || '',
+        email: initialData.email || '',
+        sponsor_id: initialData.sponsor_id || '',
+        level: String(initialData.level || 1),
+        joined_at: initialData.joined_at || '',
+        notes: initialData.notes || '',
+      });
+    }
+  }, [initialData]);
+
   const mutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
-      const { error } = await supabase.from('team_members').insert({
+      const payload = {
         user_id: user.id,
         first_name: form.first_name,
         last_name: form.last_name,
@@ -51,13 +79,39 @@ function MemberForm({ onSuccess, members }: { onSuccess: () => void; members: Te
         joined_at: form.joined_at || null,
         notes: form.notes || null,
         matching_names: [`${form.first_name} ${form.last_name}`.toLowerCase()],
-      });
+      };
+      if (isEdit && initialData) {
+        const { error } = await supabase
+          .from('team_members')
+          .update(payload)
+          .eq('id', initialData.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('team_members').insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      toast({ title: isEdit ? 'Membre modifié' : 'Membre ajouté' });
+      onSuccess();
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!initialData) return;
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .eq('id', initialData.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['team-members'] });
-      toast({ title: 'Membre ajouté' });
-      onSuccess();
+      toast({ title: 'Membre supprimé' });
+      onDelete?.();
     },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
@@ -65,39 +119,54 @@ function MemberForm({ onSuccess, members }: { onSuccess: () => void; members: Te
   return (
     <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <div><Label>Prénom *</Label><Input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required /></div>
-        <div><Label>Nom *</Label><Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required /></div>
+        <div><Label>Prénom *</Label><Input className="h-11" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required /></div>
+        <div><Label>Nom *</Label><Input className="h-11" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required /></div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div><Label>Téléphone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-        <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+        <div><Label>Téléphone</Label><Input className="h-11" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+        <div><Label>Email</Label><Input className="h-11" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div><Label>ID interne</Label><Input value={form.internal_id} onChange={(e) => setForm({ ...form, internal_id: e.target.value })} placeholder="Matricule Hyla" /></div>
+        <div><Label>ID interne</Label><Input className="h-11" value={form.internal_id} onChange={(e) => setForm({ ...form, internal_id: e.target.value })} placeholder="Matricule Hyla" /></div>
         <div>
           <Label>Niveau</Label>
-          <Input type="number" min="1" value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} />
+          <Input className="h-11" type="number" min="1" value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Sponsor direct</Label>
-          <Select value={form.sponsor_id} onValueChange={(v) => setForm({ ...form, sponsor_id: v })}>
+          <Select value={form.sponsor_id || '__none__'} onValueChange={(v) => setForm({ ...form, sponsor_id: v === '__none__' ? '' : v })}>
             <SelectTrigger><SelectValue placeholder="Aucun (directe)" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Aucun</SelectItem>
-              {members.map(m => (
+              <SelectItem value="__none__">Aucun</SelectItem>
+              {members.filter(m => m.id !== initialData?.id).map(m => (
                 <SelectItem key={m.id} value={m.id}>{m.first_name} {m.last_name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-        <div><Label>Date d'entrée</Label><Input type="date" value={form.joined_at} onChange={(e) => setForm({ ...form, joined_at: e.target.value })} /></div>
+        <div><Label>Date d'entrée</Label><Input className="h-11" type="date" value={form.joined_at} onChange={(e) => setForm({ ...form, joined_at: e.target.value })} /></div>
       </div>
       <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
-      <Button type="submit" disabled={mutation.isPending} className="w-full bg-[#3b82f6] hover:bg-[#3b82f6]/90">
-        {mutation.isPending ? 'Ajout...' : 'Ajouter au réseau'}
-      </Button>
+      <button
+        type="submit"
+        disabled={mutation.isPending}
+        className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50 active:bg-[#3b82f6]/80"
+      >
+        {mutation.isPending ? 'Enregistrement...' : isEdit ? 'Enregistrer les modifications' : 'Ajouter au réseau'}
+      </button>
+      {isEdit && (
+        <button
+          type="button"
+          disabled={deleteMutation.isPending}
+          onClick={() => deleteMutation.mutate()}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-red-500 text-white font-semibold rounded-xl disabled:opacity-50 active:bg-red-600"
+        >
+          <Trash2 className="h-4 w-4" />
+          {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+        </button>
+      )}
     </form>
   );
 }
@@ -128,6 +197,7 @@ export default function NetworkPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['team-members', user?.id],
@@ -151,25 +221,44 @@ export default function NetworkPage() {
   const inactifs = members.length - actifs;
   const maxLevel = members.reduce((max, m) => Math.max(max, m.level), 0);
 
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingMember(null);
+  };
+
+  const handleOpenEdit = (member: TeamMember) => {
+    setEditingMember(member);
+    setShowForm(true);
+  };
+
   return (
     <AppLayout
       title="Mon Réseau"
       variant="dark"
       actions={
-        <Dialog open={showForm} onOpenChange={setShowForm}>
-          <DialogTrigger asChild>
-            <Button className="bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white border-0">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Ajouter
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Nouveau membre</DialogTitle></DialogHeader>
-            <MemberForm onSuccess={() => setShowForm(false)} members={members} />
-          </DialogContent>
-        </Dialog>
+        <button
+          onClick={() => { setEditingMember(null); setShowForm(true); }}
+          className="flex items-center gap-2 px-4 py-2 bg-[#3b82f6] text-white font-semibold rounded-xl active:bg-[#3b82f6]/80"
+        >
+          <UserPlus className="h-4 w-4" />
+          Ajouter
+        </button>
       }
     >
+      <Dialog open={showForm} onOpenChange={(open) => { if (!open) handleCloseForm(); else setShowForm(true); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingMember ? 'Modifier le membre' : 'Nouveau membre'}</DialogTitle>
+          </DialogHeader>
+          <MemberForm
+            onSuccess={handleCloseForm}
+            members={members}
+            initialData={editingMember}
+            onDelete={handleCloseForm}
+          />
+        </DialogContent>
+      </Dialog>
+
       <div className="space-y-6">
         {/* ── Hero stats (mockup 3: dark glassmorphism cards with progress rings) ── */}
         <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-6">
@@ -241,7 +330,8 @@ export default function NetworkPage() {
             return (
               <div
                 key={member.id}
-                className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-4 hover:border-white/20 transition-all"
+                onClick={() => handleOpenEdit(member)}
+                className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-4 hover:border-white/20 transition-all cursor-pointer active:scale-[0.98]"
               >
                 <div className="flex items-center gap-4">
                   {/* Rank number */}

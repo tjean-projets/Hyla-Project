@@ -16,30 +16,66 @@ import type { Tables } from '@/integrations/supabase/types';
 
 type Contact = Tables<'contacts'>;
 
-function ContactForm({ onSuccess, stages }: { onSuccess: () => void; stages: Tables<'pipeline_stages'>[] }) {
+function ContactForm({ onSuccess, stages, initialData, onDelete }: {
+  onSuccess: () => void;
+  stages: Tables<'pipeline_stages'>[];
+  initialData?: Contact | null;
+  onDelete?: () => void;
+}) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isEdit = !!initialData;
+
   const [form, setForm] = useState({
-    first_name: '', last_name: '', phone: '', email: '', address: '',
-    source: '', status: 'prospect' as Contact['status'], priority: 'normale' as Contact['priority'],
-    pipeline_stage_id: stages[0]?.id || '', notes: '',
+    first_name: initialData?.first_name || '',
+    last_name: initialData?.last_name || '',
+    phone: initialData?.phone || '',
+    email: initialData?.email || '',
+    address: initialData?.address || '',
+    source: initialData?.source || '',
+    status: (initialData?.status || 'prospect') as Contact['status'],
+    priority: (initialData?.priority || 'normale') as Contact['priority'],
+    pipeline_stage_id: initialData?.pipeline_stage_id || stages[0]?.id || '',
+    notes: initialData?.notes || '',
   });
 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
-      const { error } = await supabase.from('contacts').insert({
-        user_id: user.id,
-        ...form,
-        pipeline_stage_id: form.pipeline_stage_id || null,
-      });
+      if (isEdit) {
+        const { error } = await supabase.from('contacts').update({
+          ...form,
+          pipeline_stage_id: form.pipeline_stage_id || null,
+        }).eq('id', initialData.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('contacts').insert({
+          user_id: user.id,
+          ...form,
+          pipeline_stage_id: form.pipeline_stage_id || null,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      toast({ title: isEdit ? 'Contact modifié' : 'Contact créé' });
+      onSuccess();
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!initialData) return;
+      const { error } = await supabase.from('contacts').delete().eq('id', initialData.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      toast({ title: 'Contact créé' });
-      onSuccess();
+      toast({ title: 'Contact supprimé' });
+      onDelete?.();
     },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
@@ -49,32 +85,32 @@ function ContactForm({ onSuccess, stages }: { onSuccess: () => void; stages: Tab
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Prénom *</Label>
-          <Input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required />
+          <Input className="h-11" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required />
         </div>
         <div>
           <Label>Nom *</Label>
-          <Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required />
+          <Input className="h-11" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Téléphone</Label>
-          <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <Input className="h-11" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         </div>
         <div>
           <Label>Email</Label>
-          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <Input className="h-11" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </div>
       </div>
       <div>
         <Label>Adresse</Label>
-        <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+        <Input className="h-11" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Statut</Label>
           <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Contact['status'] })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
             <SelectContent>
               {Object.entries(CONTACT_STATUS_LABELS).map(([k, v]) => (
                 <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -84,16 +120,30 @@ function ContactForm({ onSuccess, stages }: { onSuccess: () => void; stages: Tab
         </div>
         <div>
           <Label>Source</Label>
-          <Input placeholder="Bouche-à-oreille, Facebook..." value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} />
+          <Input className="h-11" placeholder="Bouche-à-oreille, Facebook..." value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} />
         </div>
       </div>
       <div>
         <Label>Notes</Label>
         <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
       </div>
-      <Button type="submit" disabled={mutation.isPending} className="w-full bg-[#3b82f6] hover:bg-[#3b82f6]/90">
-        {mutation.isPending ? 'Création...' : 'Créer le contact'}
-      </Button>
+      <button
+        type="submit"
+        disabled={mutation.isPending}
+        className="w-full py-3 bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white font-semibold rounded-xl disabled:opacity-50"
+      >
+        {mutation.isPending ? (isEdit ? 'Enregistrement...' : 'Création...') : (isEdit ? 'Enregistrer les modifications' : 'Créer le contact')}
+      </button>
+      {isEdit && (
+        <button
+          type="button"
+          disabled={deleteMutation.isPending}
+          onClick={() => deleteMutation.mutate()}
+          className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl disabled:opacity-50"
+        >
+          {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+        </button>
+      )}
     </form>
   );
 }
@@ -103,6 +153,7 @@ export default function Contacts() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [view, setView] = useState<'list' | 'pipeline'>('list');
 
   const { data: contacts = [], isLoading } = useQuery({
@@ -217,7 +268,7 @@ export default function Contacts() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.map((contact) => (
-                  <tr key={contact.id} className="hover:bg-gray-50 cursor-pointer">
+                  <tr key={contact.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setEditingContact(contact)}>
                     <td className="px-4 py-3">
                       <span className="font-medium text-gray-900">{contact.first_name} {contact.last_name}</span>
                     </td>
@@ -262,7 +313,7 @@ export default function Contacts() {
                 </div>
                 <div className="space-y-2">
                   {stage.contacts.map((contact) => (
-                    <div key={contact.id} className="bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                    <div key={contact.id} className="bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setEditingContact(contact)}>
                       <p className="font-medium text-sm text-gray-900">{contact.first_name} {contact.last_name}</p>
                       {contact.phone && <p className="text-xs text-gray-400 mt-1">{contact.phone}</p>}
                       <div className="flex items-center gap-2 mt-2">
@@ -283,6 +334,22 @@ export default function Contacts() {
           </div>
         )}
       </div>
+
+      {/* Edit contact dialog */}
+      <Dialog open={!!editingContact} onOpenChange={(open) => { if (!open) setEditingContact(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Modifier le contact</DialogTitle></DialogHeader>
+          {editingContact && (
+            <ContactForm
+              key={editingContact.id}
+              initialData={editingContact}
+              stages={stages}
+              onSuccess={() => setEditingContact(null)}
+              onDelete={() => setEditingContact(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
