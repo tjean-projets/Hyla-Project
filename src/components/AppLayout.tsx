@@ -7,7 +7,7 @@ import {
   TrendingUp,
   CheckSquare,
   Calendar,
-  FileDown,
+  Wallet,
   Settings,
   LogOut,
   Bell,
@@ -27,7 +27,7 @@ const sidebarLinks = [
   { to: '/commissions', icon: TrendingUp, label: 'Commissions' },
   { to: '/tasks', icon: CheckSquare, label: 'Tâches' },
   { to: '/calendar', icon: Calendar, label: 'Calendrier' },
-  { to: '/imports', icon: FileDown, label: 'Imports' },
+  { to: '/finance', icon: Wallet, label: 'Finance' },
   { to: '/settings', icon: Settings, label: 'Paramètres' },
 ];
 

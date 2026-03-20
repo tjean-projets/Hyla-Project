@@ -17,6 +17,7 @@ import Commissions from "./pages/Commissions";
 import Tasks from "./pages/Tasks";
 import CalendarPage from "./pages/CalendarPage";
 import Imports from "./pages/Imports";
+import Finance from "./pages/Finance";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
@@ -66,7 +67,8 @@ function AppRoutes() {
       <Route path="/commissions" element={<ProtectedRoute><Commissions /></ProtectedRoute>} />
       <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
       <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
-      <Route path="/imports" element={<ProtectedRoute><Imports /></ProtectedRoute>} />
+      <Route path="/imports" element={<Navigate to="/finance" replace />} />
+      <Route path="/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
       <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
