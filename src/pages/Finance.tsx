@@ -5,7 +5,7 @@ import { supabase, IMPORT_STATUS_LABELS, IMPORT_STATUS_COLORS } from '@/lib/supa
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Upload, FileSpreadsheet, CheckCircle, AlertTriangle, XCircle,
-  FileText, Download, Plus, X, Save, Settings2, Receipt,
+  FileText, Receipt,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,7 +55,6 @@ interface ImportFlowState {
 const TABS = [
   { id: 'imports', label: 'Imports', icon: Upload },
   { id: 'factures', label: 'Factures', icon: Receipt },
-  { id: 'config', label: 'Config', icon: Settings2 },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -66,9 +65,7 @@ export default function Finance() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabId>('imports');
   const [showImport, setShowImport] = useState(false);
-  const [showInvoice, setShowInvoice] = useState(false);
   const [invoicePeriod, setInvoicePeriod] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`);
-  const invoiceRef = useRef<HTMLDivElement>(null);
 
   const [flow, setFlow] = useState<ImportFlowState>({
     step: 'upload', rawData: [], columns: [],
@@ -77,31 +74,6 @@ export default function Finance() {
     fileName: '',
   });
   const [matchResults, setMatchResults] = useState<any[]>([]);
-
-  // ── Owner matching names (config) ──
-  const [newName, setNewName] = useState('');
-
-  const { data: settings } = useQuery({
-    queryKey: ['user-settings', user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data } = await supabase.from('user_settings').select('*').eq('user_id', user.id).maybeSingle();
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const [ownerNames, setOwnerNames] = useState<string[]>([]);
-  useState(() => {
-    if (settings?.owner_matching_names) setOwnerNames(settings.owner_matching_names);
-  });
-
-  // Sync ownerNames when settings load
-  const prevSettings = useRef(settings);
-  if (settings !== prevSettings.current) {
-    prevSettings.current = settings;
-    if (settings?.owner_matching_names) setOwnerNames(settings.owner_matching_names);
-  }
 
   // ── Imports data ──
   const { data: imports = [] } = useQuery({
@@ -190,14 +162,15 @@ export default function Finance() {
   // ── Run matching ──
   const runMatching = useCallback(() => {
     const { rawData, mapping } = flow;
-    const matchingNames = ownerNames.length > 0 ? ownerNames : (settings?.owner_matching_names || []);
+    // Utilise le nom du profil pour identifier les lignes perso
+    const ownerName = profile?.full_name || '';
 
     const results = rawData.map((row) => {
       const rowName = String(row[mapping.name_col] || '').trim();
       const rowId = String(row[mapping.id_col] || '').trim();
       const amount = parseFloat(String(row[mapping.amount_col] || '0').replace(/[^\d.,\-]/g, '').replace(',', '.')) || 0;
 
-      const isOwner = matchingNames.some((n: string) => matchScore(n, rowName) >= 85);
+      const isOwner = ownerName ? matchScore(ownerName, rowName) >= 80 : false;
 
       let bestMatch: { member: any; confidence: number } | null = null;
       for (const member of teamMembers) {
@@ -231,7 +204,7 @@ export default function Finance() {
 
     setMatchResults(results);
     setFlow({ ...flow, step: 'matching' });
-  }, [flow, teamMembers, ownerNames, settings]);
+  }, [flow, teamMembers, profile]);
 
   // ── Save import ──
   const saveImport = useMutation({
@@ -277,29 +250,6 @@ export default function Finance() {
     },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
-
-  // ── Save settings ──
-  const saveSettings = useMutation({
-    mutationFn: async () => {
-      if (!user) return;
-      const { error } = await supabase.from('user_settings').update({
-        owner_matching_names: ownerNames,
-      }).eq('user_id', user.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-settings'] });
-      toast({ title: 'Configuration sauvegardée' });
-    },
-    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
-  });
-
-  const addOwnerName = () => {
-    if (newName.trim() && !ownerNames.includes(newName.trim().toLowerCase())) {
-      setOwnerNames([...ownerNames, newName.trim().toLowerCase()]);
-      setNewName('');
-    }
-  };
 
   // ── Print invoice ──
   const printInvoice = () => {
@@ -677,48 +627,6 @@ export default function Finance() {
           </>
         )}
 
-        {/* ══════════════ TAB: CONFIG ══════════════ */}
-        {activeTab === 'config' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-1">Noms de matching</h3>
-            <p className="text-xs text-gray-500 mb-4">
-              Ajoutez les variantes de votre nom telles qu'elles apparaissent dans les fichiers de commissions Hyla.
-            </p>
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Ex: Marie Dupont, M. DUPONT..."
-                  className="h-11 text-sm"
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addOwnerName())}
-                />
-                <button onClick={addOwnerName} className="h-11 w-11 shrink-0 flex items-center justify-center bg-gray-100 rounded-xl">
-                  <Plus className="h-4 w-4 text-gray-600" />
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {ownerNames.map((name, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 bg-[#3b82f6]/10 text-[#3b82f6] px-3 py-1.5 rounded-full text-sm font-medium">
-                    {name}
-                    <button onClick={() => setOwnerNames(ownerNames.filter((_, j) => j !== i))} className="hover:text-red-500 ml-0.5">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-                {ownerNames.length === 0 && <p className="text-xs text-gray-400">Aucun nom configuré</p>}
-              </div>
-              <button
-                onClick={() => saveSettings.mutate()}
-                disabled={saveSettings.isPending}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
-              >
-                <Save className="h-4 w-4" />
-                Sauvegarder
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </AppLayout>
   );
