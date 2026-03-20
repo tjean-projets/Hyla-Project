@@ -149,6 +149,15 @@ export function AppLayout({ title, children, actions, variant = 'light' }: AppLa
                 {link.label}
               </NavLink>
             ))}
+            <div className={cn('mt-2 pt-2 border-t', isDark ? 'border-white/10' : 'border-gray-200')}>
+              <button
+                onClick={() => { setMobileMenuOpen(false); signOut(); }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 w-full"
+              >
+                <LogOut className="h-[18px] w-[18px]" />
+                Déconnexion
+              </button>
+            </div>
           </div>
         )}
       </header>

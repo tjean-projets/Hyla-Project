@@ -110,8 +110,8 @@ export default function Dashboard() {
   });
 
   const k = kpis || {} as Record<string, number>;
-  const tauxTransfo = k.ventes_signees && k.demos_realisees
-    ? Math.round((k.ventes_signees / k.demos_realisees) * 100)
+  const tauxTransfo = k.ventes_signees && k.rdv_pris
+    ? Math.min(100, Math.round((k.ventes_signees / k.rdv_pris) * 100))
     : 0;
   const commissionTotal = (k.commissions_mois_directe || 0) + (k.commissions_mois_reseau || 0);
 
