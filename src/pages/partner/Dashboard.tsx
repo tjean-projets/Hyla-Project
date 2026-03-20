@@ -136,7 +136,7 @@ export default function PartnerDashboard() {
             });
           } else if (newLead.status === 'EN_COURS') {
             sonnerToast.info('📋 Dossier en cours d\'étude', {
-              description: `${name} — Thomas Jean Courtage instruit votre dossier.`,
+              description: `${name} — Hyla instruit votre dossier.`,
               duration: 5000,
             });
           } else if (newLead.status === 'CONTACT') {

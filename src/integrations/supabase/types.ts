@@ -7,638 +7,610 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.1"
-  }
   public: {
     Tables: {
-      admin_settings: {
+      profiles: {
         Row: {
-          address: string
-          city: string
-          cni_url: string | null
-          company_name: string
-          created_at: string | null
-          email: string
-          first_name: string
           id: string
-          justificatif_domicile_url: string | null
-          kbis_url: string | null
-          last_name: string
-          orias_number: string
-          phone: string
-          postal_code: string
-          rib_url: string | null
-          siret: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          address?: string
-          city?: string
-          cni_url?: string | null
-          company_name?: string
-          created_at?: string | null
-          email?: string
-          first_name?: string
-          id?: string
-          justificatif_domicile_url?: string | null
-          kbis_url?: string | null
-          last_name?: string
-          orias_number?: string
-          phone?: string
-          postal_code?: string
-          rib_url?: string | null
-          siret?: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          address?: string
-          city?: string
-          cni_url?: string | null
-          company_name?: string
-          created_at?: string | null
-          email?: string
-          first_name?: string
-          id?: string
-          justificatif_domicile_url?: string | null
-          kbis_url?: string | null
-          last_name?: string
-          orias_number?: string
-          phone?: string
-          postal_code?: string
-          rib_url?: string | null
-          siret?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      commission_rates: {
-        Row: {
-          contract_type: Database["public"]["Enums"]["contract_type"]
-          created_at: string | null
-          id: string
-          partner_id: string
-          rate_percent: number
-          updated_at: string | null
-        }
-        Insert: {
-          contract_type: Database["public"]["Enums"]["contract_type"]
-          created_at?: string | null
-          id?: string
-          partner_id: string
-          rate_percent?: number
-          updated_at?: string | null
-        }
-        Update: {
-          contract_type?: Database["public"]["Enums"]["contract_type"]
-          created_at?: string | null
-          id?: string
-          partner_id?: string
-          rate_percent?: number
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "commission_rates_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "partners"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      lead_events: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          event_type: string
-          id: string
-          lead_id: string
-          new_value: Json | null
-          old_value: Json | null
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          event_type: string
-          id?: string
-          lead_id: string
-          new_value?: Json | null
-          old_value?: Json | null
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          event_type?: string
-          id?: string
-          lead_id?: string
-          new_value?: Json | null
-          old_value?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_events_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      leads: {
-        Row: {
-          admin_notes: string | null
-          annual_premium_estimated: number | null
-          annual_premium_final: number | null
-          banque: string | null
-          commission_estimated: number | null
-          commission_final: number | null
-          consent_confirmed: boolean
-          consent_document_url: string | null
-          consent_text_version: string | null
-          consent_timestamp: string | null
-          contract_type: Database["public"]["Enums"]["contract_type"] | null
-          created_at: string | null
+          full_name: string
+          avatar_url: string | null
+          phone: string | null
           email: string | null
-          first_name: string
-          id: string
-          is_paid: boolean
-          last_name: string
-          lost_reason: string | null
-          montant: number | null
-          notes_partner: string | null
-          paid_at: string | null
-          paiement_compagnie_recu: boolean
-          partner_id: string
-          payment_reference: string | null
-          phone: string
-          status: Database["public"]["Enums"]["lead_status"]
-          type_projet: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          admin_notes?: string | null
-          annual_premium_estimated?: number | null
-          annual_premium_final?: number | null
-          banque?: string | null
-          commission_estimated?: number | null
-          commission_final?: number | null
-          consent_confirmed?: boolean
-          consent_document_url?: string | null
-          consent_text_version?: string | null
-          consent_timestamp?: string | null
-          contract_type?: Database["public"]["Enums"]["contract_type"] | null
-          created_at?: string | null
-          email?: string | null
-          first_name: string
-          id?: string
-          is_paid?: boolean
-          last_name: string
-          lost_reason?: string | null
-          montant?: number | null
-          notes_partner?: string | null
-          paid_at?: string | null
-          paiement_compagnie_recu?: boolean
-          partner_id: string
-          payment_reference?: string | null
-          phone: string
-          status?: Database["public"]["Enums"]["lead_status"]
-          type_projet?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          admin_notes?: string | null
-          annual_premium_estimated?: number | null
-          annual_premium_final?: number | null
-          banque?: string | null
-          commission_estimated?: number | null
-          commission_final?: number | null
-          consent_confirmed?: boolean
-          consent_document_url?: string | null
-          consent_text_version?: string | null
-          consent_timestamp?: string | null
-          contract_type?: Database["public"]["Enums"]["contract_type"] | null
-          created_at?: string | null
-          email?: string | null
-          first_name?: string
-          id?: string
-          is_paid?: boolean
-          last_name?: string
-          lost_reason?: string | null
-          montant?: number | null
-          notes_partner?: string | null
-          paid_at?: string | null
-          paiement_compagnie_recu?: boolean
-          partner_id?: string
-          payment_reference?: string | null
-          phone?: string
-          status?: Database["public"]["Enums"]["lead_status"]
-          type_projet?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "leads_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "partners"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notifications: {
-        Row: {
           created_at: string
-          id: string
-          is_read: boolean
-          link: string | null
-          message: string
-          title: string
-          type: string
-          user_id: string
+          updated_at: string
         }
         Insert: {
+          id: string
+          full_name?: string
+          avatar_url?: string | null
+          phone?: string | null
+          email?: string | null
           created_at?: string
-          id?: string
-          is_read?: boolean
-          link?: string | null
-          message: string
-          title: string
-          type?: string
-          user_id: string
+          updated_at?: string
         }
         Update: {
-          created_at?: string
           id?: string
-          is_read?: boolean
-          link?: string | null
-          message?: string
-          title?: string
-          type?: string
-          user_id?: string
+          full_name?: string
+          avatar_url?: string | null
+          phone?: string | null
+          email?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
-      partner_documents: {
+      pipeline_stages: {
         Row: {
-          created_at: string | null
-          document_type: string
-          file_name: string
-          file_url: string
           id: string
-          lead_id: string | null
-          partner_id: string
-          validation_status: string
+          user_id: string
+          name: string
+          position: number
+          color: string
+          created_at: string
         }
         Insert: {
-          created_at?: string | null
-          document_type: string
-          file_name: string
-          file_url: string
           id?: string
-          lead_id?: string | null
-          partner_id: string
-          validation_status?: string
+          user_id: string
+          name: string
+          position?: number
+          color?: string
+          created_at?: string
         }
         Update: {
-          created_at?: string | null
-          document_type?: string
-          file_name?: string
-          file_url?: string
+          name?: string
+          position?: number
+          color?: string
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          id: string
+          user_id: string
+          first_name: string
+          last_name: string
+          phone: string | null
+          email: string | null
+          address: string | null
+          source: string | null
+          status: Database["public"]["Enums"]["contact_status"]
+          priority: Database["public"]["Enums"]["contact_priority"]
+          tags: string[]
+          pipeline_stage_id: string | null
+          notes: string | null
+          last_contacted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
           id?: string
-          lead_id?: string | null
-          partner_id?: string
-          validation_status?: string
+          user_id: string
+          first_name: string
+          last_name: string
+          phone?: string | null
+          email?: string | null
+          address?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["contact_status"]
+          priority?: Database["public"]["Enums"]["contact_priority"]
+          tags?: string[]
+          pipeline_stage_id?: string | null
+          notes?: string | null
+          last_contacted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          first_name?: string
+          last_name?: string
+          phone?: string | null
+          email?: string | null
+          address?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["contact_status"]
+          priority?: Database["public"]["Enums"]["contact_priority"]
+          tags?: string[]
+          pipeline_stage_id?: string | null
+          notes?: string | null
+          last_contacted_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "partner_documents_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
+            foreignKeyName: "contacts_pipeline_stage_id_fkey"
+            columns: ["pipeline_stage_id"]
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      team_members: {
+        Row: {
+          id: string
+          user_id: string
+          contact_id: string | null
+          first_name: string
+          last_name: string
+          internal_id: string | null
+          sponsor_id: string | null
+          level: number
+          status: Database["public"]["Enums"]["member_status"]
+          phone: string | null
+          email: string | null
+          joined_at: string | null
+          matching_names: string[]
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          contact_id?: string | null
+          first_name: string
+          last_name: string
+          internal_id?: string | null
+          sponsor_id?: string | null
+          level?: number
+          status?: Database["public"]["Enums"]["member_status"]
+          phone?: string | null
+          email?: string | null
+          joined_at?: string | null
+          matching_names?: string[]
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string | null
+          first_name?: string
+          last_name?: string
+          internal_id?: string | null
+          sponsor_id?: string | null
+          level?: number
+          status?: Database["public"]["Enums"]["member_status"]
+          phone?: string | null
+          email?: string | null
+          joined_at?: string | null
+          matching_names?: string[]
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_sponsor_id_fkey"
+            columns: ["sponsor_id"]
+            referencedRelation: "team_members"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "partner_documents_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "partners"
+            foreignKeyName: "team_members_contact_id_fkey"
+            columns: ["contact_id"]
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
-      partners: {
+      deals: {
         Row: {
-          created_at: string | null
-          display_name: string
-          email: string
           id: string
-          invite_code: string
-          invite_expires_at: string
-          invite_used_at: string | null
-          is_active: boolean | null
-          partner_type: Database["public"]["Enums"]["partner_type"] | null
-          total_leads: number
-          total_revenue: number
-          total_signed: number
-          user_id: string | null
+          user_id: string
+          contact_id: string | null
+          amount: number
+          product: string | null
+          deal_type: string | null
+          status: Database["public"]["Enums"]["deal_status"]
+          signed_at: string | null
+          validated_at: string | null
+          sold_by: string | null
+          commission_direct: number
+          commission_actual: number
+          notes: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
-          created_at?: string | null
-          display_name: string
-          email: string
           id?: string
-          invite_code: string
-          invite_expires_at: string
-          invite_used_at?: string | null
-          is_active?: boolean | null
-          partner_type?: Database["public"]["Enums"]["partner_type"] | null
-          total_leads?: number
-          total_revenue?: number
-          total_signed?: number
-          user_id?: string | null
+          user_id: string
+          contact_id?: string | null
+          amount?: number
+          product?: string | null
+          deal_type?: string | null
+          status?: Database["public"]["Enums"]["deal_status"]
+          signed_at?: string | null
+          validated_at?: string | null
+          sold_by?: string | null
+          commission_direct?: number
+          commission_actual?: number
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
-          created_at?: string | null
-          display_name?: string
-          email?: string
+          contact_id?: string | null
+          amount?: number
+          product?: string | null
+          deal_type?: string | null
+          status?: Database["public"]["Enums"]["deal_status"]
+          signed_at?: string | null
+          validated_at?: string | null
+          sold_by?: string | null
+          commission_direct?: number
+          commission_actual?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_sold_by_fkey"
+            columns: ["sold_by"]
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      commission_imports: {
+        Row: {
+          id: string
+          user_id: string
+          file_name: string
+          file_url: string | null
+          period: string
+          status: Database["public"]["Enums"]["import_status"]
+          column_mapping: Json
+          stats: Json
+          notes: string | null
+          uploaded_at: string
+          processed_at: string | null
+        }
+        Insert: {
           id?: string
-          invite_code?: string
-          invite_expires_at?: string
-          invite_used_at?: string | null
-          is_active?: boolean | null
-          partner_type?: Database["public"]["Enums"]["partner_type"] | null
-          total_leads?: number
-          total_revenue?: number
-          total_signed?: number
-          user_id?: string | null
+          user_id: string
+          file_name: string
+          file_url?: string | null
+          period: string
+          status?: Database["public"]["Enums"]["import_status"]
+          column_mapping?: Json
+          stats?: Json
+          notes?: string | null
+          uploaded_at?: string
+          processed_at?: string | null
+        }
+        Update: {
+          file_name?: string
+          file_url?: string | null
+          period?: string
+          status?: Database["public"]["Enums"]["import_status"]
+          column_mapping?: Json
+          stats?: Json
+          notes?: string | null
+          processed_at?: string | null
         }
         Relationships: []
       }
-      product_commission_configs: {
+      commission_import_rows: {
         Row: {
-          commission_mode: string
-          contract_type: Database["public"]["Enums"]["contract_type"]
-          created_at: string | null
-          fixed_rate_percent: number
           id: string
-          updated_at: string | null
+          import_id: string
+          raw_data: Json
+          matched_member_id: string | null
+          is_owner_row: boolean
+          match_confidence: number
+          match_status: Database["public"]["Enums"]["match_status"]
+          amount: number
+          details: string | null
+          created_at: string
         }
         Insert: {
-          commission_mode?: string
-          contract_type: Database["public"]["Enums"]["contract_type"]
-          created_at?: string | null
-          fixed_rate_percent?: number
           id?: string
-          updated_at?: string | null
+          import_id: string
+          raw_data?: Json
+          matched_member_id?: string | null
+          is_owner_row?: boolean
+          match_confidence?: number
+          match_status?: Database["public"]["Enums"]["match_status"]
+          amount?: number
+          details?: string | null
+          created_at?: string
         }
         Update: {
-          commission_mode?: string
-          contract_type?: Database["public"]["Enums"]["contract_type"]
-          created_at?: string | null
-          fixed_rate_percent?: number
-          id?: string
-          updated_at?: string | null
+          raw_data?: Json
+          matched_member_id?: string | null
+          is_owner_row?: boolean
+          match_confidence?: number
+          match_status?: Database["public"]["Enums"]["match_status"]
+          amount?: number
+          details?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "commission_import_rows_import_id_fkey"
+            columns: ["import_id"]
+            referencedRelation: "commission_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_import_rows_matched_member_id_fkey"
+            columns: ["matched_member_id"]
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          }
+        ]
       }
-      product_tier_rules: {
+      commissions: {
         Row: {
-          contract_type: Database["public"]["Enums"]["contract_type"]
-          created_at: string | null
           id: string
-          max_signed: number | null
-          min_signed: number
-          rate_percent: number
-          tier_name: string
+          user_id: string
+          period: string
+          type: Database["public"]["Enums"]["commission_type"]
+          amount: number
+          source: Database["public"]["Enums"]["commission_source"]
+          deal_id: string | null
+          team_member_id: string | null
+          import_row_id: string | null
+          status: Database["public"]["Enums"]["commission_status"]
+          notes: string | null
+          created_at: string
         }
         Insert: {
-          contract_type: Database["public"]["Enums"]["contract_type"]
-          created_at?: string | null
           id?: string
-          max_signed?: number | null
-          min_signed: number
-          rate_percent: number
-          tier_name: string
+          user_id: string
+          period: string
+          type: Database["public"]["Enums"]["commission_type"]
+          amount?: number
+          source?: Database["public"]["Enums"]["commission_source"]
+          deal_id?: string | null
+          team_member_id?: string | null
+          import_row_id?: string | null
+          status?: Database["public"]["Enums"]["commission_status"]
+          notes?: string | null
+          created_at?: string
         }
         Update: {
-          contract_type?: Database["public"]["Enums"]["contract_type"]
-          created_at?: string | null
-          id?: string
-          max_signed?: number | null
-          min_signed?: number
-          rate_percent?: number
-          tier_name?: string
+          period?: string
+          type?: Database["public"]["Enums"]["commission_type"]
+          amount?: number
+          source?: Database["public"]["Enums"]["commission_source"]
+          deal_id?: string | null
+          team_member_id?: string | null
+          import_row_id?: string | null
+          status?: Database["public"]["Enums"]["commission_status"]
+          notes?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "commissions_deal_id_fkey"
+            columns: ["deal_id"]
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_team_member_id_fkey"
+            columns: ["team_member_id"]
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_import_row_id_fkey"
+            columns: ["import_row_id"]
+            referencedRelation: "commission_import_rows"
+            referencedColumns: ["id"]
+          }
+        ]
       }
-      tier_rules: {
+      tasks: {
         Row: {
-          created_at: string | null
           id: string
-          max_signed: number | null
-          min_signed: number
-          rate_percent: number
-          tier_name: string
+          user_id: string
+          contact_id: string | null
+          title: string
+          description: string | null
+          type: Database["public"]["Enums"]["task_type"]
+          status: Database["public"]["Enums"]["task_status"]
+          due_date: string | null
+          completed_at: string | null
+          auto_generated: boolean
+          created_at: string
         }
         Insert: {
-          created_at?: string | null
           id?: string
-          max_signed?: number | null
-          min_signed: number
-          rate_percent: number
-          tier_name: string
+          user_id: string
+          contact_id?: string | null
+          title: string
+          description?: string | null
+          type?: Database["public"]["Enums"]["task_type"]
+          status?: Database["public"]["Enums"]["task_status"]
+          due_date?: string | null
+          completed_at?: string | null
+          auto_generated?: boolean
+          created_at?: string
         }
         Update: {
-          created_at?: string | null
+          contact_id?: string | null
+          title?: string
+          description?: string | null
+          type?: Database["public"]["Enums"]["task_type"]
+          status?: Database["public"]["Enums"]["task_status"]
+          due_date?: string | null
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_contact_id_fkey"
+            columns: ["contact_id"]
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      appointments: {
+        Row: {
+          id: string
+          user_id: string
+          contact_id: string | null
+          title: string
+          type: Database["public"]["Enums"]["appointment_type"]
+          status: Database["public"]["Enums"]["appointment_status"]
+          date: string
+          duration: number
+          location: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
           id?: string
-          max_signed?: number | null
-          min_signed?: number
-          rate_percent?: number
-          tier_name?: string
+          user_id: string
+          contact_id?: string | null
+          title: string
+          type?: Database["public"]["Enums"]["appointment_type"]
+          status?: Database["public"]["Enums"]["appointment_status"]
+          date: string
+          duration?: number
+          location?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          contact_id?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["appointment_type"]
+          status?: Database["public"]["Enums"]["appointment_status"]
+          date?: string
+          duration?: number
+          location?: string | null
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_contact_id_fkey"
+            columns: ["contact_id"]
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      contact_notes: {
+        Row: {
+          id: string
+          contact_id: string
+          user_id: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          contact_id: string
+          user_id: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          content?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_notes_contact_id_fkey"
+            columns: ["contact_id"]
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_settings: {
+        Row: {
+          id: string
+          user_id: string
+          column_mappings: Json
+          mlm_config: Json
+          notification_prefs: Json
+          owner_matching_names: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          column_mappings?: Json
+          mlm_config?: Json
+          notification_prefs?: Json
+          owner_matching_names?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          column_mappings?: Json
+          mlm_config?: Json
+          notification_prefs?: Json
+          owner_matching_names?: string[]
+          updated_at?: string
         }
         Relationships: []
       }
       user_roles: {
         Row: {
-          created_at: string | null
           id: string
-          role: Database["public"]["Enums"]["app_role"]
           user_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          created_at: string
         }
         Insert: {
-          created_at?: string | null
           id?: string
-          role: Database["public"]["Enums"]["app_role"]
           user_id: string
+          role?: Database["public"]["Enums"]["app_role"]
+          created_at?: string
         }
         Update: {
-          created_at?: string | null
-          id?: string
           role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
         }
         Relationships: []
-      }
-      wallets: {
-        Row: {
-          available_balance: number
-          id: string
-          partner_id: string
-          pending_balance: number
-          total_balance: number
-          updated_at: string
-        }
-        Insert: {
-          available_balance?: number
-          id?: string
-          partner_id: string
-          pending_balance?: number
-          total_balance?: number
-          updated_at?: string
-        }
-        Update: {
-          available_balance?: number
-          id?: string
-          partner_id?: string
-          pending_balance?: number
-          total_balance?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "wallets_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: true
-            referencedRelation: "partners"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      withdrawal_requests: {
-        Row: {
-          admin_note: string | null
-          amount: number
-          created_at: string
-          id: string
-          lead_ids: string[]
-          partner_id: string
-          processed_at: string | null
-          status: string
-        }
-        Insert: {
-          admin_note?: string | null
-          amount: number
-          created_at?: string
-          id?: string
-          lead_ids?: string[]
-          partner_id: string
-          processed_at?: string | null
-          status?: string
-        }
-        Update: {
-          admin_note?: string | null
-          amount?: number
-          created_at?: string
-          id?: string
-          lead_ids?: string[]
-          partner_id?: string
-          processed_at?: string | null
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "withdrawal_requests_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "partners"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      check_48h_alerts: { Args: never; Returns: number }
-      get_motivation_data: {
-        Args: { p_partner_id: string }
-        Returns: {
-          bonus_potentiel: number
-          current_rate: number
-          current_tier_name: string
-          dossiers_manquants: number
-          next_rate: number
-          next_tier_name: string
-          signed_count: number
-        }[]
+      get_dashboard_kpis: {
+        Args: {
+          p_user_id: string
+          p_period_start?: string
+          p_period_end?: string
+        }
+        Returns: Json
       }
-      get_partner_id_for_user: { Args: { _user_id: string }; Returns: string }
-      get_partner_tier: {
-        Args: { p_partner_id: string }
-        Returns: {
-          max_signed: number
-          min_signed: number
-          rate_percent: number
-          signed_count: number
-          tier_name: string
-        }[]
+      consolidate_import_commissions: {
+        Args: {
+          p_import_id: string
+        }
+        Returns: undefined
       }
       has_role: {
         Args: {
-          _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
         }
         Returns: boolean
-      }
-      recalculate_partner_commissions: {
-        Args: { p_partner_id: string }
-        Returns: {
-          current_rate: number
-          extra_potential: number
-          next_rate: number
-          updated_count: number
-        }[]
-      }
-      sync_wallet_balance: {
-        Args: { p_partner_id: string }
-        Returns: undefined
-      }
-      validate_partner_invite: {
-        Args: { p_invite_code: string }
-        Returns: {
-          id: string
-          invite_expires_at: string
-          invite_used_at: string
-          is_active: boolean
-        }[]
       }
     }
     Enums: {
       app_role: "admin" | "partner"
-      contract_type:
-        | "emprunteur"
-        | "prevoyance"
-        | "rc_pro"
-        | "sante"
-        | "decennale"
-      lead_status:
-        | "NOUVEAU"
-        | "EN_COURS"
-        | "DEVIS_ENVOYE"
-        | "SIGNATURE"
-        | "CONTACT"
-        | "SIMULATION"
-        | "SIGNE"
-        | "REFUSE"
-        | "PERDU"
-      partner_type: "professional" | "private"
+      contact_status: "prospect" | "cliente" | "recrue" | "inactive" | "perdue" | "partenaire"
+      contact_priority: "basse" | "normale" | "haute" | "urgente"
+      deal_status: "en_cours" | "signee" | "annulee" | "en_attente" | "livree"
+      task_type: "relance" | "rdv" | "demo" | "suivi" | "admin" | "autre"
+      task_status: "a_faire" | "en_cours" | "terminee" | "annulee"
+      appointment_type: "rdv" | "demo" | "suivi" | "recrutement"
+      appointment_status: "planifie" | "realise" | "annule" | "reporte"
+      commission_type: "directe" | "reseau"
+      commission_source: "vente" | "import"
+      commission_status: "detectee" | "validee" | "en_attente" | "non_reconnue"
+      import_status: "en_cours" | "traite" | "partiel" | "erreur"
+      match_status: "auto" | "manuel" | "non_reconnu"
+      member_status: "actif" | "inactif"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -646,33 +618,27 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type PublicSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  PublicTableNameOrOptions extends
+    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+        Database[PublicTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
+        PublicSchema["Views"])
+    ? (PublicSchema["Tables"] &
+        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -680,24 +646,20 @@ export type Tables<
     : never
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -705,24 +667,20 @@ export type TablesInsert<
     : never
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -730,62 +688,14 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+  PublicEnumNameOrOptions extends
+    | keyof PublicSchema["Enums"]
+    | { schema: keyof Database },
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+> = PublicEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
+    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
     : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export const Constants = {
-  public: {
-    Enums: {
-      app_role: ["admin", "partner"],
-      contract_type: [
-        "emprunteur",
-        "prevoyance",
-        "rc_pro",
-        "sante",
-        "decennale",
-      ],
-      lead_status: [
-        "NOUVEAU",
-        "EN_COURS",
-        "DEVIS_ENVOYE",
-        "SIGNATURE",
-        "CONTACT",
-        "SIMULATION",
-        "SIGNE",
-        "REFUSE",
-        "PERDU",
-      ],
-      partner_type: ["professional", "private"],
-    },
-  },
-} as const

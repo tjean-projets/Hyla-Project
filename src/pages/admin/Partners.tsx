@@ -134,11 +134,11 @@ export default function Partners() {
     // Ouverture du client mail avec le message pré-rempli
     const inviteLink = `${window.location.origin}/invite/${inviteCode}`;
     const firstName = formData.displayName.trim().split(' ')[0];
-    const subject = encodeURIComponent('Votre accès Espace Partenaires — Thomas Jean Courtage');
+    const subject = encodeURIComponent('Votre accès Espace Partenaires — Hyla');
     const body = encodeURIComponent(
 `Bonjour ${firstName},
 
-Je vous invite à rejoindre mon espace partenaires Thomas Jean Courtage.
+Je vous invite à rejoindre mon espace partenaires Hyla.
 
 Cliquez sur le lien ci-dessous pour créer votre compte et commencer à m'envoyer vos contacts :
 
@@ -148,7 +148,7 @@ Ce lien est valable 30 jours.
 
 À très bientôt,
 Thomas Jean
-Thomas Jean Courtage`
+Hyla`
     );
     const mailtoUrl = `mailto:${formData.email.trim()}?subject=${subject}&body=${body}`;
     window.open(mailtoUrl, '_blank');

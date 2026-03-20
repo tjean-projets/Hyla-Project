@@ -180,7 +180,7 @@ export default function Payments() {
     </head><body>
       <div class="header">
         <div>
-          <div class="logo">Thomas Jean Courtage<span>${docTitle}</span></div>
+          <div class="logo">Hyla<span>${docTitle}</span></div>
         </div>
         <div class="meta">
           <strong>${refNumber}</strong>
@@ -208,7 +208,7 @@ export default function Payments() {
         <span>Total à verser</span>
         <span class="mono">${req.amount.toLocaleString('fr-FR')} €</span>
       </div>
-      <div class="footer">Thomas Jean Courtage — ${docTitle} — Réf. ${refNumber}</div>
+      <div class="footer">Hyla — ${docTitle} — Réf. ${refNumber}</div>
     </body></html>`);
     printWindow.document.close();
     setTimeout(() => printWindow.print(), 300);

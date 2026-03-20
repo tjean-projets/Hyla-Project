@@ -81,14 +81,14 @@ export default function Finances() {
     return { refNumber, html: `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Facture ${refNumber}</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;color:#1a1a2e;padding:48px;font-size:13px;line-height:1.5}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px;padding-bottom:24px;border-bottom:1px solid #e5e7eb}.logo{font-size:20px;font-weight:700;letter-spacing:-.5px}.logo span{color:#6b7280;font-weight:400;font-size:13px;display:block;margin-top:2px}.meta{text-align:right;color:#6b7280;font-size:12px}.meta strong{color:#1a1a2e;display:block;font-size:14px;margin-bottom:2px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px}.box{background:#f9fafb;border-radius:8px;padding:16px}.box h3{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#9ca3af;margin-bottom:8px}.box p{font-size:13px;color:#374151}.box p strong{color:#1a1a2e}table{width:100%;border-collapse:collapse;margin-bottom:24px}thead th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#9ca3af;border-bottom:2px solid #e5e7eb;padding:8px 12px;text-align:left;font-weight:600}tbody td{padding:10px 12px;border-bottom:1px solid #f3f4f6;font-size:13px}.mono{font-variant-numeric:tabular-nums;font-family:'SF Mono','Fira Code',monospace}.totals{border-top:2px solid #e5e7eb;padding-top:16px}.tr{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}.tr.final{font-size:16px;font-weight:700;padding-top:12px;margin-top:8px;border-top:1px solid #e5e7eb}.label{color:#6b7280}.footer{margin-top:48px;padding-top:16px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:11px;text-align:center}@media print{body{padding:24px}}</style>
 </head><body>
-<div class="header"><div><div class="logo">Thomas Jean Courtage<span>Facture de Commission</span></div></div><div class="meta"><strong>${refNumber}</strong>${dateStr}</div></div>
+<div class="header"><div><div class="logo">Hyla<span>Facture de Commission</span></div></div><div class="meta"><strong>${refNumber}</strong>${dateStr}</div></div>
 <div class="grid"><div class="box"><h3>Bénéficiaire</h3><p><strong>${partner.display_name}</strong></p><p>${partner.email}</p><p>Type : ${isPro ? 'Professionnel' : 'Particulier'}</p></div><div class="box"><h3>Dossier</h3><p><strong>${lead.first_name} ${lead.last_name}</strong></p><p>Produit : ${lead.contract_type ? CONTRACT_TYPE_LABELS[lead.contract_type] : '—'}</p><p>Payé le ${dateStr}</p></div></div>
 <table><thead><tr><th>Description</th><th>Montant</th></tr></thead><tbody>
 <tr><td>Commission brute</td><td class="mono">${gross.toLocaleString('fr-FR')} €</td></tr>
 <tr><td>Taux partenaire (${rate}%)</td><td class="mono">${partnerComm.toLocaleString('fr-FR')} €</td></tr>
 </tbody></table>
 <div class="totals"><div class="tr"><span class="label">Commission brute</span><span class="mono">${gross.toLocaleString('fr-FR')} €</span></div><div class="tr"><span class="label">Part Partenaire</span><span class="mono">${partnerComm.toLocaleString('fr-FR')} €</span></div><div class="tr final"><span>Net à verser</span><span class="mono">${partnerComm.toLocaleString('fr-FR')} €</span></div></div>
-<div class="footer">Thomas Jean Courtage — Facture — Réf. ${refNumber}</div>
+<div class="footer">Hyla — Facture — Réf. ${refNumber}</div>
 </body></html>` };
   };
 
@@ -224,7 +224,7 @@ export default function Finances() {
     </head><body>
       <div class="header">
         <div>
-          <div class="logo">Thomas Jean Courtage<span>Bordereau de Commissions</span></div>
+          <div class="logo">Hyla<span>Bordereau de Commissions</span></div>
         </div>
         <div class="meta">
           <strong>${refNumber}</strong>
@@ -260,7 +260,7 @@ export default function Finances() {
       </div>
 
       <div class="footer">
-        Thomas Jean Courtage — Document généré automatiquement — Réf. ${refNumber}
+        Hyla — Document généré automatiquement — Réf. ${refNumber}
       </div>
     </body></html>`);
     printWindow.document.close();

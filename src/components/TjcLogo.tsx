@@ -1,28 +1,16 @@
 import { cn } from '@/lib/utils';
 
-interface TjcLogoProps {
+interface HylaLogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
-  showText?: boolean;
   className?: string;
 }
 
-const sizes = {
-  sm:  { width: 40,  height: 20 },
-  md:  { width: 90,  height: 45 },
-  lg:  { width: 160, height: 80 },
-  xl:  { width: 220, height: 110 },
-};
+const iconSizes = { sm: 'h-8 w-8 text-xs', md: 'h-10 w-10 text-sm', lg: 'h-14 w-14 text-lg', xl: 'h-20 w-20 text-2xl' };
 
-export function TjcLogo({ size = 'md', showText: _showText, className }: TjcLogoProps) {
-  const { width, height } = sizes[size];
-
+export function TjcLogo({ size = 'md', className }: HylaLogoProps) {
   return (
-    <img
-      src="/LOGO BLANC.jpg"
-      alt="Thomas Jean Courtage"
-      width={width}
-      height={height}
-      className={cn('object-contain', className)}
-    />
+    <div className={cn('rounded-lg bg-gradient-to-br from-[#1e3a5f] to-[#2c5282] flex items-center justify-center', iconSizes[size], className)}>
+      <span className="text-white font-bold">H</span>
+    </div>
   );
 }

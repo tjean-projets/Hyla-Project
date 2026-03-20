@@ -164,7 +164,7 @@ export default function Invite() {
 
     toast({
       title: 'Compte créé !',
-      description: 'Bienvenue chez Thomas Jean Courtage.',
+      description: 'Bienvenue chez Hyla.',
     });
 
     // Redirect to partner dashboard
@@ -208,7 +208,7 @@ export default function Invite() {
           <div className="mx-auto h-16 w-16 rounded-2xl bg-primary flex items-center justify-center mb-4 shadow-lg">
             <Shield className="h-8 w-8 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Thomas Jean Courtage</h1>
+          <h1 className="text-2xl font-bold text-foreground">Hyla</h1>
           <p className="text-muted-foreground mt-1">Créez votre compte partenaire</p>
         </div>
 

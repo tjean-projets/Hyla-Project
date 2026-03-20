@@ -51,7 +51,7 @@ export function ConsentModal({ open, onOpenChange, onConfirm, isLoading }: Conse
 
         <div className="my-4 rounded-lg bg-muted p-4">
           <p className="text-sm text-muted-foreground">
-            Le prospect accepte d'être rappelé par Thomas Jean Courtage dans le cadre d'une 
+            Le prospect accepte d'être rappelé par Hyla dans le cadre d'une 
             proposition d'assurance emprunteur.
           </p>
         </div>

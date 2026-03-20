@@ -105,7 +105,7 @@ const handler = async (req: Request): Promise<Response> => {
     const configuredBaseUrl =
       Deno.env.get("APP_BASE_URL") ||
       Deno.env.get("PUBLIC_APP_URL") ||
-      "https://thomas-jean-courtage.lovable.app";
+      "";
 
     const sanitizeBaseUrl = (url: string) => url.replace(/\/+$/, "");
 
@@ -115,7 +115,7 @@ const handler = async (req: Request): Promise<Response> => {
       try {
         const u = new URL(appUrl.trim());
         const host = u.hostname.toLowerCase();
-        const isEditorHost = host.endsWith("lovableproject.com") || host.endsWith("lovable.dev");
+        const isEditorHost = host.endsWith("lovableproject.com") || host.endsWith("lovable.dev") || host.endsWith("lovable.app");
         if (!isEditorHost) {
           baseUrl = sanitizeBaseUrl(`${u.protocol}//${u.host}`);
         }
@@ -133,9 +133,9 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const emailResponse = await resend.emails.send({
-      from: "Thomas Jean Courtage <contact@thomas-jean-courtage.fr>",
+      from: "Hyla <noreply@hyla.app>",
       to: [partnerEmail],
-      subject: "Invitation à rejoindre Thomas Jean Courtage",
+      subject: "Invitation à rejoindre Hyla",
       html: `
         <!DOCTYPE html>
         <html>
@@ -146,7 +146,7 @@ const handler = async (req: Request): Promise<Response> => {
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
           <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
             <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%); border-radius: 16px 16px 0 0; padding: 40px; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">Thomas Jean Courtage</h1>
+              <h1 style="color: white; margin: 0; font-size: 28px;">Hyla</h1>
               <p style="color: rgba(255,255,255,0.8); margin: 10px 0 0 0;">Plateforme Partenaires</p>
             </div>
             
@@ -154,7 +154,7 @@ const handler = async (req: Request): Promise<Response> => {
               <h2 style="color: #1e3a5f; margin: 0 0 20px 0;">Bonjour ${partnerName},</h2>
               
               <p style="color: #4a5568; line-height: 1.6; margin: 0 0 20px 0;">
-                Vous êtes invité(e) à rejoindre la plateforme de gestion de leads de Thomas Jean Courtage en tant que partenaire.
+                Vous êtes invité(e) à rejoindre la plateforme Hyla en tant que partenaire.
               </p>
               
               <p style="color: #4a5568; line-height: 1.6; margin: 0 0 30px 0;">

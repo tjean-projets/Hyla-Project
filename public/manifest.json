@@ -1,7 +1,7 @@
 {
-  "name": "TJC Partenaires",
-  "short_name": "TJC",
-  "description": "Espace partenaires Thomas Jean Courtage",
+  "name": "Hyla",
+  "short_name": "Hyla",
+  "description": "Espace partenaires Hyla",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

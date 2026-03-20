@@ -71,7 +71,7 @@ export default function Join() {
             <Shield className="h-7 w-7 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-3">
-            Devenez Partenaire Thomas Jean Courtage
+            Devenez Partenaire Hyla
           </h1>
           <p className="text-muted-foreground max-w-xl mx-auto">
             Rejoignez notre réseau d'apporteurs d'affaires et bénéficiez de commissions évolutives selon votre performance.

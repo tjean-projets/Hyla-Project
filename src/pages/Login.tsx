@@ -1,12 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { TjcLogo } from '@/components/TjcLogo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -33,37 +29,74 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <TjcLogo size="xl" />
-          </div>
-          <p className="text-xs text-muted-foreground">Espace partenaires</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      {/* ── Background: Hyla product image ── */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/hyla-bg.png)' }}
+      />
+      {/* Dark overlay for readability */}
+      <div className="absolute inset-0 bg-black/30" />
 
-        <div className="rounded-lg border bg-card p-5">
-          <p className="text-sm font-semibold text-center mb-4">Connexion</p>
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs">Email</Label>
-              <Input id="email" type="email" placeholder="vous@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-10" />
+      {/* ── Glassmorphism login card ── */}
+      <div className="relative z-10 w-full max-w-sm mx-4">
+        <div className="backdrop-blur-xl bg-white/[0.08] border border-white/[0.15] rounded-2xl p-8 shadow-2xl shadow-black/20">
+          {/* Brand */}
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold tracking-tight">
+              <span className="text-white">HYLA</span>
+              <span className="text-white/50 font-light ml-1.5">CRM</span>
+            </h1>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full h-12 px-4 bg-white/[0.06] border border-white/[0.15] rounded-lg text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 focus:border-[#3b82f6]/50 transition-all"
+              />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-xs">Mot de passe</Label>
-              <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-10" />
+            <div>
+              <input
+                type="password"
+                placeholder="Mot de passe"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full h-12 px-4 bg-white/[0.06] border border-white/[0.15] rounded-lg text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 focus:border-[#3b82f6]/50 transition-all"
+              />
             </div>
-            <Button type="submit" className="w-full h-10 text-sm" disabled={isLoading}>
-              {isLoading ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Connexion...</> : 'Se connecter'}
-            </Button>
-            <div className="text-center pt-1">
-              <Link to="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground underline">
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full h-12 bg-[#3b82f6] hover:bg-[#2563eb] text-white font-semibold text-sm rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Connexion...
+                </span>
+              ) : (
+                'Se connecter'
+              )}
+            </button>
+
+            <div className="text-center pt-2">
+              <Link
+                to="/forgot-password"
+                className="text-xs text-white/40 hover:text-white/70 transition-colors"
+              >
                 Mot de passe oublié ?
               </Link>
             </div>
           </form>
         </div>
-
       </div>
     </div>
   );

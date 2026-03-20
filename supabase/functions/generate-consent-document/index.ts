@@ -150,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
 </head>
 <body>
   <div class="header">
-    <h1>Thomas Jean Courtage</h1>
+    <h1>Hyla</h1>
     <p>Attestation de consentement du prospect</p>
     <span class="badge">DOCUMENT HORODATÉ</span>
   </div>
@@ -169,7 +169,7 @@ const handler = async (req: Request): Promise<Response> => {
   </div>
 
   <div class="consent-box">
-    <p>« Je confirme avoir informé la personne susmentionnée que ses coordonnées seraient transmises à Thomas Jean Courtage afin qu'elle soit contactée dans le cadre de services d'assurance. Le prospect a donné son accord explicite pour être recontacté. »</p>
+    <p>« Je confirme avoir informé la personne susmentionnée que ses coordonnées seraient transmises à Hyla afin qu'elle soit contactée dans le cadre de services d'assurance. Le prospect a donné son accord explicite pour être recontacté. »</p>
   </div>
 
   <div class="timestamp">
@@ -178,7 +178,7 @@ const handler = async (req: Request): Promise<Response> => {
   </div>
 
   <div class="footer">
-    <p>Ce document a été généré automatiquement par la plateforme Thomas Jean Courtage.</p>
+    <p>Ce document a été généré automatiquement par la plateforme Hyla.</p>
     <p>Il atteste du recueil du consentement du prospect par le partenaire apporteur d'affaires.</p>
   </div>
 </body>

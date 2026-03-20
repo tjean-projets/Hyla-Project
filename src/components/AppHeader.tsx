@@ -17,7 +17,7 @@ export function AppHeader({ title }: AppHeaderProps) {
       <div className="flex h-14 items-center justify-between px-4">
         <div>
           <h1 className="text-sm font-semibold text-foreground leading-tight">
-            {title || (role === 'partner' && partnerName ? partnerName : 'Thomas Jean Courtage')}
+            {title || (role === 'partner' && partnerName ? partnerName : 'Hyla')}
           </h1>
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
             {role === 'admin' ? 'Admin' : 'Partenaire'}

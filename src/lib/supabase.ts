@@ -2,139 +2,116 @@ import { supabase } from "@/integrations/supabase/client";
 
 export { supabase };
 
-export type LeadStatus = 'NOUVEAU' | 'EN_COURS' | 'CONTACT' | 'DEVIS_ENVOYE' | 'SIGNATURE' | 'SIGNE' | 'REFUSE' | 'PERDU';
-export type ContractType = 'emprunteur' | 'prevoyance' | 'rc_pro' | 'sante' | 'decennale';
-export type PartnerType = 'professional' | 'private';
+// ── Contact statuses ──
+export type ContactStatus = 'prospect' | 'cliente' | 'recrue' | 'inactive' | 'perdue' | 'partenaire';
 
-export interface Lead {
-  id: string;
-  partner_id: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  email: string | null;
-  notes_partner: string | null;
-  consent_confirmed: boolean;
-  consent_timestamp: string | null;
-  consent_text_version: string | null;
-  consent_document_url: string | null;
-  contract_type: ContractType | null;
-  status: LeadStatus;
-  annual_premium_estimated: number | null;
-  annual_premium_final: number | null;
-  commission_estimated: number | null;
-  commission_final: number | null;
-  admin_notes: string | null;
-  lost_reason: string | null;
-  montant: number | null;
-  banque: string | null;
-  type_projet: string | null;
-  is_paid: boolean;
-  paid_at: string | null;
-  paiement_compagnie_recu: boolean;
-  payment_reference: string | null;
-  frais_courtage: number | null;
-  frais_courtage_mode: 'fixe' | 'etale' | null;
-  frais_courtage_mois: number | null;
-  savings_achieved: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Partner {
-  id: string;
-  user_id: string | null;
-  display_name: string;
-  email: string;
-  is_active: boolean;
-  partner_type: PartnerType;
-  invite_code: string;
-  invite_expires_at: string;
-  invite_used_at: string | null;
-  created_at: string;
-}
-
-export interface CommissionRate {
-  id: string;
-  partner_id: string;
-  contract_type: ContractType;
-  rate_percent: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface TierRule {
-  id: string;
-  tier_name: string;
-  min_signed: number;
-  max_signed: number | null;
-  rate_percent: number;
-  created_at: string;
-}
-
-export interface PartnerTier {
-  tier_name: string;
-  rate_percent: number;
-  signed_count: number;
-  min_signed: number;
-  max_signed: number | null;
-}
-
-export interface PartnerDocument {
-  id: string;
-  partner_id: string;
-  document_type: string;
-  file_name: string;
-  file_url: string;
-  lead_id: string | null;
-  created_at: string;
-}
-
-export interface LeadEvent {
-  id: string;
-  lead_id: string;
-  event_type: string;
-  old_value: Record<string, unknown> | null;
-  new_value: Record<string, unknown> | null;
-  created_by: string | null;
-  created_at: string;
-}
-
-export type UserRole = 'admin' | 'partner';
-
-export const STATUS_LABELS: Record<LeadStatus, string> = {
-  NOUVEAU: 'Nouveau',
-  EN_COURS: 'En cours',
-  CONTACT: 'Contact',
-  DEVIS_ENVOYE: 'Devis envoyé',
-  SIGNATURE: 'Signature',
-  SIGNE: 'Signé',
-  REFUSE: 'Refusé',
-  PERDU: 'Perdu',
+export const CONTACT_STATUS_LABELS: Record<ContactStatus, string> = {
+  prospect: 'Prospect',
+  cliente: 'Cliente',
+  recrue: 'Recrue',
+  inactive: 'Inactive',
+  perdue: 'Perdue',
+  partenaire: 'Partenaire',
 };
 
-export const STATUS_COLORS: Record<LeadStatus, string> = {
-  NOUVEAU: 'status-nouveau',
-  EN_COURS: 'status-en-cours',
-  CONTACT: 'status-contact',
-  DEVIS_ENVOYE: 'status-devis-envoye',
-  SIGNATURE: 'status-signature',
-  SIGNE: 'status-signe',
-  REFUSE: 'status-refuse',
-  PERDU: 'status-perdu',
+export const CONTACT_STATUS_COLORS: Record<ContactStatus, string> = {
+  prospect: 'bg-blue-100 text-blue-800',
+  cliente: 'bg-green-100 text-green-800',
+  recrue: 'bg-purple-100 text-purple-800',
+  inactive: 'bg-gray-100 text-gray-600',
+  perdue: 'bg-red-100 text-red-800',
+  partenaire: 'bg-amber-100 text-amber-800',
 };
 
-export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
-  emprunteur: 'Emprunteur',
-  prevoyance: 'Prévoyance',
-  rc_pro: 'RC Pro',
-  sante: 'Santé',
-  decennale: 'Décennale',
+// ── Deal statuses ──
+export type DealStatus = 'en_cours' | 'signee' | 'annulee' | 'en_attente' | 'livree';
+
+export const DEAL_STATUS_LABELS: Record<DealStatus, string> = {
+  en_cours: 'En cours',
+  signee: 'Signée',
+  annulee: 'Annulée',
+  en_attente: 'En attente',
+  livree: 'Livrée',
 };
 
-export const PARTNER_TYPE_LABELS: Record<PartnerType, string> = {
-  professional: 'Professionnel',
-  private: 'Particulier',
+export const DEAL_STATUS_COLORS: Record<DealStatus, string> = {
+  en_cours: 'bg-blue-100 text-blue-800',
+  signee: 'bg-green-100 text-green-800',
+  annulee: 'bg-red-100 text-red-800',
+  en_attente: 'bg-amber-100 text-amber-800',
+  livree: 'bg-teal-100 text-teal-800',
 };
 
-export const STATUS_ORDER: LeadStatus[] = ['NOUVEAU', 'EN_COURS', 'DEVIS_ENVOYE', 'SIGNATURE', 'SIGNE', 'REFUSE', 'PERDU'];
+// ── Task types & statuses ──
+export type TaskType = 'relance' | 'rdv' | 'demo' | 'suivi' | 'admin' | 'autre';
+export type TaskStatus = 'a_faire' | 'en_cours' | 'terminee' | 'annulee';
+
+export const TASK_TYPE_LABELS: Record<TaskType, string> = {
+  relance: 'Relance',
+  rdv: 'Rendez-vous',
+  demo: 'Démonstration',
+  suivi: 'Suivi',
+  admin: 'Administratif',
+  autre: 'Autre',
+};
+
+export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
+  a_faire: 'À faire',
+  en_cours: 'En cours',
+  terminee: 'Terminée',
+  annulee: 'Annulée',
+};
+
+// ── Appointment types ──
+export type AppointmentType = 'rdv' | 'demo' | 'suivi' | 'recrutement';
+export type AppointmentStatus = 'planifie' | 'realise' | 'annule' | 'reporte';
+
+export const APPOINTMENT_TYPE_LABELS: Record<AppointmentType, string> = {
+  rdv: 'Rendez-vous',
+  demo: 'Démonstration',
+  suivi: 'Suivi',
+  recrutement: 'Recrutement',
+};
+
+// ── Commission types ──
+export type CommissionType = 'directe' | 'reseau';
+export type CommissionStatus = 'detectee' | 'validee' | 'en_attente' | 'non_reconnue';
+
+export const COMMISSION_TYPE_LABELS: Record<CommissionType, string> = {
+  directe: 'Directe',
+  reseau: 'Réseau',
+};
+
+// ── Import statuses ──
+export type ImportStatus = 'en_cours' | 'traite' | 'partiel' | 'erreur';
+
+export const IMPORT_STATUS_LABELS: Record<ImportStatus, string> = {
+  en_cours: 'En cours',
+  traite: 'Traité',
+  partiel: 'Partiel',
+  erreur: 'Erreur',
+};
+
+export const IMPORT_STATUS_COLORS: Record<ImportStatus, string> = {
+  en_cours: 'bg-blue-100 text-blue-800',
+  traite: 'bg-green-100 text-green-800',
+  partiel: 'bg-amber-100 text-amber-800',
+  erreur: 'bg-red-100 text-red-800',
+};
+
+// ── Priority ──
+export type ContactPriority = 'basse' | 'normale' | 'haute' | 'urgente';
+
+export const PRIORITY_LABELS: Record<ContactPriority, string> = {
+  basse: 'Basse',
+  normale: 'Normale',
+  haute: 'Haute',
+  urgente: 'Urgente',
+};
+
+export const PRIORITY_COLORS: Record<ContactPriority, string> = {
+  basse: 'bg-gray-100 text-gray-600',
+  normale: 'bg-blue-100 text-blue-700',
+  haute: 'bg-orange-100 text-orange-700',
+  urgente: 'bg-red-100 text-red-700',
+};

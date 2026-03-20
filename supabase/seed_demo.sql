@@ -1,5 +1,5 @@
 -- =================================================================
--- DONNÉES DE DÉMONSTRATION — Thomas Jean Courtage
+-- DONNÉES DE DÉMONSTRATION — Hyla
 -- 5 partenaires · 41 leads · pipeline réaliste
 --
 -- ▶ Coller et exécuter dans l'éditeur SQL Supabase

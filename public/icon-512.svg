@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="80" fill="#1a1a2e"/>
-  <text x="256" y="300" font-family="Georgia, serif" font-size="180" font-weight="bold" fill="#c8963e" text-anchor="middle">TJC</text>
-  <line x1="80" y1="340" x2="432" y2="340" stroke="#c8963e" stroke-width="8" stroke-linecap="round"/>
-</svg>
