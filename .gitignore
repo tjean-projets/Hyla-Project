@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.npm
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+
+# Environment files (NEVER commit these)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Supabase local
+supabase/.branches
+supabase/.temp
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.sw?
+Thumbs.db
+.claude/
+.vercel
+.claude/
