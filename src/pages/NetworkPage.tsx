@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
+import { supabase, HYLA_NETWORK_TIERS, HYLA_NETWORK_COMMISSION } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Users, UserPlus, Star, Trophy, Crown, Award, ChevronUp, Zap, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,16 +15,16 @@ import type { Tables } from '@/integrations/supabase/types';
 
 type TeamMember = Tables<'team_members'>;
 
-/* ── Tier badge (mockup 3: Bronze / Silver / Gold / Platinum) ── */
+/* ── Tier badge Hyla: Conseillère → Manager → Senior → Elite ── */
 const TIERS = [
-  { min: 0, label: 'Bronze', color: 'from-amber-700 to-amber-500', text: 'text-amber-300', icon: Award },
-  { min: 3, label: 'Argent', color: 'from-gray-400 to-gray-300', text: 'text-gray-200', icon: Star },
-  { min: 8, label: 'Or', color: 'from-yellow-500 to-yellow-300', text: 'text-yellow-200', icon: Trophy },
-  { min: 15, label: 'Platine', color: 'from-violet-500 to-indigo-400', text: 'text-violet-200', icon: Crown },
+  { ...HYLA_NETWORK_TIERS[0], color: 'from-blue-500 to-blue-400', text: 'text-blue-300', icon: Award },
+  { ...HYLA_NETWORK_TIERS[1], color: 'from-amber-500 to-amber-400', text: 'text-amber-300', icon: Star },
+  { ...HYLA_NETWORK_TIERS[2], color: 'from-yellow-500 to-yellow-300', text: 'text-yellow-200', icon: Trophy },
+  { ...HYLA_NETWORK_TIERS[3], color: 'from-violet-500 to-indigo-400', text: 'text-violet-200', icon: Crown },
 ];
 
-function getTier(level: number) {
-  return [...TIERS].reverse().find(t => level >= t.min) || TIERS[0];
+function getTier(count: number) {
+  return [...TIERS].reverse().find(t => count >= t.min) || TIERS[0];
 }
 
 function MemberForm({
@@ -302,7 +302,7 @@ export default function NetworkPage() {
           </div>
         </div>
 
-        {/* ── Tier badge (mockup 3: current rank) ── */}
+        {/* ── Tier badge Hyla ── */}
         {(() => {
           const tier = getTier(members.length);
           const TierIcon = tier.icon;
@@ -322,7 +322,7 @@ export default function NetworkPage() {
                     {nextTier && (
                       <span className="text-[10px] text-gray-500 flex items-center gap-0.5">
                         <ChevronUp className="h-3 w-3" />
-                        {nextTier.label} à {nextTier.min} membres
+                        {nextTier.label} à {nextTier.min} partenaires
                       </span>
                     )}
                   </div>
@@ -332,7 +332,7 @@ export default function NetworkPage() {
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <p className="text-[11px] text-gray-500 mt-1">{members.length} membre{members.length > 1 ? 's' : ''} recrutés</p>
+                  <p className="text-[11px] text-gray-500 mt-1">{members.length} partenaire{members.length > 1 ? 's' : ''} • {HYLA_NETWORK_COMMISSION.recrue_directe}€/vente directe recrue • {HYLA_NETWORK_COMMISSION.reseau}€/vente réseau</p>
                 </div>
               </div>
             </div>

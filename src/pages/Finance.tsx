@@ -253,7 +253,6 @@ export default function Finance() {
 
   // ── Print invoice ──
   const printInvoice = () => {
-    if (!invoiceRef.current) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 

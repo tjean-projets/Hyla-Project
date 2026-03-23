@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS } from '@/lib/supabase';
+import { supabase, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS, HYLA_PRODUCTS, HYLA_COMMISSION_SCALE, getHylaCommission } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -116,11 +116,27 @@ function DealForm({ onSuccess, contacts, initialData, onDelete }: {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Produit / Pack</Label>
-          <Input className="h-11" value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} />
+          <Select value={form.product} onValueChange={(v) => setForm({ ...form, product: v })}>
+            <SelectTrigger className="h-11"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+            <SelectContent>
+              {HYLA_PRODUCTS.map(p => (
+                <SelectItem key={p.label} value={p.label}>{p.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Label>Type de vente</Label>
-          <Input className="h-11" placeholder="Directe, Parrainage..." value={form.deal_type} onChange={(e) => setForm({ ...form, deal_type: e.target.value })} />
+          <Select value={form.deal_type} onValueChange={(v) => setForm({ ...form, deal_type: v })}>
+            <SelectTrigger className="h-11"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="directe">Vente directe</SelectItem>
+              <SelectItem value="parrainage">Parrainage</SelectItem>
+              <SelectItem value="salon">Salon / Foire</SelectItem>
+              <SelectItem value="en_ligne">Vente en ligne</SelectItem>
+              <SelectItem value="reseau_social">Réseau social</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <div>
@@ -193,6 +209,8 @@ export default function Deals() {
   });
 
   const totalMois = deals.filter((d: any) => d.status === 'signee').reduce((sum: number, d: any) => sum + d.amount, 0);
+  const nbSignees = deals.filter((d: any) => d.status === 'signee').length;
+  const commissionEstimee = getHylaCommission(nbSignees);
 
   return (
     <AppLayout
@@ -229,18 +247,41 @@ export default function Deals() {
 
       <div className="space-y-4">
         {/* KPI row */}
-        <div className="grid grid-cols-3 gap-4">
+        {/* KPI cards */}
+        <div className="grid grid-cols-2 gap-3">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <p className="text-xs text-gray-400 uppercase font-semibold">Total signées</p>
-            <p className="text-xl font-bold text-gray-900 mt-1">{totalMois.toLocaleString('fr-FR')} €</p>
+            <p className="text-[10px] text-gray-400 uppercase font-semibold">Machines vendues</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{nbSignees}</p>
+          </div>
+          <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl p-4 text-white">
+            <p className="text-[10px] uppercase font-semibold opacity-80">Commission estimée</p>
+            <p className="text-2xl font-bold mt-1">{commissionEstimee.toLocaleString('fr-FR')} €</p>
+          </div>
+        </div>
+
+        {/* Barème Hyla */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <p className="text-xs font-semibold text-gray-900 mb-2">Barème commissions ventes</p>
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {HYLA_COMMISSION_SCALE.map((s, i) => (
+              <div key={i} className={`flex-shrink-0 text-center px-2.5 py-1.5 rounded-lg text-[10px] font-medium border ${
+                nbSignees >= s.machines ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-gray-50 border-gray-100 text-gray-400'
+              }`}>
+                <div className="font-bold text-xs">{s.commission}€</div>
+                <div>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <p className="text-[10px] text-gray-400 uppercase font-semibold">CA total</p>
+            <p className="text-lg font-bold text-gray-900 mt-1">{totalMois.toLocaleString('fr-FR')} €</p>
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <p className="text-xs text-gray-400 uppercase font-semibold">Nb ventes</p>
-            <p className="text-xl font-bold text-gray-900 mt-1">{deals.filter((d: any) => d.status === 'signee').length}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <p className="text-xs text-gray-400 uppercase font-semibold">En attente</p>
-            <p className="text-xl font-bold text-amber-600 mt-1">{deals.filter((d: any) => d.status === 'en_attente' || d.status === 'en_cours').length}</p>
+            <p className="text-[10px] text-gray-400 uppercase font-semibold">En cours</p>
+            <p className="text-lg font-bold text-amber-600 mt-1">{deals.filter((d: any) => d.status === 'en_attente' || d.status === 'en_cours').length}</p>
           </div>
         </div>
 

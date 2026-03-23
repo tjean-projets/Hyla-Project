@@ -55,6 +55,20 @@ export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   autre: 'Autre',
 };
 
+export type TaskTypeExtended = TaskType | 'formation' | 'contenu' | 'livraison';
+
+export const TASK_TYPE_LABELS_HYLA: Record<string, string> = {
+  relance: 'Relance',
+  rdv: 'Rendez-vous',
+  demo: 'Démonstration Hyla',
+  suivi: 'Suivi client',
+  admin: 'Administratif',
+  formation: 'Formation',
+  contenu: 'Contenu réseaux',
+  livraison: 'Livraison',
+  autre: 'Autre',
+};
+
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   a_faire: 'À faire',
   en_cours: 'En cours',
@@ -98,6 +112,56 @@ export const IMPORT_STATUS_COLORS: Record<ImportStatus, string> = {
   partiel: 'bg-amber-100 text-amber-800',
   erreur: 'bg-red-100 text-red-800',
 };
+
+// ── Barème Hyla ──
+// Commissions ventes personnelles (paliers par mois)
+export const HYLA_COMMISSION_SCALE = [
+  { machines: 1, commission: 300, label: '1 Hyla' },
+  { machines: 2, commission: 700, label: '2 Hyla' },
+  { machines: 3, commission: 1200, label: '3 Hyla' },
+  { machines: 4, commission: 1800, label: '4 Hyla' },
+  { machines: 6, commission: 2700, label: '6 Hyla' },
+  { machines: 8, commission: 4000, label: '8 Hyla' },
+];
+
+// Commission réseau
+export const HYLA_NETWORK_COMMISSION = {
+  recrue_directe: 100, // € par vente d'une recrue directe
+  reseau: 30,          // € par vente du réseau élargi
+};
+
+// Challenges
+export const HYLA_CHALLENGES = {
+  countdown: { name: 'Compte à Rebours Online', duration: '2 mois', target: 5, bonus: 800 },
+  rookie: { name: 'Rookie Online', duration: '6 mois', target: 15, bonus: 1000 },
+};
+
+// Produits Hyla
+export const HYLA_PRODUCTS = [
+  { label: 'Hyla GST (Machine)', price: null },
+  { label: 'Pack Nimbus (Shampouineuse)', price: null },
+  { label: 'Pack Hygiène', price: null },
+  { label: 'Electrobrosse Ventus', price: null },
+  { label: 'Kit Vitres', price: null },
+  { label: 'Pack Animaux', price: null },
+  { label: 'Autre', price: null },
+];
+
+// Niveaux réseau Hyla
+export const HYLA_NETWORK_TIERS = [
+  { min: 0, label: 'Conseillère', description: 'Recommande le Hyla autour de soi' },
+  { min: 4, label: 'Manager', description: '4+ partenaires qui dupliquent' },
+  { min: 10, label: 'Senior Manager', description: 'Équipe structurée et active' },
+  { min: 20, label: 'Elite Manager', description: 'Leader confirmée du réseau' },
+];
+
+export function getHylaCommission(machinesSold: number): number {
+  const scale = [...HYLA_COMMISSION_SCALE].reverse();
+  for (const s of scale) {
+    if (machinesSold >= s.machines) return s.commission;
+  }
+  return 0;
+}
 
 // ── Priority ──
 export type ContactPriority = 'basse' | 'normale' | 'haute' | 'urgente';

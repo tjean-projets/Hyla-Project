@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase, TASK_TYPE_LABELS, TASK_STATUS_LABELS } from '@/lib/supabase';
+import { supabase, TASK_TYPE_LABELS_HYLA_HYLA, TASK_STATUS_LABELS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Check, Clock, Trash2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -111,7 +111,7 @@ function TaskForm({
           <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
             <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {Object.entries(TASK_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+              {Object.entries(TASK_TYPE_LABELS_HYLA).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -292,7 +292,7 @@ export default function Tasks() {
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-medium ${task.status === 'terminee' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <span className="text-xs text-gray-400">{TASK_TYPE_LABELS[task.type as keyof typeof TASK_TYPE_LABELS]}</span>
+                  <span className="text-xs text-gray-400">{TASK_TYPE_LABELS_HYLA[task.type as keyof typeof TASK_TYPE_LABELS_HYLA]}</span>
                   {task.contacts && (
                     <span className="text-xs text-blue-500 flex items-center gap-1">
                       <User className="h-3 w-3" />
