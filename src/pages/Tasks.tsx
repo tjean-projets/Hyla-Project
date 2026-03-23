@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase, TASK_TYPE_LABELS_HYLA_HYLA, TASK_STATUS_LABELS } from '@/lib/supabase';
+import { supabase, TASK_TYPE_LABELS_HYLA, TASK_STATUS_LABELS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Check, Clock, Trash2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
