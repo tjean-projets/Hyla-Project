@@ -20,6 +20,7 @@ import Imports from "./pages/Imports";
 import Finance from "./pages/Finance";
 import SettingsPage from "./pages/SettingsPage";
 import ObjectifForm from "./pages/ObjectifForm";
+import InscriptionPage from "./pages/InscriptionPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,7 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/objectifs/:token" element={<ObjectifForm />} />
+      <Route path="/inscription/:slug" element={<InscriptionPage />} />
 
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />

@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, HYLA_NETWORK_TIERS, HYLA_NETWORK_COMMISSION } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Users, UserPlus, Star, Trophy, Crown, Award, ChevronUp, Zap, Trash2, Target, Copy, Mail, Edit3, CheckCircle, Clock } from 'lucide-react';
+import { Plus, Search, Users, UserPlus, Star, Trophy, Crown, Award, ChevronUp, Zap, Trash2, Target, Copy, Mail, Edit3, CheckCircle, Clock, Sparkles, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -14,6 +14,12 @@ import { useToast } from '@/hooks/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
 
 type TeamMember = Tables<'team_members'>;
+
+function generateSlug(firstName: string, lastName: string): string {
+  return `${firstName}-${lastName}`
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+}
 
 /* ── Tier badge Hyla: Conseillère → Manager → Senior → Elite ── */
 const TIERS = [
@@ -196,6 +202,89 @@ function MemberForm({
         </button>
       )}
     </form>
+  );
+}
+
+/* ── Hyla Assistant Panel ── */
+function AssistantPanel({ member }: { member: TeamMember }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const slug = (member as any).slug || generateSlug(member.first_name, member.last_name);
+  const inscriptionUrl = `${window.location.origin}/inscription/${slug}`;
+
+  // Ensure slug is saved on the member
+  const ensureSlug = useMutation({
+    mutationFn: async () => {
+      if ((member as any).slug) return;
+      await supabase.from('team_members').update({ slug } as any).eq('id', member.id);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['team-members'] }),
+  });
+
+  useEffect(() => {
+    ensureSlug.mutate();
+  }, [member.id]);
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(inscriptionUrl);
+    toast({ title: 'Lien copié !' });
+  };
+
+  const sendEmail = () => {
+    const subject = encodeURIComponent('Crée ton espace Hyla Assistant');
+    const body = encodeURIComponent(
+      `Salut ${member.first_name} !\n\n` +
+      `Je t'invite à créer ton propre espace Hyla Assistant pour gérer ton activité :\n\n` +
+      `${inscriptionUrl}\n\n` +
+      `Tu pourras y suivre tes contacts, ventes, commissions et ton réseau.\n\n` +
+      `À bientôt !`
+    );
+    const email = member.email || '';
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-gradient-to-br from-violet-50 to-indigo-50 rounded-xl p-4 text-center">
+        <Sparkles className="h-8 w-8 text-violet-500 mx-auto mb-2" />
+        <p className="text-sm font-semibold text-gray-900">
+          Invite {member.first_name} à créer son espace
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
+          En s'inscrivant, {member.first_name} aura accès à son propre CRM Hyla avec tous les outils (contacts, ventes, réseau, commissions, tâches...).
+        </p>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-gray-500 block mb-1.5">Lien d'inscription</label>
+        <div className="flex gap-2">
+          <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-xs text-gray-600 truncate border">
+            {inscriptionUrl}
+          </div>
+          <button onClick={copyLink} className="px-3 py-2.5 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+            <Copy className="h-4 w-4 text-gray-600" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={copyLink}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs active:scale-[0.98]"
+        >
+          <Link2 className="h-3.5 w-3.5" />
+          Copier le lien
+        </button>
+        <button
+          onClick={sendEmail}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs active:scale-[0.98]"
+        >
+          <Mail className="h-3.5 w-3.5" />
+          Envoyer par email
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -539,6 +628,7 @@ export default function NetworkPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [objectifsMember, setObjectifsMember] = useState<TeamMember | null>(null);
+  const [assistantMember, setAssistantMember] = useState<TeamMember | null>(null);
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['team-members', user?.id],
@@ -612,6 +702,19 @@ export default function NetworkPage() {
           {objectifsMember && user && (
             <ObjectifsPanel member={objectifsMember} userId={user.id} />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Hyla Assistant dialog */}
+      <Dialog open={!!assistantMember} onOpenChange={(open) => { if (!open) setAssistantMember(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-violet-600" />
+              Hyla Assistant — {assistantMember?.first_name} {assistantMember?.last_name}
+            </DialogTitle>
+          </DialogHeader>
+          {assistantMember && <AssistantPanel member={assistantMember} />}
         </DialogContent>
       </Dialog>
 
@@ -723,8 +826,8 @@ export default function NetworkPage() {
                     </div>
                   </div>
 
-                  {/* Objectifs + Status + Stars */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* Actions + Status */}
+                  <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
                     <button
                       onClick={(e) => { e.stopPropagation(); setObjectifsMember(member); }}
                       className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/20 hover:bg-blue-500/25 transition-colors"
@@ -732,12 +835,21 @@ export default function NetworkPage() {
                       <Target className="h-3 w-3" />
                       Objectifs
                     </button>
-                    <div className="flex gap-0.5">
-                      {Array.from({ length: Math.min(member.level, 5) }).map((_, i) => (
-                        <Star key={i} className="h-3 w-3 text-yellow-400 fill-yellow-400" />
-                      ))}
-                    </div>
-                    <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg ${
+                    {(member as any).linked_user_id ? (
+                      <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                        <CheckCircle className="h-3 w-3" />
+                        Connecté
+                      </span>
+                    ) : (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setAssistantMember(member); }}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-violet-500/15 text-violet-400 border border-violet-500/20 hover:bg-violet-500/25 transition-colors"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        Assistant
+                      </button>
+                    )}
+                    <span className={`text-[10px] font-semibold px-2 py-1 rounded-lg ${
                       member.status === 'actif'
                         ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
                         : 'bg-white/5 text-gray-500 border border-white/10'
