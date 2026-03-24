@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, HYLA_NETWORK_TIERS, HYLA_NETWORK_COMMISSION } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Users, UserPlus, Star, Trophy, Crown, Award, ChevronUp, Zap, Trash2 } from 'lucide-react';
+import { Plus, Search, Users, UserPlus, Star, Trophy, Crown, Award, ChevronUp, Zap, Trash2, Target, Copy, Mail, Edit3, CheckCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -199,6 +199,235 @@ function MemberForm({
   );
 }
 
+/* ── Objectifs Dialog ── */
+function ObjectifsPanel({ member, userId }: { member: TeamMember; userId: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+
+  const { data: objective, isLoading } = useQuery({
+    queryKey: ['member-objective', member.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('member_objectives')
+        .select('*')
+        .eq('team_member_id', member.id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  // Generate token for new objective
+  const generateToken = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    return Array.from({ length: 24 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  };
+
+  const createObjective = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('member_objectives').insert({
+        team_member_id: member.id,
+        user_id: userId,
+        token: generateToken(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['member-objective', member.id] });
+      toast({ title: 'Fiche objectifs créée' });
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  const [editForm, setEditForm] = useState({
+    objectif_mois: '', objectif_3mois: '', objectif_1an: '', actions: '',
+    ventes_objectif_mois: 0, ventes_objectif_3mois: 0, ventes_objectif_1an: 0,
+    recrues_objectif_mois: 0, recrues_objectif_3mois: 0, recrues_objectif_1an: 0,
+  });
+
+  useEffect(() => {
+    if (objective && editing) {
+      setEditForm({
+        objectif_mois: objective.objectif_mois || '',
+        objectif_3mois: objective.objectif_3mois || '',
+        objectif_1an: objective.objectif_1an || '',
+        actions: objective.actions || '',
+        ventes_objectif_mois: objective.ventes_objectif_mois || 0,
+        ventes_objectif_3mois: objective.ventes_objectif_3mois || 0,
+        ventes_objectif_1an: objective.ventes_objectif_1an || 0,
+        recrues_objectif_mois: objective.recrues_objectif_mois || 0,
+        recrues_objectif_3mois: objective.recrues_objectif_3mois || 0,
+        recrues_objectif_1an: objective.recrues_objectif_1an || 0,
+      });
+    }
+  }, [objective, editing]);
+
+  const saveObjective = useMutation({
+    mutationFn: async () => {
+      if (!objective) return;
+      const { error } = await supabase.from('member_objectives')
+        .update({ ...editForm, updated_at: new Date().toISOString() })
+        .eq('id', objective.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['member-objective', member.id] });
+      setEditing(false);
+      toast({ title: 'Objectifs mis à jour' });
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  const formUrl = objective ? `${window.location.origin}/objectifs/${objective.token}` : '';
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(formUrl);
+    toast({ title: 'Lien copié !' });
+  };
+
+  const sendEmail = () => {
+    const subject = encodeURIComponent('Remplis tes objectifs Hyla');
+    const body = encodeURIComponent(`Salut ${member.first_name} !\n\nRemplis tes objectifs ici :\n${formUrl}\n\nÀ bientôt !`);
+    const email = member.email || '';
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+  };
+
+  if (isLoading) return <div className="py-8 text-center text-gray-400 text-sm">Chargement...</div>;
+
+  if (!objective) {
+    return (
+      <div className="py-8 text-center">
+        <Target className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+        <p className="text-sm text-gray-500 mb-4">Aucun objectif défini pour {member.first_name}</p>
+        <button
+          onClick={() => createObjective.mutate()}
+          disabled={createObjective.isPending}
+          className="px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-xl text-sm disabled:opacity-50"
+        >
+          Créer la fiche objectifs
+        </button>
+      </div>
+    );
+  }
+
+  const hasContent = objective.objectif_mois || objective.objectif_3mois || objective.objectif_1an;
+
+  if (editing) {
+    return (
+      <form onSubmit={(e) => { e.preventDefault(); saveObjective.mutate(); }} className="space-y-4 max-h-[60vh] overflow-y-auto">
+        {[
+          { key: 'mois', label: 'Ce mois-ci', color: 'blue' },
+          { key: '3mois', label: 'Dans 3 mois', color: 'amber' },
+          { key: '1an', label: 'Dans 1 an', color: 'emerald' },
+        ].map(({ key, label, color }) => (
+          <div key={key} className="space-y-2">
+            <p className={`text-xs font-bold text-${color}-600 uppercase`}>{label}</p>
+            <textarea
+              value={(editForm as any)[`objectif_${key}`]}
+              onChange={(e) => setEditForm({ ...editForm, [`objectif_${key}`]: e.target.value })}
+              placeholder="Objectif..."
+              rows={2}
+              className="w-full rounded-xl border px-3 py-2 text-sm"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-gray-500">Ventes</label>
+                <Input type="number" min="0" className="h-9"
+                  value={(editForm as any)[`ventes_objectif_${key}`]}
+                  onChange={(e) => setEditForm({ ...editForm, [`ventes_objectif_${key}`]: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500">Recrues</label>
+                <Input type="number" min="0" className="h-9"
+                  value={(editForm as any)[`recrues_objectif_${key}`]}
+                  onChange={(e) => setEditForm({ ...editForm, [`recrues_objectif_${key}`]: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+        <div>
+          <p className="text-xs font-bold text-violet-600 uppercase mb-1">Actions</p>
+          <textarea
+            value={editForm.actions}
+            onChange={(e) => setEditForm({ ...editForm, actions: e.target.value })}
+            placeholder="Actions menées..."
+            rows={2}
+            className="w-full rounded-xl border px-3 py-2 text-sm"
+          />
+        </div>
+        <div className="flex gap-2">
+          <button type="submit" disabled={saveObjective.isPending}
+            className="flex-1 py-2.5 bg-blue-600 text-white font-semibold rounded-xl text-sm disabled:opacity-50">
+            {saveObjective.isPending ? 'Enregistrement...' : 'Sauvegarder'}
+          </button>
+          <button type="button" onClick={() => setEditing(false)}
+            className="px-4 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-sm">
+            Annuler
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Status */}
+      {objective.filled_by_member && objective.filled_at && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-xl text-xs text-green-700">
+          <CheckCircle className="h-3.5 w-3.5" />
+          Rempli par {member.first_name} le {new Date(objective.filled_at).toLocaleDateString('fr-FR')}
+        </div>
+      )}
+      {!hasContent && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-xl text-xs text-amber-700">
+          <Clock className="h-3.5 w-3.5" />
+          En attente — envoie le formulaire à {member.first_name}
+        </div>
+      )}
+
+      {/* Objectifs cards */}
+      {[
+        { key: 'mois', label: 'Ce mois-ci', color: 'blue', text: objective.objectif_mois, v: objective.ventes_objectif_mois, r: objective.recrues_objectif_mois },
+        { key: '3mois', label: 'Dans 3 mois', color: 'amber', text: objective.objectif_3mois, v: objective.ventes_objectif_3mois, r: objective.recrues_objectif_3mois },
+        { key: '1an', label: 'Dans 1 an', color: 'emerald', text: objective.objectif_1an, v: objective.ventes_objectif_1an, r: objective.recrues_objectif_1an },
+      ].map(({ key, label, color, text, v, r }) => (
+        <div key={key} className={`border rounded-xl p-3 border-${color}-200 bg-${color}-50/50`}>
+          <p className={`text-[10px] font-bold text-${color}-600 uppercase mb-1`}>{label}</p>
+          <p className="text-sm text-gray-800">{text || <span className="text-gray-400 italic">Non renseigné</span>}</p>
+          {(v > 0 || r > 0) && (
+            <div className="flex gap-4 mt-1.5">
+              {v > 0 && <span className="text-[10px] text-gray-500">{v} ventes</span>}
+              {r > 0 && <span className="text-[10px] text-gray-500">{r} recrues</span>}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {objective.actions && (
+        <div className="border rounded-xl p-3 border-violet-200 bg-violet-50/50">
+          <p className="text-[10px] font-bold text-violet-600 uppercase mb-1">Actions</p>
+          <p className="text-sm text-gray-800 whitespace-pre-line">{objective.actions}</p>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex gap-2">
+        <button onClick={copyLink} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs active:scale-[0.98]">
+          <Copy className="h-3.5 w-3.5" /> Copier le lien
+        </button>
+        <button onClick={sendEmail} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs active:scale-[0.98]">
+          <Mail className="h-3.5 w-3.5" /> Envoyer par email
+        </button>
+      </div>
+      <button onClick={() => setEditing(true)} className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl text-xs">
+        <Edit3 className="h-3.5 w-3.5" /> Modifier les objectifs
+      </button>
+    </div>
+  );
+}
+
 /* ── Progress bar (mockup 3 style) ── */
 function ProgressRing({ value, max, label, color }: { value: number; max: number; label: string; color: string }) {
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
@@ -226,6 +455,7 @@ export default function NetworkPage() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [objectifsMember, setObjectifsMember] = useState<TeamMember | null>(null);
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['team-members', user?.id],
@@ -284,6 +514,21 @@ export default function NetworkPage() {
             initialData={editingMember}
             onDelete={handleCloseForm}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Objectifs dialog */}
+      <Dialog open={!!objectifsMember} onOpenChange={(open) => { if (!open) setObjectifsMember(null); }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-blue-600" />
+              Objectifs — {objectifsMember?.first_name} {objectifsMember?.last_name}
+            </DialogTitle>
+          </DialogHeader>
+          {objectifsMember && user && (
+            <ObjectifsPanel member={objectifsMember} userId={user.id} />
+          )}
         </DialogContent>
       </Dialog>
 
@@ -395,8 +640,15 @@ export default function NetworkPage() {
                     </div>
                   </div>
 
-                  {/* Status + Stars */}
-                  <div className="flex items-center gap-3 flex-shrink-0">
+                  {/* Objectifs + Status + Stars */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setObjectifsMember(member); }}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/20 hover:bg-blue-500/25 transition-colors"
+                    >
+                      <Target className="h-3 w-3" />
+                      Objectifs
+                    </button>
                     <div className="flex gap-0.5">
                       {Array.from({ length: Math.min(member.level, 5) }).map((_, i) => (
                         <Star key={i} className="h-3 w-3 text-yellow-400 fill-yellow-400" />

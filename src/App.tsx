@@ -19,6 +19,7 @@ import CalendarPage from "./pages/CalendarPage";
 import Imports from "./pages/Imports";
 import Finance from "./pages/Finance";
 import SettingsPage from "./pages/SettingsPage";
+import ObjectifForm from "./pages/ObjectifForm";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -59,6 +60,7 @@ function AppRoutes() {
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/objectifs/:token" element={<ObjectifForm />} />
 
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
