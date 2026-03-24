@@ -14,6 +14,7 @@ import {
   Search,
   Menu,
   X,
+  MoreHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -283,12 +284,64 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
       </main>
 
       {/* ── Mobile Bottom Nav ── */}
+      <MobileBottomNav isDark={isDark} />
+    </div>
+  );
+}
+
+function MobileBottomNav({ isDark }: { isDark: boolean }) {
+  const location = useLocation();
+  const [showMore, setShowMore] = useState(false);
+  const mainTabs = getMobileNavLinks().slice(0, 4);
+  const otherTabs = ALL_MOBILE_TABS.filter(t => !mainTabs.some(m => m.to === t.to));
+  // Add settings to other tabs
+  const moreItems = [...otherTabs, { to: '/settings', icon: Settings, label: 'Paramètres' }];
+
+  const isMoreActive = moreItems.some(t => location.pathname.startsWith(t.to));
+
+  return (
+    <>
+      {/* More menu overlay */}
+      {showMore && (
+        <div className="fixed inset-0 z-40 md:hidden" onClick={() => setShowMore(false)}>
+          <div className="absolute bottom-16 left-2 right-2 z-50" onClick={(e) => e.stopPropagation()}>
+            <div className={cn(
+              'rounded-2xl shadow-xl border p-2',
+              isDark ? 'bg-[#1a2332] border-white/10' : 'bg-white border-gray-200'
+            )}>
+              <div className="grid grid-cols-4 gap-1">
+                {moreItems.map((link) => {
+                  const isActive = location.pathname.startsWith(link.to);
+                  return (
+                    <NavLink
+                      key={link.to}
+                      to={link.to}
+                      onClick={() => setShowMore(false)}
+                      className={cn(
+                        'flex flex-col items-center gap-1 py-3 px-1 rounded-xl text-[10px] font-medium',
+                        isActive
+                          ? 'text-[#3b82f6] bg-[#3b82f6]/10'
+                          : isDark ? 'text-gray-400' : 'text-gray-500'
+                      )}
+                    >
+                      <link.icon className="h-5 w-5" />
+                      {link.label}
+                    </NavLink>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom bar */}
       <nav className={cn(
         'fixed bottom-0 left-0 right-0 md:hidden z-40 border-t',
         isDark ? 'bg-[#111827] border-white/5' : 'bg-white border-gray-200'
       )}>
         <div className="flex items-center justify-around py-2 px-1">
-          {getMobileNavLinks().map((link) => {
+          {mainTabs.map((link) => {
             const isActive = link.to === '/dashboard'
               ? location.pathname === '/dashboard'
               : location.pathname.startsWith(link.to);
@@ -298,23 +351,31 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
                 to={link.to}
                 className={cn(
                   'flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-medium transition-colors rounded-xl',
-                  isActive
-                    ? 'text-[#3b82f6]'
-                    : isDark ? 'text-gray-500' : 'text-gray-400'
+                  isActive ? 'text-[#3b82f6]' : isDark ? 'text-gray-500' : 'text-gray-400'
                 )}
               >
-                <div className={cn(
-                  'p-1.5 rounded-xl transition-colors',
-                  isActive && 'bg-[#3b82f6]/10'
-                )}>
+                <div className={cn('p-1.5 rounded-xl transition-colors', isActive && 'bg-[#3b82f6]/10')}>
                   <link.icon className="h-5 w-5" />
                 </div>
                 {link.label}
               </NavLink>
             );
           })}
+          {/* More button */}
+          <button
+            onClick={() => setShowMore(!showMore)}
+            className={cn(
+              'flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-medium transition-colors rounded-xl',
+              (showMore || isMoreActive) ? 'text-[#3b82f6]' : isDark ? 'text-gray-500' : 'text-gray-400'
+            )}
+          >
+            <div className={cn('p-1.5 rounded-xl transition-colors', (showMore || isMoreActive) && 'bg-[#3b82f6]/10')}>
+              <MoreHorizontal className="h-5 w-5" />
+            </div>
+            Plus
+          </button>
         </div>
       </nav>
-    </div>
+    </>
   );
 }
