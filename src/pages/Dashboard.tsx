@@ -13,9 +13,12 @@ import {
   Zap,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useState } from 'react';
 
 export default function Dashboard() {
   const { user, profile } = useAuth();
+  const [showChallenge, setShowChallenge] = useState<'countdown' | 'rookie' | null>(null);
 
   const { data: kpis } = useQuery({
     queryKey: ['dashboard-kpis', user?.id],
@@ -107,11 +110,11 @@ export default function Dashboard() {
           <p className="text-xs text-gray-400 capitalize">{now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
 
-        {/* ── Challenges (big cards, presentation style) ── */}
+        {/* ── Challenges (clickable cards) ── */}
         {(countdownActive || rookieActive) && (
           <div className="space-y-3">
             {countdownActive && (
-              <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-5 text-white">
+              <div onClick={() => setShowChallenge('countdown')} className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-5 text-white cursor-pointer active:scale-[0.98] transition-transform">
                 <div className="flex items-center gap-2 mb-3">
                   <Timer className="h-5 w-5" />
                   <span className="text-sm font-bold uppercase tracking-wider">Compte à Rebours — 2 mois</span>
@@ -127,15 +130,13 @@ export default function Dashboard() {
                   <div className="h-full rounded-full bg-white transition-all duration-700" style={{ width: `${countdownPct}%` }} />
                 </div>
                 {countdownSales >= 5 && (
-                  <div className="mt-2 text-center bg-white/20 rounded-xl py-1.5 text-sm font-bold">
-                    +800€ débloqué !
-                  </div>
+                  <div className="mt-2 text-center bg-white/20 rounded-xl py-1.5 text-sm font-bold">+800€ débloqué !</div>
                 )}
               </div>
             )}
 
             {rookieActive && (
-              <div className="bg-gradient-to-r from-violet-500 to-indigo-500 rounded-2xl p-5 text-white">
+              <div onClick={() => setShowChallenge('rookie')} className="bg-gradient-to-r from-violet-500 to-indigo-500 rounded-2xl p-5 text-white cursor-pointer active:scale-[0.98] transition-transform">
                 <div className="flex items-center gap-2 mb-3">
                   <Trophy className="h-5 w-5" />
                   <span className="text-sm font-bold uppercase tracking-wider">Rookie Online — 6 mois</span>
@@ -154,6 +155,99 @@ export default function Dashboard() {
             )}
           </div>
         )}
+
+        {/* ── Challenge detail popup ── */}
+        <Dialog open={!!showChallenge} onOpenChange={(open) => { if (!open) setShowChallenge(null); }}>
+          <DialogContent className="max-w-md">
+            {showChallenge === 'countdown' && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-amber-600">
+                    <Timer className="h-5 w-5" />
+                    Compte à Rebours Online
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="bg-amber-50 rounded-xl p-4">
+                    <p className="text-sm font-bold text-amber-800 mb-2">Comment ça marche ?</p>
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      C'est un challenge de <span className="font-bold">2 mois</span> pour passer à l'action dès ton démarrage.
+                      L'objectif est de réaliser <span className="font-bold">5 ventes</span> pendant cette période.
+                      La <span className="font-bold">5ème vente est sur-commissionnée à 800€</span> au lieu de la commission normale !
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase">Ta progression</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-black text-gray-900">{countdownSales}/5 ventes</span>
+                      <span className="text-sm font-bold text-amber-600">{countdownDaysLeft} jours restants</span>
+                    </div>
+                    <div className="h-3 rounded-full bg-amber-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all" style={{ width: `${countdownPct}%` }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-gray-400">
+                      <span>Début : {startDate.toLocaleDateString('fr-FR')}</span>
+                      <span>Fin : {countdownEnd.toLocaleDateString('fr-FR')}</span>
+                    </div>
+                  </div>
+                  {countdownSales >= 5 ? (
+                    <div className="bg-green-50 rounded-xl p-3 text-center">
+                      <p className="text-sm font-bold text-green-700">Challenge réussi ! +800€ débloqué</p>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-xs text-gray-600">
+                        Il te reste <span className="font-bold">{5 - countdownSales} vente{5 - countdownSales > 1 ? 's' : ''}</span> à réaliser
+                        en <span className="font-bold">{countdownDaysLeft} jours</span> pour décrocher le bonus de 800€.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+            {showChallenge === 'rookie' && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-violet-600">
+                    <Trophy className="h-5 w-5" />
+                    Rookie Online
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="bg-violet-50 rounded-xl p-4">
+                    <p className="text-sm font-bold text-violet-800 mb-2">Comment ça marche ?</p>
+                    <p className="text-xs text-violet-700 leading-relaxed">
+                      Chaque recrue dispose de <span className="font-bold">6 mois</span> pour réaliser
+                      <span className="font-bold"> 14 ventes</span> à partir de sa date de signature de contrat.
+                      La <span className="font-bold">15ème vente déclenche une super-commission de 1000€</span> si elle est
+                      réalisée dans le 7ème mois.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase">Ta progression</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-black text-gray-900">{rookieSales}/15 ventes</span>
+                      <span className="text-sm font-bold text-violet-600">{rookieDaysLeft} jours restants</span>
+                    </div>
+                    <div className="h-3 rounded-full bg-violet-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all" style={{ width: `${rookiePct}%` }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-gray-400">
+                      <span>Début : {startDate.toLocaleDateString('fr-FR')}</span>
+                      <span>Fin : {rookieEnd.toLocaleDateString('fr-FR')}</span>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-xs text-gray-600">
+                      Il te reste <span className="font-bold">{15 - rookieSales} vente{15 - rookieSales > 1 ? 's' : ''}</span> à réaliser
+                      en <span className="font-bold">{rookieDaysLeft} jours</span> pour décrocher le bonus de 1000€.
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* ── KPIs essentiels (4 cards) ── */}
         <div className="grid grid-cols-2 gap-3">
