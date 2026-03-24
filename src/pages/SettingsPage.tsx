@@ -3,7 +3,7 @@ import { AppLayout, ALL_MOBILE_TABS } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, ChevronUp, ChevronDown } from 'lucide-react';
+import { Save, Plus, Trash2, GripVertical, FileText, Smartphone } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -234,47 +234,78 @@ export default function SettingsPage() {
             Choisis 5 onglets et leur ordre pour la barre du bas sur mobile.
           </p>
 
-          {/* Selected tabs (orderable) */}
+          {/* Selected tabs (drag to reorder) */}
           <div className="space-y-1.5 mb-4">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase">Onglets actifs (glisse pour réordonner)</p>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase">Onglets actifs (maintiens et glisse)</p>
             {selectedTabs.map((path, index) => {
               const tab = ALL_MOBILE_TABS.find(t => t.to === path);
               if (!tab) return null;
               const Icon = tab.icon;
               return (
-                <div key={path} className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
+                <div
+                  key={path}
+                  draggable
+                  onDragStart={(e) => { e.dataTransfer.setData('text/plain', String(index)); (e.currentTarget as HTMLElement).style.opacity = '0.5'; }}
+                  onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
+                  onDragOver={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).style.borderColor = '#3b82f6'; }}
+                  onDragLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#bfdbfe'; }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    (e.currentTarget as HTMLElement).style.borderColor = '#bfdbfe';
+                    const from = parseInt(e.dataTransfer.getData('text/plain'));
+                    const to = index;
+                    if (from === to) return;
+                    const arr = [...selectedTabs];
+                    const [moved] = arr.splice(from, 1);
+                    arr.splice(to, 0, moved);
+                    setSelectedTabs(arr);
+                  }}
+                  onTouchStart={(e) => {
+                    const el = e.currentTarget as HTMLElement;
+                    const touch = e.touches[0];
+                    const rect = el.getBoundingClientRect();
+                    el.dataset.dragIndex = String(index);
+                    el.dataset.startY = String(touch.clientY);
+                    el.dataset.offsetY = String(touch.clientY - rect.top);
+                    el.style.zIndex = '50';
+                    el.style.transition = 'none';
+                  }}
+                  onTouchMove={(e) => {
+                    e.preventDefault();
+                    const el = e.currentTarget as HTMLElement;
+                    const touch = e.touches[0];
+                    const parent = el.parentElement;
+                    if (!parent) return;
+                    const siblings = Array.from(parent.querySelectorAll('[draggable]')) as HTMLElement[];
+                    const currentIdx = parseInt(el.dataset.dragIndex || '0');
+                    // Find which sibling we're hovering over
+                    for (let i = 0; i < siblings.length; i++) {
+                      if (i === currentIdx) continue;
+                      const sRect = siblings[i].getBoundingClientRect();
+                      if (touch.clientY > sRect.top && touch.clientY < sRect.bottom) {
+                        const arr = [...selectedTabs];
+                        const [moved] = arr.splice(currentIdx, 1);
+                        arr.splice(i, 0, moved);
+                        setSelectedTabs(arr);
+                        el.dataset.dragIndex = String(i);
+                        break;
+                      }
+                    }
+                  }}
+                  onTouchEnd={(e) => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.zIndex = '';
+                    el.style.transition = '';
+                  }}
+                  className="flex items-center gap-2 bg-blue-50 border-2 border-blue-200 rounded-xl px-3 py-3 cursor-grab active:cursor-grabbing select-none touch-none"
+                >
+                  <GripVertical className="h-4 w-4 text-blue-300 flex-shrink-0" />
                   <span className="text-xs text-blue-400 font-bold w-4">{index + 1}</span>
                   <Icon className="h-4 w-4 text-blue-600" />
                   <span className="text-sm font-medium text-blue-800 flex-1">{tab.label}</span>
-                  <div className="flex flex-col gap-0.5">
-                    <button
-                      onClick={() => {
-                        if (index === 0) return;
-                        const arr = [...selectedTabs];
-                        [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
-                        setSelectedTabs(arr);
-                      }}
-                      disabled={index === 0}
-                      className="p-0.5 text-blue-400 disabled:opacity-30"
-                    >
-                      <ChevronUp className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (index === selectedTabs.length - 1) return;
-                        const arr = [...selectedTabs];
-                        [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
-                        setSelectedTabs(arr);
-                      }}
-                      disabled={index === selectedTabs.length - 1}
-                      className="p-0.5 text-blue-400 disabled:opacity-30"
-                    >
-                      <ChevronDown className="h-3 w-3" />
-                    </button>
-                  </div>
                   <button
-                    onClick={() => setSelectedTabs(selectedTabs.filter(t => t !== path))}
-                    className="p-1 text-red-400 hover:text-red-600"
+                    onClick={(e) => { e.stopPropagation(); setSelectedTabs(selectedTabs.filter(t => t !== path)); }}
+                    className="p-1.5 text-red-400 hover:text-red-600"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
