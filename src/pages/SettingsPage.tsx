@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { AppLayout } from '@/components/AppLayout';
+import { AppLayout, ALL_MOBILE_TABS } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, GripVertical, FileText } from 'lucide-react';
+import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, ChevronUp, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,6 +29,16 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [questions, setQuestions] = useState<FormQuestion[]>([]);
+
+  // Mobile nav customization
+  const getInitialTabs = () => {
+    try {
+      const saved = localStorage.getItem('hyla_mobile_tabs');
+      if (saved) return JSON.parse(saved) as string[];
+    } catch {}
+    return ALL_MOBILE_TABS.slice(0, 5).map(t => t.to);
+  };
+  const [selectedTabs, setSelectedTabs] = useState<string[]>(getInitialTabs);
 
   useEffect(() => {
     if (profile) {
@@ -212,6 +222,106 @@ export default function SettingsPage() {
             <Save className="h-4 w-4" />
             {saveFormConfig.isPending ? 'Enregistrement...' : 'Sauvegarder le formulaire'}
           </button>
+        </div>
+
+        {/* Mobile Nav Customization */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Smartphone className="h-4 w-4 text-blue-600" />
+            <h3 className="text-base font-semibold text-gray-900">Barre de navigation</h3>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">
+            Choisis 5 onglets et leur ordre pour la barre du bas sur mobile.
+          </p>
+
+          {/* Selected tabs (orderable) */}
+          <div className="space-y-1.5 mb-4">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase">Onglets actifs (glisse pour réordonner)</p>
+            {selectedTabs.map((path, index) => {
+              const tab = ALL_MOBILE_TABS.find(t => t.to === path);
+              if (!tab) return null;
+              const Icon = tab.icon;
+              return (
+                <div key={path} className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
+                  <span className="text-xs text-blue-400 font-bold w-4">{index + 1}</span>
+                  <Icon className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800 flex-1">{tab.label}</span>
+                  <div className="flex flex-col gap-0.5">
+                    <button
+                      onClick={() => {
+                        if (index === 0) return;
+                        const arr = [...selectedTabs];
+                        [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+                        setSelectedTabs(arr);
+                      }}
+                      disabled={index === 0}
+                      className="p-0.5 text-blue-400 disabled:opacity-30"
+                    >
+                      <ChevronUp className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (index === selectedTabs.length - 1) return;
+                        const arr = [...selectedTabs];
+                        [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+                        setSelectedTabs(arr);
+                      }}
+                      disabled={index === selectedTabs.length - 1}
+                      className="p-0.5 text-blue-400 disabled:opacity-30"
+                    >
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setSelectedTabs(selectedTabs.filter(t => t !== path))}
+                    className="p-1 text-red-400 hover:text-red-600"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Available tabs to add */}
+          {selectedTabs.length < 5 && (
+            <div className="space-y-1.5 mb-4">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase">Disponibles</p>
+              {ALL_MOBILE_TABS.filter(t => !selectedTabs.includes(t.to)).map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.to}
+                    onClick={() => {
+                      if (selectedTabs.length < 5) {
+                        setSelectedTabs([...selectedTabs, tab.to]);
+                      }
+                    }}
+                    className="flex items-center gap-2 w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 hover:bg-gray-100 transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5 text-gray-400" />
+                    <Icon className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-700">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <button
+            onClick={() => {
+              localStorage.setItem('hyla_mobile_tabs', JSON.stringify(selectedTabs));
+              toast({ title: 'Navigation sauvegardée', description: 'Recharge la page pour voir les changements.' });
+            }}
+            disabled={selectedTabs.length !== 5}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
+          >
+            <Save className="h-4 w-4" />
+            Sauvegarder la navigation
+          </button>
+          {selectedTabs.length !== 5 && (
+            <p className="text-[10px] text-red-500 text-center mt-1">Sélectionne exactement 5 onglets</p>
+          )}
         </div>
       </div>
     </AppLayout>

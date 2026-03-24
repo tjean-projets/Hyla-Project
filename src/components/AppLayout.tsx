@@ -106,7 +106,22 @@ const sidebarLinks = [
   { to: '/settings', icon: Settings, label: 'Paramètres' },
 ];
 
-const mobileNavLinks = sidebarLinks.slice(0, 5);
+// All available tabs for mobile bottom nav (excluding settings)
+export const ALL_MOBILE_TABS = sidebarLinks.filter(l => l.to !== '/settings');
+
+function getMobileNavLinks() {
+  try {
+    const saved = localStorage.getItem('hyla_mobile_tabs');
+    if (saved) {
+      const paths: string[] = JSON.parse(saved);
+      const tabs = paths
+        .map(p => ALL_MOBILE_TABS.find(l => l.to === p))
+        .filter(Boolean) as typeof ALL_MOBILE_TABS;
+      if (tabs.length === 5) return tabs;
+    }
+  } catch {}
+  return sidebarLinks.slice(0, 5);
+}
 
 interface AppLayoutProps {
   title: string;
@@ -273,7 +288,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
         isDark ? 'bg-[#111827] border-white/5' : 'bg-white border-gray-200'
       )}>
         <div className="flex items-center justify-around py-2 px-1">
-          {mobileNavLinks.map((link) => {
+          {getMobileNavLinks().map((link) => {
             const isActive = link.to === '/dashboard'
               ? location.pathname === '/dashboard'
               : location.pathname.startsWith(link.to);
