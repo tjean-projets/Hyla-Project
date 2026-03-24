@@ -199,6 +199,133 @@ function MemberForm({
   );
 }
 
+/* ── Objectifs View (with notes) ── */
+function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onSendEmail, onEdit }: {
+  objective: any; member: TeamMember; formUrl: string; hasContent: boolean;
+  onCopyLink: () => void; onSendEmail: () => void; onEdit: () => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [notes, setNotes] = useState<Record<string, string>>({
+    notes_mois: objective.notes_mois || '',
+    notes_3mois: objective.notes_3mois || '',
+    notes_1an: objective.notes_1an || '',
+  });
+  const [savingNotes, setSavingNotes] = useState(false);
+
+  // Load custom questions
+  const { data: formConfig } = useQuery({
+    queryKey: ['form-config-view', objective.user_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('objectif_form_config')
+        .select('questions')
+        .eq('user_id', objective.user_id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const customQuestions = (formConfig?.questions || []) as { id: string; label: string }[];
+  const customAnswers = (objective.custom_answers || {}) as Record<string, string>;
+
+  const saveNotes = async () => {
+    setSavingNotes(true);
+    await supabase.from('member_objectives').update(notes).eq('id', objective.id);
+    queryClient.invalidateQueries({ queryKey: ['member-objective', member.id] });
+    toast({ title: 'Notes sauvegardées' });
+    setSavingNotes(false);
+  };
+
+  return (
+    <div className="space-y-3 max-h-[65vh] overflow-y-auto">
+      {/* Status */}
+      {objective.filled_by_member && objective.filled_at && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-xl text-xs text-green-700">
+          <CheckCircle className="h-3.5 w-3.5" />
+          Rempli par {member.first_name} le {new Date(objective.filled_at).toLocaleDateString('fr-FR')}
+        </div>
+      )}
+      {!hasContent && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-xl text-xs text-amber-700">
+          <Clock className="h-3.5 w-3.5" />
+          En attente — envoie le formulaire à {member.first_name}
+        </div>
+      )}
+
+      {/* Objectifs cards with notes */}
+      {[
+        { key: 'mois', noteKey: 'notes_mois', label: 'Ce mois-ci', color: 'blue', text: objective.objectif_mois, v: objective.ventes_objectif_mois, r: objective.recrues_objectif_mois },
+        { key: '3mois', noteKey: 'notes_3mois', label: 'Dans 3 mois', color: 'amber', text: objective.objectif_3mois, v: objective.ventes_objectif_3mois, r: objective.recrues_objectif_3mois },
+        { key: '1an', noteKey: 'notes_1an', label: 'Dans 1 an', color: 'emerald', text: objective.objectif_1an, v: objective.ventes_objectif_1an, r: objective.recrues_objectif_1an },
+      ].map(({ key, noteKey, label, color, text, v, r }) => (
+        <div key={key} className="border rounded-xl overflow-hidden">
+          <div className={`p-3 bg-${color}-50/50 border-b border-${color}-100`}>
+            <p className={`text-[10px] font-bold text-${color}-600 uppercase mb-1`}>{label}</p>
+            <p className="text-sm text-gray-800">{text || <span className="text-gray-400 italic">Non renseigné</span>}</p>
+            {(v > 0 || r > 0) && (
+              <div className="flex gap-4 mt-1.5">
+                {v > 0 && <span className="text-[10px] text-gray-500">{v} ventes</span>}
+                {r > 0 && <span className="text-[10px] text-gray-500">{r} recrues</span>}
+              </div>
+            )}
+          </div>
+          <div className="p-2 bg-white">
+            <textarea
+              value={notes[noteKey]}
+              onChange={(e) => setNotes({ ...notes, [noteKey]: e.target.value })}
+              placeholder={`Notes de suivi ${label.toLowerCase()}...`}
+              rows={2}
+              className="w-full text-xs text-gray-600 border-0 bg-gray-50 rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+            />
+          </div>
+        </div>
+      ))}
+
+      {objective.actions && (
+        <div className="border rounded-xl p-3 border-violet-200 bg-violet-50/50">
+          <p className="text-[10px] font-bold text-violet-600 uppercase mb-1">Actions</p>
+          <p className="text-sm text-gray-800 whitespace-pre-line">{objective.actions}</p>
+        </div>
+      )}
+
+      {/* Custom answers */}
+      {customQuestions.length > 0 && Object.keys(customAnswers).length > 0 && (
+        <div className="border rounded-xl p-3 border-gray-200 bg-gray-50/50">
+          <p className="text-[10px] font-bold text-gray-600 uppercase mb-2">Réponses complémentaires</p>
+          <div className="space-y-1.5">
+            {customQuestions.map((q) => customAnswers[q.id] ? (
+              <div key={q.id}>
+                <p className="text-[10px] text-gray-500">{q.label}</p>
+                <p className="text-xs text-gray-800">{customAnswers[q.id]}</p>
+              </div>
+            ) : null)}
+          </div>
+        </div>
+      )}
+
+      {/* Save notes button */}
+      <button onClick={saveNotes} disabled={savingNotes}
+        className="w-full flex items-center justify-center gap-1.5 py-2 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs disabled:opacity-50">
+        {savingNotes ? 'Sauvegarde...' : 'Sauvegarder les notes'}
+      </button>
+
+      {/* Action buttons */}
+      <div className="flex gap-2">
+        <button onClick={onCopyLink} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs active:scale-[0.98]">
+          <Copy className="h-3.5 w-3.5" /> Copier le lien
+        </button>
+        <button onClick={onSendEmail} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs active:scale-[0.98]">
+          <Mail className="h-3.5 w-3.5" /> Envoyer par email
+        </button>
+      </div>
+      <button onClick={onEdit} className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl text-xs">
+        <Edit3 className="h-3.5 w-3.5" /> Modifier les objectifs
+      </button>
+    </div>
+  );
+}
+
 /* ── Objectifs Dialog ── */
 function ObjectifsPanel({ member, userId }: { member: TeamMember; userId: string }) {
   const { toast } = useToast();
@@ -372,59 +499,15 @@ function ObjectifsPanel({ member, userId }: { member: TeamMember; userId: string
   }
 
   return (
-    <div className="space-y-4">
-      {/* Status */}
-      {objective.filled_by_member && objective.filled_at && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-xl text-xs text-green-700">
-          <CheckCircle className="h-3.5 w-3.5" />
-          Rempli par {member.first_name} le {new Date(objective.filled_at).toLocaleDateString('fr-FR')}
-        </div>
-      )}
-      {!hasContent && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-xl text-xs text-amber-700">
-          <Clock className="h-3.5 w-3.5" />
-          En attente — envoie le formulaire à {member.first_name}
-        </div>
-      )}
-
-      {/* Objectifs cards */}
-      {[
-        { key: 'mois', label: 'Ce mois-ci', color: 'blue', text: objective.objectif_mois, v: objective.ventes_objectif_mois, r: objective.recrues_objectif_mois },
-        { key: '3mois', label: 'Dans 3 mois', color: 'amber', text: objective.objectif_3mois, v: objective.ventes_objectif_3mois, r: objective.recrues_objectif_3mois },
-        { key: '1an', label: 'Dans 1 an', color: 'emerald', text: objective.objectif_1an, v: objective.ventes_objectif_1an, r: objective.recrues_objectif_1an },
-      ].map(({ key, label, color, text, v, r }) => (
-        <div key={key} className={`border rounded-xl p-3 border-${color}-200 bg-${color}-50/50`}>
-          <p className={`text-[10px] font-bold text-${color}-600 uppercase mb-1`}>{label}</p>
-          <p className="text-sm text-gray-800">{text || <span className="text-gray-400 italic">Non renseigné</span>}</p>
-          {(v > 0 || r > 0) && (
-            <div className="flex gap-4 mt-1.5">
-              {v > 0 && <span className="text-[10px] text-gray-500">{v} ventes</span>}
-              {r > 0 && <span className="text-[10px] text-gray-500">{r} recrues</span>}
-            </div>
-          )}
-        </div>
-      ))}
-
-      {objective.actions && (
-        <div className="border rounded-xl p-3 border-violet-200 bg-violet-50/50">
-          <p className="text-[10px] font-bold text-violet-600 uppercase mb-1">Actions</p>
-          <p className="text-sm text-gray-800 whitespace-pre-line">{objective.actions}</p>
-        </div>
-      )}
-
-      {/* Action buttons */}
-      <div className="flex gap-2">
-        <button onClick={copyLink} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs active:scale-[0.98]">
-          <Copy className="h-3.5 w-3.5" /> Copier le lien
-        </button>
-        <button onClick={sendEmail} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs active:scale-[0.98]">
-          <Mail className="h-3.5 w-3.5" /> Envoyer par email
-        </button>
-      </div>
-      <button onClick={() => setEditing(true)} className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl text-xs">
-        <Edit3 className="h-3.5 w-3.5" /> Modifier les objectifs
-      </button>
-    </div>
+    <ObjectifsView
+      objective={objective}
+      member={member}
+      formUrl={formUrl}
+      hasContent={hasContent}
+      onCopyLink={copyLink}
+      onSendEmail={sendEmail}
+      onEdit={() => setEditing(true)}
+    />
   );
 }
 

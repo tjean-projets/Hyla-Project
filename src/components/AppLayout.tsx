@@ -18,6 +18,92 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
+import { Timer, Trophy } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+
+function ChallengeBanner({ isDark }: { isDark: boolean }) {
+  const { user } = useAuth();
+
+  // Fetch user's deals to calculate challenge progress
+  const { data: deals = [] } = useQuery({
+    queryKey: ['challenge-deals', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from('deals')
+        .select('id, signed_at')
+        .eq('user_id', user.id)
+        .eq('status', 'signee')
+        .order('signed_at', { ascending: true });
+      return data || [];
+    },
+    enabled: !!user,
+    staleTime: 60000,
+  });
+
+  // Fetch user profile creation date for countdown calculation
+  const { data: profileData } = useQuery({
+    queryKey: ['profile-date', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase.from('profiles').select('created_at').eq('id', user.id).single();
+      return data;
+    },
+    enabled: !!user,
+    staleTime: 300000,
+  });
+
+  if (!user || !profileData) return null;
+
+  const startDate = new Date(profileData.created_at);
+  const now = new Date();
+
+  // Compte à Rebours: 2 mois, 5 ventes, 5ème = 800€ bonus
+  const countdownEnd = new Date(startDate);
+  countdownEnd.setMonth(countdownEnd.getMonth() + 2);
+  const countdownDaysLeft = Math.max(0, Math.ceil((countdownEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  const countdownActive = countdownDaysLeft > 0;
+  const countdownSales = Math.min(deals.length, 5);
+
+  // Rookie: 6 mois, 15 ventes, 15ème dans le 7ème mois = 1000€ bonus
+  const rookieEnd = new Date(startDate);
+  rookieEnd.setMonth(rookieEnd.getMonth() + 7);
+  const rookieDaysLeft = Math.max(0, Math.ceil((rookieEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  const rookieActive = rookieDaysLeft > 0 && deals.length < 15;
+  const rookieSales = Math.min(deals.length, 15);
+
+  if (!countdownActive && !rookieActive) return null;
+
+  return (
+    <div className={cn('md:ml-[220px]', isDark ? 'bg-[#0f1729]' : 'bg-[#f0f4f8]')}>
+      <div className="flex gap-2 px-4 md:px-8 pt-3 overflow-x-auto">
+        {countdownActive && (
+          <div className="flex-shrink-0 flex items-center gap-2.5 px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl text-white text-[11px] font-medium">
+            <Timer className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="font-bold">Compte à Rebours</span>
+            <span className="opacity-80">|</span>
+            <span>{countdownSales}/5 ventes</span>
+            <span className="opacity-80">|</span>
+            <span className="font-bold">{countdownDaysLeft}j restants</span>
+            {countdownSales >= 5 && <span className="bg-white/20 px-1.5 py-0.5 rounded text-[10px]">+800€</span>}
+          </div>
+        )}
+        {rookieActive && (
+          <div className="flex-shrink-0 flex items-center gap-2.5 px-3 py-2 bg-gradient-to-r from-violet-500 to-indigo-500 rounded-xl text-white text-[11px] font-medium">
+            <Trophy className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="font-bold">Rookie Online</span>
+            <span className="opacity-80">|</span>
+            <span>{rookieSales}/15 ventes</span>
+            <span className="opacity-80">|</span>
+            <span className="font-bold">{rookieDaysLeft}j restants</span>
+            {rookieSales >= 15 && <span className="bg-white/20 px-1.5 py-0.5 rounded text-[10px]">+1000€</span>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const sidebarLinks = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Accueil' },
@@ -182,6 +268,9 @@ export function AppLayout({ title, children, actions, variant = 'light' }: AppLa
           </div>
         </div>
       </div>
+
+      {/* ── Challenge Banner ── */}
+      <ChallengeBanner isDark={isDark} />
 
       {/* ── Main Content ── */}
       <main className="md:ml-[220px] pb-20 md:pb-0">

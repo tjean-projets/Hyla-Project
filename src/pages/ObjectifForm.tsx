@@ -3,20 +3,12 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Target, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 
-interface ObjectiveData {
+interface FormQuestion {
   id: string;
-  token: string;
-  team_member_id: string;
-  objectif_mois: string;
-  objectif_3mois: string;
-  objectif_1an: string;
-  actions: string;
-  ventes_objectif_mois: number;
-  ventes_objectif_3mois: number;
-  ventes_objectif_1an: number;
-  recrues_objectif_mois: number;
-  recrues_objectif_3mois: number;
-  recrues_objectif_1an: number;
+  label: string;
+  type: 'text' | 'textarea' | 'number' | 'select';
+  options?: string[];
+  required: boolean;
 }
 
 export default function ObjectifForm() {
@@ -26,6 +18,8 @@ export default function ObjectifForm() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [memberName, setMemberName] = useState('');
+  const [customQuestions, setCustomQuestions] = useState<FormQuestion[]>([]);
+  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     objectif_mois: '',
     objectif_3mois: '',
@@ -46,6 +40,7 @@ export default function ObjectifForm() {
 
   async function loadObjective() {
     setLoading(true);
+    // Load the objective record
     const { data, error: err } = await supabase
       .from('member_objectives')
       .select('*, team_members(first_name, last_name)')
@@ -73,6 +68,24 @@ export default function ObjectifForm() {
       recrues_objectif_3mois: data.recrues_objectif_3mois || 0,
       recrues_objectif_1an: data.recrues_objectif_1an || 0,
     });
+
+    // Load existing custom answers
+    if (data.custom_answers) {
+      const answers = data.custom_answers as unknown as Record<string, string>;
+      setCustomAnswers(answers);
+    }
+
+    // Load custom questions from form config
+    const { data: config } = await supabase
+      .from('objectif_form_config')
+      .select('questions')
+      .eq('user_id', data.user_id)
+      .maybeSingle();
+
+    if (config?.questions) {
+      setCustomQuestions(config.questions as unknown as FormQuestion[]);
+    }
+
     setLoading(false);
   }
 
@@ -84,6 +97,7 @@ export default function ObjectifForm() {
       .from('member_objectives')
       .update({
         ...form,
+        custom_answers: customAnswers as unknown as Record<string, unknown>,
         filled_by_member: true,
         filled_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -100,6 +114,8 @@ export default function ObjectifForm() {
     setSaved(true);
   }
 
+  const inputClass = "w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400";
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
@@ -108,7 +124,7 @@ export default function ObjectifForm() {
     );
   }
 
-  if (error) {
+  if (error && !form.objectif_mois && !saving) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-sm w-full">
@@ -152,32 +168,21 @@ export default function ObjectifForm() {
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-gray-500 block mb-1">Mon objectif principal</label>
-                <textarea
-                  value={form.objectif_mois}
-                  onChange={(e) => setForm({ ...form, objectif_mois: e.target.value })}
-                  placeholder="Ex: Vendre 3 Hyla, faire 5 démos..."
-                  rows={2}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-                />
+                <textarea value={form.objectif_mois} onChange={(e) => setForm({ ...form, objectif_mois: e.target.value })}
+                  placeholder="Ex: Vendre 3 Hyla, faire 5 démos..." rows={2} className={inputClass} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 block mb-1">Ventes visées</label>
-                  <input
-                    type="number" min="0"
-                    value={form.ventes_objectif_mois}
+                  <input type="number" min="0" value={form.ventes_objectif_mois}
                     onChange={(e) => setForm({ ...form, ventes_objectif_mois: parseInt(e.target.value) || 0 })}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                  />
+                    className={inputClass + ' text-center'} />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 block mb-1">Recrues visées</label>
-                  <input
-                    type="number" min="0"
-                    value={form.recrues_objectif_mois}
+                  <input type="number" min="0" value={form.recrues_objectif_mois}
                     onChange={(e) => setForm({ ...form, recrues_objectif_mois: parseInt(e.target.value) || 0 })}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                  />
+                    className={inputClass + ' text-center'} />
                 </div>
               </div>
             </div>
@@ -189,32 +194,21 @@ export default function ObjectifForm() {
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-gray-500 block mb-1">Où je veux en être</label>
-                <textarea
-                  value={form.objectif_3mois}
-                  onChange={(e) => setForm({ ...form, objectif_3mois: e.target.value })}
-                  placeholder="Ex: Passer Manager, avoir 4 partenaires actifs..."
-                  rows={2}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-400"
-                />
+                <textarea value={form.objectif_3mois} onChange={(e) => setForm({ ...form, objectif_3mois: e.target.value })}
+                  placeholder="Ex: Passer Manager, avoir 4 partenaires actifs..." rows={2} className={inputClass} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 block mb-1">Ventes visées</label>
-                  <input
-                    type="number" min="0"
-                    value={form.ventes_objectif_3mois}
+                  <input type="number" min="0" value={form.ventes_objectif_3mois}
                     onChange={(e) => setForm({ ...form, ventes_objectif_3mois: parseInt(e.target.value) || 0 })}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                  />
+                    className={inputClass + ' text-center'} />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 block mb-1">Recrues visées</label>
-                  <input
-                    type="number" min="0"
-                    value={form.recrues_objectif_3mois}
+                  <input type="number" min="0" value={form.recrues_objectif_3mois}
                     onChange={(e) => setForm({ ...form, recrues_objectif_3mois: parseInt(e.target.value) || 0 })}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                  />
+                    className={inputClass + ' text-center'} />
                 </div>
               </div>
             </div>
@@ -226,32 +220,21 @@ export default function ObjectifForm() {
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-gray-500 block mb-1">Ma vision</label>
-                <textarea
-                  value={form.objectif_1an}
-                  onChange={(e) => setForm({ ...form, objectif_1an: e.target.value })}
-                  placeholder="Ex: Revenu de 2000€/mois, équipe de 10 personnes..."
-                  rows={2}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
-                />
+                <textarea value={form.objectif_1an} onChange={(e) => setForm({ ...form, objectif_1an: e.target.value })}
+                  placeholder="Ex: Revenu de 2000€/mois, équipe de 10 personnes..." rows={2} className={inputClass} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 block mb-1">Ventes visées</label>
-                  <input
-                    type="number" min="0"
-                    value={form.ventes_objectif_1an}
+                  <input type="number" min="0" value={form.ventes_objectif_1an}
                     onChange={(e) => setForm({ ...form, ventes_objectif_1an: parseInt(e.target.value) || 0 })}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                  />
+                    className={inputClass + ' text-center'} />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 block mb-1">Recrues visées</label>
-                  <input
-                    type="number" min="0"
-                    value={form.recrues_objectif_1an}
+                  <input type="number" min="0" value={form.recrues_objectif_1an}
                     onChange={(e) => setForm({ ...form, recrues_objectif_1an: parseInt(e.target.value) || 0 })}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                  />
+                    className={inputClass + ' text-center'} />
                 </div>
               </div>
             </div>
@@ -260,14 +243,65 @@ export default function ObjectifForm() {
           {/* Actions */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <h2 className="text-sm font-bold text-violet-600 uppercase tracking-wider mb-3">Mes actions</h2>
-            <textarea
-              value={form.actions}
-              onChange={(e) => setForm({ ...form, actions: e.target.value })}
+            <textarea value={form.actions} onChange={(e) => setForm({ ...form, actions: e.target.value })}
               placeholder="Ex: Je poste 3x/semaine sur Instagram, je fais 2 démos/semaine, je contacte 5 prospects/jour..."
-              rows={3}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400"
-            />
+              rows={3} className={inputClass} />
           </div>
+
+          {/* Custom questions */}
+          {customQuestions.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">Questions complémentaires</h2>
+              <div className="space-y-4">
+                {customQuestions.map((q) => (
+                  <div key={q.id}>
+                    <label className="text-xs font-medium text-gray-500 block mb-1">
+                      {q.label}{q.required && ' *'}
+                    </label>
+                    {q.type === 'text' && (
+                      <input
+                        value={customAnswers[q.id] || ''}
+                        onChange={(e) => setCustomAnswers({ ...customAnswers, [q.id]: e.target.value })}
+                        required={q.required}
+                        className={inputClass}
+                      />
+                    )}
+                    {q.type === 'textarea' && (
+                      <textarea
+                        value={customAnswers[q.id] || ''}
+                        onChange={(e) => setCustomAnswers({ ...customAnswers, [q.id]: e.target.value })}
+                        required={q.required}
+                        rows={2}
+                        className={inputClass}
+                      />
+                    )}
+                    {q.type === 'number' && (
+                      <input
+                        type="number"
+                        value={customAnswers[q.id] || ''}
+                        onChange={(e) => setCustomAnswers({ ...customAnswers, [q.id]: e.target.value })}
+                        required={q.required}
+                        className={inputClass + ' text-center'}
+                      />
+                    )}
+                    {q.type === 'select' && (
+                      <select
+                        value={customAnswers[q.id] || ''}
+                        onChange={(e) => setCustomAnswers({ ...customAnswers, [q.id]: e.target.value })}
+                        required={q.required}
+                        className={inputClass}
+                      >
+                        <option value="">Sélectionner...</option>
+                        {(q.options || []).map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Submit */}
           <button
