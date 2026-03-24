@@ -45,7 +45,7 @@ export default function Login() {
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold tracking-tight">
               <span className="text-white">HYLA</span>
-              <span className="text-white/50 font-light ml-1.5">CRM</span>
+              <span className="text-white/50 font-light ml-1.5">Assistant</span>
             </h1>
           </div>
 

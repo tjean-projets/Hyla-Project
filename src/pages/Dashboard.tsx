@@ -1,69 +1,21 @@
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
+import { supabase, HYLA_COMMISSION_SCALE, getHylaCommission } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import {
   TrendingUp,
   ShoppingBag,
-  CalendarCheck,
-  Eye,
-  Target,
   Users,
-  UserPlus,
-  AlertCircle,
+  Timer,
+  Trophy,
   ChevronRight,
+  Target,
+  Zap,
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-
-/* ── Mockup 2 style: colored KPI cards with metrics ── */
-function MetricCard({
-  label,
-  value,
-  suffix = '',
-  icon: Icon,
-  color,
-  bgColor,
-}: {
-  label: string;
-  value: string | number;
-  suffix?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-  bgColor: string;
-}) {
-  return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2">{label}</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {typeof value === 'number' ? value.toLocaleString('fr-FR') : value}
-            {suffix && <span className="text-base font-semibold text-gray-400 ml-1">{suffix}</span>}
-          </p>
-        </div>
-        <div className={`h-11 w-11 rounded-2xl ${bgColor} flex items-center justify-center`}>
-          <Icon className={`h-5 w-5 ${color}`} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Colored circle metric (like Real Time Air Quality in mockup 2) ── */
-function CircleMetric({ label, value, suffix, ringColor }: { label: string; value: number; suffix: string; ringColor: string }) {
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className={`h-16 w-16 rounded-full border-[3px] ${ringColor} flex items-center justify-center`}>
-        <span className="text-lg font-bold text-gray-900">{value.toLocaleString('fr-FR')}</span>
-      </div>
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{suffix}</span>
-      <span className="text-xs text-gray-500">{label}</span>
-    </div>
-  );
-}
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const { data: kpis } = useQuery({
     queryKey: ['dashboard-kpis', user?.id],
@@ -72,6 +24,26 @@ export default function Dashboard() {
       const { data, error } = await supabase.rpc('get_dashboard_kpis', { p_user_id: user.id });
       if (error) throw error;
       return data as Record<string, number>;
+    },
+    enabled: !!user,
+  });
+
+  const { data: deals = [] } = useQuery({
+    queryKey: ['dashboard-deals', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase.from('deals').select('id, signed_at').eq('user_id', user.id).eq('status', 'signee');
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const { data: profileData } = useQuery({
+    queryKey: ['profile-date-dash', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase.from('profiles').select('created_at').eq('id', user.id).single();
+      return data;
     },
     enabled: !!user,
   });
@@ -92,193 +64,196 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  const { data: upcomingAppointments } = useQuery({
-    queryKey: ['upcoming-appointments', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      const { data } = await supabase
-        .from('appointments')
-        .select('*, contacts(first_name, last_name)')
-        .eq('user_id', user.id)
-        .eq('status', 'planifie')
-        .gte('date', new Date().toISOString())
-        .order('date', { ascending: true })
-        .limit(5);
-      return data || [];
-    },
-    enabled: !!user,
-  });
-
   const k = kpis || {} as Record<string, number>;
-  const tauxTransfo = k.ventes_signees && k.rdv_pris
-    ? Math.min(100, Math.round((k.ventes_signees / k.rdv_pris) * 100))
-    : 0;
-  const commissionTotal = (k.commissions_mois_directe || 0) + (k.commissions_mois_reseau || 0);
+  const nbSignees = deals.length;
+  const commissionEstimee = getHylaCommission(nbSignees);
 
-  // Monthly dummy chart data (will be real when DB is connected)
+  // Challenge calculations
+  const startDate = profileData ? new Date(profileData.created_at) : new Date();
+  const now = new Date();
+
+  const countdownEnd = new Date(startDate);
+  countdownEnd.setMonth(countdownEnd.getMonth() + 2);
+  const countdownDaysLeft = Math.max(0, Math.ceil((countdownEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  const countdownActive = countdownDaysLeft > 0;
+  const countdownSales = Math.min(nbSignees, 5);
+  const countdownPct = Math.round((countdownSales / 5) * 100);
+
+  const rookieEnd = new Date(startDate);
+  rookieEnd.setMonth(rookieEnd.getMonth() + 7);
+  const rookieDaysLeft = Math.max(0, Math.ceil((rookieEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  const rookieActive = rookieDaysLeft > 0 && nbSignees < 15;
+  const rookieSales = Math.min(nbSignees, 15);
+  const rookiePct = Math.round((rookieSales / 15) * 100);
+
+  // Chart data
   const monthlyData = Array.from({ length: 6 }, (_, i) => {
     const d = new Date();
     d.setMonth(d.getMonth() - (5 - i));
     return {
       name: d.toLocaleDateString('fr-FR', { month: 'short' }),
       CA: Math.round((k.ca_mois || 0) * (0.3 + Math.random() * 0.7)),
-      Commissions: Math.round(commissionTotal * (0.3 + Math.random() * 0.7)),
     };
   });
 
-  const commissionPieData = [
-    { name: 'Directes', value: k.commissions_mois_directe || 0, color: '#3b82f6' },
-    { name: 'Réseau', value: k.commissions_mois_reseau || 0, color: '#f59e0b' },
-  ].filter(d => d.value > 0);
-
-  const now = new Date();
-  const monthLabel = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  const firstName = profile?.full_name?.split(' ')[0] || 'Partenaire';
 
   return (
-    <AppLayout title="Dashboard">
-      <div className="space-y-6">
-        {/* ── Period + subtitle (mockup 2: filters row) ── */}
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500 capitalize">{monthLabel}</p>
-          <div className="flex gap-2">
-            {['Mois', 'Trimestre', 'Année'].map((p) => (
-              <button key={p} className={`px-3 py-1.5 text-xs font-medium rounded-lg ${p === 'Mois' ? 'bg-[#3b82f6] text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>
-                {p}
-              </button>
+    <AppLayout title="Dashboard" hideBanner>
+      <div className="space-y-5">
+        {/* ── Greeting ── */}
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Bonjour {firstName} !</h2>
+          <p className="text-xs text-gray-400 capitalize">{now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        </div>
+
+        {/* ── Challenges (big cards, presentation style) ── */}
+        {(countdownActive || rookieActive) && (
+          <div className="space-y-3">
+            {countdownActive && (
+              <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-5 text-white">
+                <div className="flex items-center gap-2 mb-3">
+                  <Timer className="h-5 w-5" />
+                  <span className="text-sm font-bold uppercase tracking-wider">Compte à Rebours — 2 mois</span>
+                </div>
+                <p className="text-xs opacity-90 mb-3">
+                  Réalise 5 ventes pendant cette période. La 5ème vente est sur-commissionnée <span className="font-bold">800€</span>
+                </p>
+                <div className="flex items-end justify-between mb-2">
+                  <span className="text-3xl font-black">{countdownSales}/5</span>
+                  <span className="text-sm font-bold opacity-90">{countdownDaysLeft}j restants</span>
+                </div>
+                <div className="h-3 rounded-full bg-white/20 overflow-hidden">
+                  <div className="h-full rounded-full bg-white transition-all duration-700" style={{ width: `${countdownPct}%` }} />
+                </div>
+                {countdownSales >= 5 && (
+                  <div className="mt-2 text-center bg-white/20 rounded-xl py-1.5 text-sm font-bold">
+                    +800€ débloqué !
+                  </div>
+                )}
+              </div>
+            )}
+
+            {rookieActive && (
+              <div className="bg-gradient-to-r from-violet-500 to-indigo-500 rounded-2xl p-5 text-white">
+                <div className="flex items-center gap-2 mb-3">
+                  <Trophy className="h-5 w-5" />
+                  <span className="text-sm font-bold uppercase tracking-wider">Rookie Online — 6 mois</span>
+                </div>
+                <p className="text-xs opacity-90 mb-3">
+                  Réalise 14 ventes en 6 mois. La 15ème vente déclenche une super-commission de <span className="font-bold">1000€</span>
+                </p>
+                <div className="flex items-end justify-between mb-2">
+                  <span className="text-3xl font-black">{rookieSales}/15</span>
+                  <span className="text-sm font-bold opacity-90">{rookieDaysLeft}j restants</span>
+                </div>
+                <div className="h-3 rounded-full bg-white/20 overflow-hidden">
+                  <div className="h-full rounded-full bg-white transition-all duration-700" style={{ width: `${rookiePct}%` }} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── KPIs essentiels (4 cards) ── */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-semibold uppercase text-gray-400">CA du mois</p>
+              <TrendingUp className="h-4 w-4 text-emerald-500" />
+            </div>
+            <p className="text-xl font-bold text-gray-900">{(k.ca_mois || 0).toLocaleString('fr-FR')} <span className="text-sm text-gray-400">€</span></p>
+          </div>
+          <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl p-4 text-white">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-semibold uppercase opacity-80">Commission</p>
+              <Zap className="h-4 w-4 opacity-80" />
+            </div>
+            <p className="text-xl font-bold">{commissionEstimee.toLocaleString('fr-FR')} <span className="text-sm opacity-70">€</span></p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-semibold uppercase text-gray-400">Ventes</p>
+              <ShoppingBag className="h-4 w-4 text-violet-500" />
+            </div>
+            <p className="text-xl font-bold text-gray-900">{nbSignees}</p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-semibold uppercase text-gray-400">Équipe</p>
+              <Users className="h-4 w-4 text-blue-500" />
+            </div>
+            <p className="text-xl font-bold text-gray-900">{k.equipe_active || 0}</p>
+          </div>
+        </div>
+
+        {/* ── Barème rapide ── */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-gray-900">Barème ventes</p>
+            <Target className="h-3.5 w-3.5 text-gray-400" />
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto">
+            {HYLA_COMMISSION_SCALE.map((s, i) => (
+              <div key={i} className={`flex-shrink-0 text-center px-2.5 py-1.5 rounded-lg text-[10px] font-medium border ${
+                nbSignees >= s.machines ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-gray-50 border-gray-100 text-gray-400'
+              }`}>
+                <div className="font-bold text-xs">{s.commission}€</div>
+                <div>{s.label}</div>
+              </div>
             ))}
           </div>
         </div>
 
-        {/* ── KPI Row 1: CA & performance ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard label="CA du mois" value={k.ca_mois || 0} suffix="€" icon={TrendingUp} color="text-emerald-600" bgColor="bg-emerald-50" />
-          <MetricCard label="CA de l'année" value={k.ca_annee || 0} suffix="€" icon={TrendingUp} color="text-blue-600" bgColor="bg-blue-50" />
-          <MetricCard label="Ventes signées" value={k.ventes_signees || 0} icon={ShoppingBag} color="text-violet-600" bgColor="bg-violet-50" />
-          <MetricCard label="Taux transfo" value={tauxTransfo} suffix="%" icon={Target} color="text-amber-600" bgColor="bg-amber-50" />
+        {/* ── Chart CA ── */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <h3 className="text-xs font-bold text-gray-900 mb-3">Évolution CA</h3>
+          <ResponsiveContainer width="100%" height={160}>
+            <AreaChart data={monthlyData}>
+              <defs>
+                <linearGradient id="gradCA" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', fontSize: 12 }}
+                formatter={(value: number) => `${value.toLocaleString('fr-FR')} €`} />
+              <Area type="monotone" dataKey="CA" stroke="#3b82f6" strokeWidth={2} fill="url(#gradCA)" />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* ── KPI Row 2: Activity ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard label="RDV pris" value={k.rdv_pris || 0} icon={CalendarCheck} color="text-purple-600" bgColor="bg-purple-50" />
-          <MetricCard label="Démos réalisées" value={k.demos_realisees || 0} icon={Eye} color="text-pink-600" bgColor="bg-pink-50" />
-          <MetricCard label="Équipe active" value={k.equipe_active || 0} icon={Users} color="text-blue-600" bgColor="bg-blue-50" />
-          <MetricCard label="Nouvelles recrues" value={k.nouvelles_recrues || 0} icon={UserPlus} color="text-rose-600" bgColor="bg-rose-50" />
-        </div>
-
-        {/* ── Chart + Commission circle (mockup 2: Filtration Efficiency + Real Time metrics) ── */}
-        <div className="grid lg:grid-cols-3 gap-4">
-          {/* Line chart (2/3 width) */}
-          <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-gray-900">Évolution CA & Commissions</h3>
-              <span className="text-[11px] text-gray-400 font-medium">6 derniers mois</span>
-            </div>
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={monthlyData}>
-                <defs>
-                  <linearGradient id="gradCA" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.15} />
-                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                  formatter={(value: number) => `${value.toLocaleString('fr-FR')} €`}
-                />
-                <Area type="monotone" dataKey="CA" stroke="#3b82f6" strokeWidth={2.5} fill="url(#gradCA)" dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} />
-                <Area type="monotone" dataKey="Commissions" stroke="#f59e0b" strokeWidth={2} fill="transparent" strokeDasharray="5 3" />
-              </AreaChart>
-            </ResponsiveContainer>
+        {/* ── Prochaines tâches ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
+            <h3 className="text-xs font-bold text-gray-900">Prochaines tâches</h3>
+            <a href="/tasks" className="text-[10px] text-[#3b82f6] font-medium flex items-center gap-0.5">
+              Voir tout <ChevronRight className="h-3 w-3" />
+            </a>
           </div>
-
-          {/* Commission summary (1/3 - mockup 2 Real Time metrics style) */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900 mb-5">Commissions du mois</h3>
-            <div className="text-center mb-6">
-              <p className="text-3xl font-bold text-gray-900">{commissionTotal.toLocaleString('fr-FR')} €</p>
-              <p className="text-xs text-gray-400 mt-1">Total commissions</p>
-            </div>
-            <div className="flex justify-center gap-6">
-              <CircleMetric label="Directes" value={k.commissions_mois_directe || 0} suffix="€" ringColor="border-blue-400" />
-              <CircleMetric label="Réseau" value={k.commissions_mois_reseau || 0} suffix="€" ringColor="border-amber-400" />
-            </div>
-            <div className="mt-5 pt-4 border-t border-gray-100 text-center">
-              <p className="text-xs text-gray-400">Commissions annuelles</p>
-              <p className="text-lg font-bold text-gray-900">{(k.commissions_annee || 0).toLocaleString('fr-FR')} €</p>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Bottom row: Tasks + Appointments (card list style) ── */}
-        <div className="grid md:grid-cols-2 gap-4">
-          {/* Tasks */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-gray-900">Prochaines tâches</h3>
-              <a href="/tasks" className="text-xs text-[#3b82f6] font-medium flex items-center gap-0.5 hover:underline">
-                Voir tout <ChevronRight className="h-3 w-3" />
-              </a>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {upcomingTasks && upcomingTasks.length > 0 ? upcomingTasks.map((task: any) => (
-                <div key={task.id} className="px-6 py-3.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{task.title}</p>
-                    {task.contacts && (
-                      <p className="text-[11px] text-gray-400 mt-0.5">{task.contacts.first_name} {task.contacts.last_name}</p>
-                    )}
-                  </div>
-                  {task.due_date && (
-                    <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg ${
-                      new Date(task.due_date) < new Date() ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {new Date(task.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-                    </span>
+          <div className="divide-y divide-gray-50">
+            {upcomingTasks && upcomingTasks.length > 0 ? upcomingTasks.slice(0, 4).map((task: any) => (
+              <div key={task.id} className="px-4 py-3 flex items-center justify-between">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-800 truncate">{task.title}</p>
+                  {task.contacts && (
+                    <p className="text-[10px] text-gray-400">{task.contacts.first_name} {task.contacts.last_name}</p>
                   )}
                 </div>
-              )) : (
-                <div className="px-6 py-8 text-center text-sm text-gray-400">Aucune tâche à venir</div>
-              )}
-            </div>
-          </div>
-
-          {/* Appointments */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-gray-900">Prochains RDV</h3>
-              <a href="/calendar" className="text-xs text-[#3b82f6] font-medium flex items-center gap-0.5 hover:underline">
-                Voir tout <ChevronRight className="h-3 w-3" />
-              </a>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {upcomingAppointments && upcomingAppointments.length > 0 ? upcomingAppointments.map((apt: any) => (
-                <div key={apt.id} className="px-6 py-3.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="text-center min-w-[44px] py-1 rounded-xl bg-blue-50">
-                      <p className="text-xs font-bold text-[#3b82f6]">
-                        {new Date(apt.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">{apt.title}</p>
-                      {apt.contacts && (
-                        <p className="text-[11px] text-gray-400 mt-0.5">{apt.contacts.first_name} {apt.contacts.last_name}</p>
-                      )}
-                    </div>
-                  </div>
-                  <span className={`text-[10px] font-semibold px-2 py-1 rounded-lg ${
-                    apt.status === 'planifie' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'
+                {task.due_date && (
+                  <span className={`text-[10px] font-semibold px-2 py-1 rounded-lg flex-shrink-0 ml-2 ${
+                    new Date(task.due_date) < new Date() ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'
                   }`}>
-                    {apt.status === 'planifie' ? 'Confirmé' : apt.status}
+                    {new Date(task.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                   </span>
-                </div>
-              )) : (
-                <div className="px-6 py-8 text-center text-sm text-gray-400">Aucun rendez-vous à venir</div>
-              )}
-            </div>
+                )}
+              </div>
+            )) : (
+              <div className="px-4 py-8 text-center text-sm text-gray-400">Aucune tâche</div>
+            )}
           </div>
         </div>
       </div>

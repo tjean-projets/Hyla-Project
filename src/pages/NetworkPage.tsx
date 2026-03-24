@@ -781,82 +781,68 @@ export default function NetworkPage() {
           />
         </div>
 
-        {/* ── Leaderboard / Members (mockup 3: dark cards with rank, stars) ── */}
-        <div className="space-y-2">
+        {/* ── Member cards (clean mobile) ── */}
+        <div className="space-y-3">
           {filtered.map((member, index) => {
             const tier = getTier(member.level);
             const TierIcon = tier.icon;
             return (
               <div
                 key={member.id}
-                onClick={() => handleOpenEdit(member)}
-                className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-4 hover:border-white/20 transition-all cursor-pointer active:scale-[0.98]"
+                className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-4 hover:border-white/20 transition-all"
               >
-                <div className="flex items-center gap-4">
-                  {/* Rank number */}
-                  <div className="text-center min-w-[32px]">
-                    <span className={`text-lg font-bold ${index < 3 ? 'text-yellow-400' : 'text-gray-600'}`}>
-                      {index + 1}
-                    </span>
-                  </div>
-
-                  {/* Avatar */}
+                {/* Top row: avatar + name + status */}
+                <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleOpenEdit(member)}>
                   <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${tier.color} flex items-center justify-center shadow-lg flex-shrink-0`}>
                     <span className="text-white font-bold text-sm">
                       {member.first_name.charAt(0)}{member.last_name.charAt(0)}
                     </span>
                   </div>
-
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-white truncate">{member.first_name} {member.last_name}</p>
                       <TierIcon className={`h-3.5 w-3.5 flex-shrink-0 ${tier.text}`} />
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      {member.internal_id && (
-                        <span className="text-[10px] text-gray-500">ID: {member.internal_id}</span>
-                      )}
-                      <span className="text-[10px] text-gray-500">Niv. {member.level}</span>
+                    <div className="flex items-center gap-2 mt-0.5">
                       {member.joined_at && (
                         <span className="text-[10px] text-gray-500">
                           Depuis {new Date(member.joined_at).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}
                         </span>
                       )}
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                        member.status === 'actif'
+                          ? 'bg-emerald-500/15 text-emerald-400'
+                          : 'bg-white/5 text-gray-500'
+                      }`}>
+                        {member.status === 'actif' ? 'Actif' : 'Inactif'}
+                      </span>
                     </div>
                   </div>
+                </div>
 
-                  {/* Actions + Status */}
-                  <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setObjectifsMember(member); }}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/20 hover:bg-blue-500/25 transition-colors"
-                    >
-                      <Target className="h-3 w-3" />
-                      Objectifs
-                    </button>
-                    {(member as any).linked_user_id ? (
-                      <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                        <CheckCircle className="h-3 w-3" />
-                        Connecté
-                      </span>
-                    ) : (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setAssistantMember(member); }}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-violet-500/15 text-violet-400 border border-violet-500/20 hover:bg-violet-500/25 transition-colors"
-                      >
-                        <Sparkles className="h-3 w-3" />
-                        Assistant
-                      </button>
-                    )}
-                    <span className={`text-[10px] font-semibold px-2 py-1 rounded-lg ${
-                      member.status === 'actif'
-                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                        : 'bg-white/5 text-gray-500 border border-white/10'
-                    }`}>
-                      {member.status === 'actif' ? 'Actif' : 'Inactif'}
+                {/* Bottom row: action buttons stacked */}
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setObjectifsMember(member); }}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/20 active:scale-[0.97]"
+                  >
+                    <Target className="h-3.5 w-3.5" />
+                    Objectifs
+                  </button>
+                  {(member as any).linked_user_id ? (
+                    <span className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      Connecté
                     </span>
-                  </div>
+                  ) : (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setAssistantMember(member); }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-violet-500/15 text-violet-400 border border-violet-500/20 active:scale-[0.97]"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Hyla Assistant
+                    </button>
+                  )}
                 </div>
               </div>
             );

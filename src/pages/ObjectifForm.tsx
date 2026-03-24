@@ -155,7 +155,7 @@ export default function ObjectifForm() {
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold mb-3">
             <Target className="h-4 w-4" />
-            HYLA CRM
+            HYLA ASSISTANT
           </div>
           <h1 className="text-xl font-bold text-gray-900">Mes objectifs</h1>
           {memberName && <p className="text-sm text-gray-500 mt-1">{memberName}</p>}
@@ -313,7 +313,7 @@ export default function ObjectifForm() {
           </button>
         </form>
 
-        <p className="text-center text-[10px] text-gray-400 mt-6">Hyla CRM — Formulaire objectifs partenaire</p>
+        <p className="text-center text-[10px] text-gray-400 mt-6">Hyla Assistant — Formulaire objectifs partenaire</p>
       </div>
     </div>
   );

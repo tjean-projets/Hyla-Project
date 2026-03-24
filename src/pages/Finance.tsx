@@ -297,7 +297,7 @@ export default function Finance() {
 </head>
 <body>
 <div class="header">
-  <div class="logo">HYLA <span>CRM</span></div>
+  <div class="logo">HYLA <span>Assistant</span></div>
   <div class="invoice-info">
     <h2>FACTURE</h2>
     <p>N° ${invoiceNumber}<br>Date : ${today}</p>
@@ -342,7 +342,7 @@ export default function Finance() {
 </div>
 
 <div class="footer">
-  <p>Document généré automatiquement par Hyla CRM le ${today}</p>
+  <p>Document généré automatiquement par Hyla Assistant le ${today}</p>
   <p>Ce document tient lieu de facture de commissions.</p>
 </div>
 </body>
