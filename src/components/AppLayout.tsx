@@ -23,6 +23,8 @@ import { useState } from 'react';
 import { Timer, Trophy } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase, isSuperAdmin, HYLA_CHALLENGES } from '@/lib/supabase';
+import { ImpersonationBanner } from '@/components/ImpersonationBanner';
+import { useImpersonationSafe } from '@/hooks/useImpersonation';
 import {
   Dialog,
   DialogContent,
@@ -359,9 +361,12 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
   const isManager = isAdmin || profile?.role === 'manager' || profile?.role === 'admin' || (teamCount != null && teamCount > 0);
 
   const isDark = variant === 'dark';
+  const impersonation = useImpersonationSafe();
+  const isImpersonating = impersonation?.isImpersonating ?? false;
 
   return (
     <div className={cn('min-h-screen', isDark ? 'bg-[#0f1729]' : 'bg-[#f0f4f8]')}>
+      <ImpersonationBanner />
       {/* ── Desktop Sidebar (Mockup 2 style: dark blue) ── */}
       <aside className="fixed left-0 top-0 bottom-0 w-[220px] bg-[#111827] hidden md:flex flex-col z-40">
         {/* Logo */}
@@ -527,7 +532,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
       {!hideBanner && <ChallengeBanner isDark={isDark} />}
 
       {/* ── Main Content ── */}
-      <main className="md:ml-[220px] pb-20 md:pb-0">
+      <main className={cn('md:ml-[220px] pb-20 md:pb-0', isImpersonating && 'pt-10')}>
         <div className="p-4 md:p-8">{children}</div>
       </main>
 

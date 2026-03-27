@@ -25,6 +25,7 @@ import JoinPage from "./pages/JoinPage";
 import AdminPanel from "./pages/AdminPanel";
 import PublicProfilePage from "./pages/PublicProfilePage";
 import NotFound from "./pages/NotFound";
+import { ImpersonationProvider } from "./hooks/useImpersonation";
 
 // Partner pages
 import PartnerDashboard from "./pages/partner/Dashboard";
@@ -112,7 +113,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AppRoutes />
+          <ImpersonationProvider>
+            <AppRoutes />
+          </ImpersonationProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

@@ -228,6 +228,13 @@ export interface Lead {
   updated_at: string;
 }
 
+export type PartnerType = 'professional' | 'individual';
+
+export const PARTNER_TYPE_LABELS: Record<PartnerType, string> = {
+  professional: 'Professionnel',
+  individual: 'Particulier',
+};
+
 export interface Partner {
   id: string;
   display_name: string;

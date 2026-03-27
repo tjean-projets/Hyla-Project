@@ -10,7 +10,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { useImpersonation } from '@/hooks/useImpersonation';
 
 interface UserProfile {
   id: string;
@@ -34,6 +35,8 @@ export default function AdminPanel() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { startImpersonation } = useImpersonation();
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
@@ -113,6 +116,12 @@ export default function AdminPanel() {
     setDeleteStep(0);
     setConfirmName('');
     queryClient.invalidateQueries({ queryKey: ['admin-all-profiles'] });
+  }
+
+  function viewAsUser(profile: UserProfile) {
+    startImpersonation(profile.id, profile.full_name || 'Utilisateur', 'individual');
+    toast({ title: 'Mode visualisation', description: `Vous voyez le compte de ${profile.full_name}` });
+    navigate('/dashboard');
   }
 
   const sponsorName = (sponsorId: string | null) => {
@@ -196,6 +205,15 @@ export default function AdminPanel() {
                   <p className="text-[10px] text-gray-400">{new Date(profile.created_at).toLocaleDateString('fr-FR')}</p>
                   <p className="text-[10px] font-mono text-gray-300">{profile.invite_code || '—'}</p>
                 </div>
+                {profile.id !== user?.id && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); viewAsUser(profile); }}
+                    className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 hover:bg-blue-100 active:scale-95 transition-all flex-shrink-0"
+                    title={`Voir le compte de ${profile.full_name}`}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                )}
                 <ChevronRight className="h-4 w-4 text-gray-300 flex-shrink-0" />
               </div>
             ))}
@@ -272,6 +290,15 @@ export default function AdminPanel() {
 
                   {/* Actions */}
                   <div className="pt-2 space-y-2">
+                    {selectedUser.id !== user?.id && (
+                      <button
+                        onClick={() => { setSelectedUser(null); viewAsUser(selectedUser); }}
+                        className="w-full py-2.5 bg-blue-50 text-blue-600 font-semibold text-sm rounded-xl flex items-center justify-center gap-2 active:scale-[0.98]"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Voir son compte
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setSelectedUser(null);
