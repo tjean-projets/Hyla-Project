@@ -121,6 +121,8 @@ function MemberForm({
         const { error } = await supabase.from('team_members').insert({
           ...payload,
           contact_id: newContact.id,
+          linked_user_id: linkedProfile?.id || null,
+          slug: generateSlug(form.first_name, form.last_name),
         });
         if (error) throw error;
       }
@@ -151,8 +153,64 @@ function MemberForm({
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
 
+  const [hylaIdSearch, setHylaIdSearch] = useState('');
+  const [linkedProfile, setLinkedProfile] = useState<{ id: string; full_name: string; email: string } | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  const searchByHylaId = async () => {
+    if (!hylaIdSearch.trim()) return;
+    setSearching(true);
+    setLinkedProfile(null);
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, invite_code')
+      .eq('invite_code', hylaIdSearch.trim().toLowerCase())
+      .maybeSingle();
+    if (data) {
+      setLinkedProfile({ id: data.id, full_name: data.full_name || '', email: data.email || '' });
+      const [first, ...rest] = (data.full_name || '').split(' ');
+      setForm(f => ({ ...f, first_name: first || '', last_name: rest.join(' ') || '', email: data.email || f.email }));
+      toast({ title: `${data.full_name} trouvé !` });
+    } else {
+      toast({ title: 'ID non trouvé', description: 'Vérifiez l\'ID Hyla Assistant', variant: 'destructive' });
+    }
+    setSearching(false);
+  };
+
   return (
-    <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} className="space-y-4">
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      // If linked via Hyla ID, pass linked_user_id
+      if (linkedProfile && !isEdit) {
+        // We'll add linked_user_id in the mutation
+      }
+      mutation.mutate();
+    }} className="space-y-4">
+      {/* Search by Hyla ID */}
+      {!isEdit && (
+        <div className="bg-blue-50 rounded-xl p-3 space-y-2">
+          <Label className="text-xs text-blue-700 font-semibold">🔗 Lier un compte Hyla Assistant (optionnel)</Label>
+          <div className="flex gap-2">
+            <Input
+              className="h-10 flex-1 bg-white text-sm font-mono uppercase"
+              placeholder="ID Hyla Assistant"
+              value={hylaIdSearch}
+              onChange={(e) => setHylaIdSearch(e.target.value)}
+            />
+            <button type="button" onClick={searchByHylaId} disabled={searching}
+              className="px-4 h-10 bg-blue-600 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
+              {searching ? '...' : 'Rechercher'}
+            </button>
+          </div>
+          {linkedProfile && (
+            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-2">
+              <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+              <span className="text-xs text-green-700 font-medium">{linkedProfile.full_name} — compte lié</span>
+            </div>
+          )}
+          <p className="text-[10px] text-blue-500">L'ID se trouve dans Paramètres du membre. Permet d'éviter les homonymes.</p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div><Label>Prénom *</Label><Input className="h-11" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required /></div>
         <div><Label>Nom *</Label><Input className="h-11" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required /></div>

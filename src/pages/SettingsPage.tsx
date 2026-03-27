@@ -3,7 +3,7 @@ import { AppLayout, ALL_MOBILE_TABS } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users } from 'lucide-react';
+import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -189,6 +189,10 @@ export default function SettingsPage() {
   const [newEmail, setNewEmail] = useState('');
   const [emailSaving, setEmailSaving] = useState(false);
   const [questions, setQuestions] = useState<FormQuestion[]>([]);
+  const [showPurge, setShowPurge] = useState(false);
+  const [purgeConfirm, setPurgeConfirm] = useState('');
+  const [purging, setPurging] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
 
   // Mobile nav customization
   const getInitialTabs = () => {
@@ -277,6 +281,26 @@ export default function SettingsPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
           <h3 className="text-base font-semibold text-gray-900 mb-4">Mon profil</h3>
           <div className="space-y-4">
+            {/* ID Hyla Assistant */}
+            {profile?.invite_code && (
+              <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-3">
+                <Fingerprint className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-medium text-gray-500 uppercase">Mon ID Hyla Assistant</p>
+                  <p className="text-sm font-bold text-blue-700 font-mono">{profile.invite_code.toUpperCase()}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(profile.invite_code!.toUpperCase());
+                    setCopiedId(true);
+                    setTimeout(() => setCopiedId(false), 2000);
+                  }}
+                  className="px-3 py-1.5 bg-blue-600 text-white text-[11px] font-semibold rounded-lg active:scale-[0.97]"
+                >
+                  {copiedId ? '✓ Copié' : 'Copier'}
+                </button>
+              </div>
+            )}
             <div>
               <Label className="text-xs">Nom complet</Label>
               <Input value={fullName} onChange={(e) => setFullName(e.target.value)} className="h-11" />
@@ -548,6 +572,78 @@ export default function SettingsPage() {
           </button>
           {selectedTabs.length !== 5 && (
             <p className="text-[10px] text-red-500 text-center mt-1">Sélectionne exactement 5 onglets</p>
+          )}
+        </div>
+        {/* Purge Data */}
+        <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <h3 className="text-base font-semibold text-red-600">Zone dangereuse</h3>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">
+            Supprimez toutes vos données (contacts, ventes, tâches, commissions, réseau, leads). Votre compte sera conservé.
+          </p>
+          {!showPurge ? (
+            <button
+              onClick={() => setShowPurge(true)}
+              className="w-full py-3 border-2 border-red-200 text-red-600 font-semibold rounded-xl text-sm hover:bg-red-50 transition-colors"
+            >
+              Supprimer toutes mes données
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div className="bg-red-50 rounded-xl p-3">
+                <p className="text-xs text-red-700 font-medium mb-1">⚠️ Cette action est irréversible !</p>
+                <p className="text-[11px] text-red-600">
+                  Tapez <strong>SUPPRIMER</strong> pour confirmer la suppression de toutes vos données.
+                </p>
+              </div>
+              <Input
+                value={purgeConfirm}
+                onChange={(e) => setPurgeConfirm(e.target.value)}
+                placeholder="Tapez SUPPRIMER"
+                className="h-11 border-red-200 focus:ring-red-500/30"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowPurge(false); setPurgeConfirm(''); }}
+                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm"
+                >
+                  Annuler
+                </button>
+                <button
+                  disabled={purgeConfirm !== 'SUPPRIMER' || purging}
+                  onClick={async () => {
+                    if (!user) return;
+                    setPurging(true);
+                    try {
+                      // Delete in order (foreign keys)
+                      await supabase.from('commission_import_rows').delete().filter('import_id', 'in', `(select id from commission_imports where user_id='${user.id}')`);
+                      await supabase.from('commission_imports').delete().eq('user_id', user.id);
+                      await supabase.from('commissions').delete().eq('user_id', user.id);
+                      await supabase.from('deals').delete().eq('user_id', user.id);
+                      await supabase.from('tasks').delete().eq('user_id', user.id);
+                      await supabase.from('member_objectives').delete().filter('member_id', 'in', `(select id from team_members where user_id='${user.id}')`);
+                      await supabase.from('team_members').delete().eq('user_id', user.id);
+                      await supabase.from('contacts').delete().eq('user_id', user.id);
+                      await supabase.from('pipeline_stages').delete().eq('user_id', user.id);
+                      await supabase.from('public_leads').delete().eq('profile_id', user.id);
+                      await supabase.from('calendar_events').delete().eq('user_id', user.id);
+                      queryClient.invalidateQueries();
+                      toast({ title: 'Données supprimées', description: 'Toutes vos données ont été effacées.' });
+                      setShowPurge(false);
+                      setPurgeConfirm('');
+                    } catch (err: any) {
+                      toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
+                    }
+                    setPurging(false);
+                  }}
+                  className="flex-1 py-2.5 bg-red-600 text-white font-semibold rounded-xl text-sm disabled:opacity-30"
+                >
+                  {purging ? 'Suppression...' : 'Confirmer'}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
