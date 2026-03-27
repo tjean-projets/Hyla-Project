@@ -1,6 +1,6 @@
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase, HYLA_COMMISSION_SCALE, getHylaCommission } from '@/lib/supabase';
+import { supabase, HYLA_COMMISSION_SCALE, HYLA_CHALLENGES, getHylaCommission } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import {
   TrendingUp,
@@ -72,31 +72,38 @@ export default function Dashboard() {
   const nbSignees = deals.length;
   const commissionEstimee = getHylaCommission(nbSignees);
 
-  // Challenge calculations
+  // Challenge calculations (centralisé via HYLA_CHALLENGES)
   const startDate = profileData ? new Date(profileData.created_at) : new Date();
   const now = new Date();
 
   const countdownEnd = new Date(startDate);
-  countdownEnd.setMonth(countdownEnd.getMonth() + 2);
+  countdownEnd.setMonth(countdownEnd.getMonth() + HYLA_CHALLENGES.countdown.months);
   const countdownDaysLeft = Math.max(0, Math.ceil((countdownEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
   const countdownActive = countdownDaysLeft > 0;
-  const countdownSales = Math.min(nbSignees, 5);
-  const countdownPct = Math.round((countdownSales / 5) * 100);
+  const countdownSales = Math.min(nbSignees, HYLA_CHALLENGES.countdown.target);
+  const countdownPct = Math.round((countdownSales / HYLA_CHALLENGES.countdown.target) * 100);
 
   const rookieEnd = new Date(startDate);
-  rookieEnd.setMonth(rookieEnd.getMonth() + 7);
+  rookieEnd.setMonth(rookieEnd.getMonth() + HYLA_CHALLENGES.rookie.months);
   const rookieDaysLeft = Math.max(0, Math.ceil((rookieEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-  const rookieActive = rookieDaysLeft > 0 && nbSignees < 15;
-  const rookieSales = Math.min(nbSignees, 15);
-  const rookiePct = Math.round((rookieSales / 15) * 100);
+  const rookieActive = rookieDaysLeft > 0 && nbSignees < HYLA_CHALLENGES.rookie.target;
+  const rookieSales = Math.min(nbSignees, HYLA_CHALLENGES.rookie.target);
+  const rookiePct = Math.round((rookieSales / HYLA_CHALLENGES.rookie.target) * 100);
 
-  // Chart data
+  // Chart data — ventilation réelle des ventes signées par mois
   const monthlyData = Array.from({ length: 6 }, (_, i) => {
     const d = new Date();
     d.setMonth(d.getMonth() - (5 - i));
+    const month = d.getMonth();
+    const year = d.getFullYear();
+    const ventesduMois = deals.filter((deal: any) => {
+      if (!deal.signed_at) return false;
+      const sd = new Date(deal.signed_at);
+      return sd.getMonth() === month && sd.getFullYear() === year;
+    }).length;
     return {
       name: d.toLocaleDateString('fr-FR', { month: 'short' }),
-      CA: Math.round((k.ca_mois || 0) * (0.3 + Math.random() * 0.7)),
+      Ventes: ventesduMois,
     };
   });
 
@@ -118,20 +125,20 @@ export default function Dashboard() {
               <div onClick={() => setShowChallenge('countdown')} className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-5 text-white cursor-pointer active:scale-[0.98] transition-transform">
                 <div className="flex items-center gap-2 mb-3">
                   <Timer className="h-5 w-5" />
-                  <span className="text-sm font-bold uppercase tracking-wider">Compte à Rebours — 2 mois</span>
+                  <span className="text-sm font-bold uppercase tracking-wider">{HYLA_CHALLENGES.countdown.name} — {HYLA_CHALLENGES.countdown.months} mois</span>
                 </div>
                 <p className="text-xs opacity-90 mb-3">
-                  Réalise 5 ventes pendant cette période. La 5ème vente est sur-commissionnée <span className="font-bold">800€</span>
+                  Réalise {HYLA_CHALLENGES.countdown.target} ventes pendant cette période. La {HYLA_CHALLENGES.countdown.target}ème vente est sur-commissionnée <span className="font-bold">{HYLA_CHALLENGES.countdown.bonus}€</span>
                 </p>
                 <div className="flex items-end justify-between mb-2">
-                  <span className="text-3xl font-black">{countdownSales}/5</span>
+                  <span className="text-3xl font-black">{countdownSales}/{HYLA_CHALLENGES.countdown.target}</span>
                   <span className="text-sm font-bold opacity-90">{countdownDaysLeft}j restants</span>
                 </div>
                 <div className="h-3 rounded-full bg-white/20 overflow-hidden">
                   <div className="h-full rounded-full bg-white transition-all duration-700" style={{ width: `${countdownPct}%` }} />
                 </div>
-                {countdownSales >= 5 && (
-                  <div className="mt-2 text-center bg-white/20 rounded-xl py-1.5 text-sm font-bold">+800€ débloqué !</div>
+                {countdownSales >= HYLA_CHALLENGES.countdown.target && (
+                  <div className="mt-2 text-center bg-white/20 rounded-xl py-1.5 text-sm font-bold">+{HYLA_CHALLENGES.countdown.bonus}€ débloqué !</div>
                 )}
               </div>
             )}
@@ -140,13 +147,13 @@ export default function Dashboard() {
               <div onClick={() => setShowChallenge('rookie')} className="bg-gradient-to-r from-violet-500 to-indigo-500 rounded-2xl p-5 text-white cursor-pointer active:scale-[0.98] transition-transform">
                 <div className="flex items-center gap-2 mb-3">
                   <Trophy className="h-5 w-5" />
-                  <span className="text-sm font-bold uppercase tracking-wider">Rookie Online — 6 mois</span>
+                  <span className="text-sm font-bold uppercase tracking-wider">{HYLA_CHALLENGES.rookie.name} — {HYLA_CHALLENGES.rookie.months} mois</span>
                 </div>
                 <p className="text-xs opacity-90 mb-3">
-                  Réalise 14 ventes en 6 mois. La 15ème vente déclenche une super-commission de <span className="font-bold">1000€</span>
+                  Réalise {HYLA_CHALLENGES.rookie.target - 1} ventes en {HYLA_CHALLENGES.rookie.months} mois. La {HYLA_CHALLENGES.rookie.target}ème vente déclenche une super-commission de <span className="font-bold">{HYLA_CHALLENGES.rookie.bonus}€</span>
                 </p>
                 <div className="flex items-end justify-between mb-2">
-                  <span className="text-3xl font-black">{rookieSales}/15</span>
+                  <span className="text-3xl font-black">{rookieSales}/{HYLA_CHALLENGES.rookie.target}</span>
                   <span className="text-sm font-bold opacity-90">{rookieDaysLeft}j restants</span>
                 </div>
                 <div className="h-3 rounded-full bg-white/20 overflow-hidden">
@@ -172,15 +179,15 @@ export default function Dashboard() {
                   <div className="bg-amber-50 rounded-xl p-4">
                     <p className="text-sm font-bold text-amber-800 mb-2">Comment ça marche ?</p>
                     <p className="text-xs text-amber-700 leading-relaxed">
-                      C'est un challenge de <span className="font-bold">2 mois</span> pour passer à l'action dès ton démarrage.
-                      L'objectif est de réaliser <span className="font-bold">5 ventes</span> pendant cette période.
-                      La <span className="font-bold">5ème vente est sur-commissionnée à 800€</span> au lieu de la commission normale !
+                      C'est un challenge de <span className="font-bold">{HYLA_CHALLENGES.countdown.months} mois</span> pour passer à l'action dès ton démarrage.
+                      L'objectif est de réaliser <span className="font-bold">{HYLA_CHALLENGES.countdown.target} ventes</span> pendant cette période.
+                      La <span className="font-bold">{HYLA_CHALLENGES.countdown.target}ème vente est sur-commissionnée à {HYLA_CHALLENGES.countdown.bonus}€</span> au lieu de la commission normale !
                     </p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-gray-500 uppercase">Ta progression</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-black text-gray-900">{countdownSales}/5 ventes</span>
+                      <span className="text-2xl font-black text-gray-900">{countdownSales}/{HYLA_CHALLENGES.countdown.target} ventes</span>
                       <span className="text-sm font-bold text-amber-600">{countdownDaysLeft} jours restants</span>
                     </div>
                     <div className="h-3 rounded-full bg-amber-100 overflow-hidden">
@@ -191,15 +198,15 @@ export default function Dashboard() {
                       <span>Fin : {countdownEnd.toLocaleDateString('fr-FR')}</span>
                     </div>
                   </div>
-                  {countdownSales >= 5 ? (
+                  {countdownSales >= HYLA_CHALLENGES.countdown.target ? (
                     <div className="bg-green-50 rounded-xl p-3 text-center">
-                      <p className="text-sm font-bold text-green-700">Challenge réussi ! +800€ débloqué</p>
+                      <p className="text-sm font-bold text-green-700">Challenge réussi ! +{HYLA_CHALLENGES.countdown.bonus}€ débloqué</p>
                     </div>
                   ) : (
                     <div className="bg-gray-50 rounded-xl p-3">
                       <p className="text-xs text-gray-600">
-                        Il te reste <span className="font-bold">{5 - countdownSales} vente{5 - countdownSales > 1 ? 's' : ''}</span> à réaliser
-                        en <span className="font-bold">{countdownDaysLeft} jours</span> pour décrocher le bonus de 800€.
+                        Il te reste <span className="font-bold">{HYLA_CHALLENGES.countdown.target - countdownSales} vente{HYLA_CHALLENGES.countdown.target - countdownSales > 1 ? 's' : ''}</span> à réaliser
+                        en <span className="font-bold">{countdownDaysLeft} jours</span> pour décrocher le bonus de {HYLA_CHALLENGES.countdown.bonus}€.
                       </p>
                     </div>
                   )}
@@ -218,16 +225,15 @@ export default function Dashboard() {
                   <div className="bg-violet-50 rounded-xl p-4">
                     <p className="text-sm font-bold text-violet-800 mb-2">Comment ça marche ?</p>
                     <p className="text-xs text-violet-700 leading-relaxed">
-                      Chaque recrue dispose de <span className="font-bold">6 mois</span> pour réaliser
-                      <span className="font-bold"> 14 ventes</span> à partir de sa date de signature de contrat.
-                      La <span className="font-bold">15ème vente déclenche une super-commission de 1000€</span> si elle est
-                      réalisée dans le 7ème mois.
+                      Chaque recrue dispose de <span className="font-bold">{HYLA_CHALLENGES.rookie.months} mois</span> pour réaliser
+                      <span className="font-bold"> {HYLA_CHALLENGES.rookie.target - 1} ventes</span> à partir de sa date de signature de contrat.
+                      La <span className="font-bold">{HYLA_CHALLENGES.rookie.target}ème vente déclenche une super-commission de {HYLA_CHALLENGES.rookie.bonus}€</span>.
                     </p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-gray-500 uppercase">Ta progression</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-black text-gray-900">{rookieSales}/15 ventes</span>
+                      <span className="text-2xl font-black text-gray-900">{rookieSales}/{HYLA_CHALLENGES.rookie.target} ventes</span>
                       <span className="text-sm font-bold text-violet-600">{rookieDaysLeft} jours restants</span>
                     </div>
                     <div className="h-3 rounded-full bg-violet-100 overflow-hidden">
@@ -240,8 +246,8 @@ export default function Dashboard() {
                   </div>
                   <div className="bg-gray-50 rounded-xl p-3">
                     <p className="text-xs text-gray-600">
-                      Il te reste <span className="font-bold">{15 - rookieSales} vente{15 - rookieSales > 1 ? 's' : ''}</span> à réaliser
-                      en <span className="font-bold">{rookieDaysLeft} jours</span> pour décrocher le bonus de 1000€.
+                      Il te reste <span className="font-bold">{HYLA_CHALLENGES.rookie.target - rookieSales} vente{HYLA_CHALLENGES.rookie.target - rookieSales > 1 ? 's' : ''}</span> à réaliser
+                      en <span className="font-bold">{rookieDaysLeft} jours</span> pour décrocher le bonus de {HYLA_CHALLENGES.rookie.bonus}€.
                     </p>
                   </div>
                 </div>
@@ -300,23 +306,23 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Chart CA ── */}
+        {/* ── Chart Ventes mensuelles ── */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <h3 className="text-xs font-bold text-gray-900 mb-3">Évolution CA</h3>
+          <h3 className="text-xs font-bold text-gray-900 mb-3">Ventes signées / mois</h3>
           <ResponsiveContainer width="100%" height={160}>
             <AreaChart data={monthlyData}>
               <defs>
-                <linearGradient id="gradCA" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="gradVentes" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.15} />
                   <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', fontSize: 12 }}
-                formatter={(value: number) => `${value.toLocaleString('fr-FR')} €`} />
-              <Area type="monotone" dataKey="CA" stroke="#3b82f6" strokeWidth={2} fill="url(#gradCA)" />
+                formatter={(value: number) => [`${value} vente${value > 1 ? 's' : ''}`, 'Signées']} />
+              <Area type="monotone" dataKey="Ventes" stroke="#3b82f6" strokeWidth={2} fill="url(#gradVentes)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>

@@ -77,8 +77,8 @@ export default function InscriptionPage() {
       return;
     }
 
-    if (form.password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères');
+    if (form.password.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères');
       return;
     }
 
@@ -203,7 +203,7 @@ export default function InscriptionPage() {
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 placeholder="Minimum 6 caractères"
                 required
-                minLength={6}
+                minLength={8}
                 className={inputClass + ' pr-10'}
               />
               <button

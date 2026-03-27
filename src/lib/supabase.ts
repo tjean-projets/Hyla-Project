@@ -131,16 +131,16 @@ export const HYLA_COMMISSION_SCALE = [
   { machines: 8, commission: 4000, label: '8 Hyla' },
 ];
 
-// Commission réseau
+// Commission réseau par tier
 export const HYLA_NETWORK_COMMISSION = {
-  recrue_directe: 120, // € par vente d'une recrue directe (Manager)
-  reseau: 30,          // € par toutes les ventes du réseau
+  conseillere: { recrue_directe: 100, reseau: 0 },   // Conseillère : 100€/vente recrue directe, pas de réseau
+  manager:     { recrue_directe: 120, reseau: 30 },   // Manager : 120€/vente recrue directe + 30€/vente réseau
 };
 
 // Challenges
 export const HYLA_CHALLENGES = {
-  countdown: { name: 'Compte à Rebours Online', duration: '2 mois', target: 5, bonus: 800 },
-  rookie: { name: 'Rookie Online', duration: '6 mois', target: 15, bonus: 1000 },
+  countdown: { name: 'Compte à Rebours Online', months: 2, target: 5, bonus: 800 },
+  rookie:    { name: 'Rookie Online',            months: 6, target: 15, bonus: 1000 },
 };
 
 // Produits Hyla
@@ -166,6 +166,103 @@ export function getHylaCommission(machinesSold: number): number {
     if (machinesSold >= s.machines) return s.commission;
   }
   return 0;
+}
+
+// ── Partner / Lead types (360courtage) ──
+
+export type LeadStatus = 'NOUVEAU' | 'CONTACT' | 'DEVIS_ENVOYE' | 'EN_COURS' | 'SIGNATURE' | 'SIGNE' | 'REFUSE' | 'PERDU';
+
+export const STATUS_LABELS: Record<LeadStatus, string> = {
+  NOUVEAU: 'Nouveau',
+  CONTACT: 'Contacté',
+  DEVIS_ENVOYE: 'Devis envoyé',
+  EN_COURS: 'En cours',
+  SIGNATURE: 'Signature',
+  SIGNE: 'Signé',
+  REFUSE: 'Refusé',
+  PERDU: 'Perdu',
+};
+
+export const STATUS_COLORS: Record<LeadStatus, string> = {
+  NOUVEAU: 'bg-blue-100 text-blue-700',
+  CONTACT: 'bg-cyan-100 text-cyan-700',
+  DEVIS_ENVOYE: 'bg-amber-100 text-amber-700',
+  EN_COURS: 'bg-yellow-100 text-yellow-700',
+  SIGNATURE: 'bg-indigo-100 text-indigo-700',
+  SIGNE: 'bg-green-100 text-green-700',
+  REFUSE: 'bg-red-100 text-red-700',
+  PERDU: 'bg-gray-100 text-gray-600',
+};
+
+export type ContractType = 'assurance_emprunteur' | 'prevoyance' | 'mutuelle' | 'auto' | 'habitation' | 'pret_immobilier' | 'autre';
+
+export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
+  assurance_emprunteur: 'Assurance Emprunteur',
+  prevoyance: 'Prévoyance',
+  mutuelle: 'Mutuelle',
+  auto: 'Auto',
+  habitation: 'Habitation',
+  pret_immobilier: 'Prêt Immobilier',
+  autre: 'Autre',
+};
+
+export interface Lead {
+  id: string;
+  partner_id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string | null;
+  status: LeadStatus;
+  contract_type: ContractType;
+  commission_estimated: number | null;
+  commission_final: number | null;
+  savings_achieved: number | null;
+  paiement_compagnie_recu: boolean;
+  is_paid: boolean;
+  montant: number | null;
+  banque: string | null;
+  type_projet: string | null;
+  notes_partner: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Partner {
+  id: string;
+  display_name: string;
+  created_at: string;
+}
+
+export interface TierRule {
+  id: string;
+  min_signed: number;
+  max_signed: number | null;
+  rate_percent: number;
+  tier_name?: string;
+}
+
+export interface PartnerTier {
+  rate_percent: number;
+  signed_count: number;
+  tier_name: string;
+}
+
+export interface PartnerDocument {
+  id: string;
+  partner_id: string;
+  document_type: string;
+  file_url: string;
+  file_name: string;
+  validation_status: 'pending' | 'validated' | 'rejected';
+  created_at: string;
+}
+
+export interface LeadEvent {
+  id: string;
+  event_type: 'CREATED' | 'STATUS_CHANGE' | 'PREMIUM_ESTIMATED_CHANGE' | 'PREMIUM_FINAL_CHANGE';
+  new_value: Record<string, string>;
+  created_at: string;
 }
 
 // ── Priority ──

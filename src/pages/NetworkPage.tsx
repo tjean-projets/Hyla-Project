@@ -1491,7 +1491,12 @@ export default function NetworkPage() {
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <p className="text-[11px] text-gray-500 mt-1">{members.length} partenaire{members.length > 1 ? 's' : ''} • {HYLA_NETWORK_COMMISSION.recrue_directe}€/vente directe recrue • {HYLA_NETWORK_COMMISSION.reseau}€/vente réseau</p>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    {members.length} partenaire{members.length > 1 ? 's' : ''} • {tier.min >= 4
+                      ? `${HYLA_NETWORK_COMMISSION.manager.recrue_directe}€/vente recrue • ${HYLA_NETWORK_COMMISSION.manager.reseau}€/vente réseau`
+                      : `${HYLA_NETWORK_COMMISSION.conseillere.recrue_directe}€/vente recrue directe`
+                    }
+                  </p>
                 </div>
               </div>
             </div>

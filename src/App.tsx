@@ -26,6 +26,15 @@ import AdminPanel from "./pages/AdminPanel";
 import PublicProfilePage from "./pages/PublicProfilePage";
 import NotFound from "./pages/NotFound";
 
+// Partner pages
+import PartnerDashboard from "./pages/partner/Dashboard";
+import PartnerLeads from "./pages/partner/Leads";
+import PartnerLeadDetail from "./pages/partner/LeadDetail";
+import PartnerNewLead from "./pages/partner/NewLead";
+import PartnerDocuments from "./pages/partner/Documents";
+import PartnerProfile from "./pages/partner/Profile";
+import PartnerWallet from "./pages/partner/Wallet";
+
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -80,6 +89,15 @@ function AppRoutes() {
       <Route path="/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
+
+      {/* Partner routes */}
+      <Route path="/partner" element={<ProtectedRoute><PartnerDashboard /></ProtectedRoute>} />
+      <Route path="/leads" element={<ProtectedRoute><PartnerLeads /></ProtectedRoute>} />
+      <Route path="/leads/new" element={<ProtectedRoute><PartnerNewLead /></ProtectedRoute>} />
+      <Route path="/leads/:id" element={<ProtectedRoute><PartnerLeadDetail /></ProtectedRoute>} />
+      <Route path="/partner/documents" element={<ProtectedRoute><PartnerDocuments /></ProtectedRoute>} />
+      <Route path="/partner/profile" element={<ProtectedRoute><PartnerProfile /></ProtectedRoute>} />
+      <Route path="/partner/wallet" element={<ProtectedRoute><PartnerWallet /></ProtectedRoute>} />
 
       <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
       <Route path="*" element={<NotFound />} />

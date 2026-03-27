@@ -22,7 +22,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 import { Timer, Trophy } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase, isSuperAdmin } from '@/lib/supabase';
+import { supabase, isSuperAdmin, HYLA_CHALLENGES } from '@/lib/supabase';
 import {
   Dialog,
   DialogContent,
@@ -258,16 +258,16 @@ function ChallengeBanner({ isDark }: { isDark: boolean }) {
   const now = new Date();
 
   const countdownEnd = new Date(startDate);
-  countdownEnd.setMonth(countdownEnd.getMonth() + 2);
+  countdownEnd.setMonth(countdownEnd.getMonth() + HYLA_CHALLENGES.countdown.months);
   const countdownDaysLeft = Math.max(0, Math.ceil((countdownEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
   const countdownActive = countdownDaysLeft > 0;
-  const countdownSales = Math.min(deals.length, 5);
+  const countdownSales = Math.min(deals.length, HYLA_CHALLENGES.countdown.target);
 
   const rookieEnd = new Date(startDate);
-  rookieEnd.setMonth(rookieEnd.getMonth() + 7);
+  rookieEnd.setMonth(rookieEnd.getMonth() + HYLA_CHALLENGES.rookie.months);
   const rookieDaysLeft = Math.max(0, Math.ceil((rookieEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-  const rookieActive = rookieDaysLeft > 0 && deals.length < 15;
-  const rookieSales = Math.min(deals.length, 15);
+  const rookieActive = rookieDaysLeft > 0 && deals.length < HYLA_CHALLENGES.rookie.target;
+  const rookieSales = Math.min(deals.length, HYLA_CHALLENGES.rookie.target);
 
   if (!countdownActive && !rookieActive) return null;
 
@@ -279,7 +279,7 @@ function ChallengeBanner({ isDark }: { isDark: boolean }) {
             <div className="flex items-center gap-2">
               <Timer className="h-3.5 w-3.5" />
               <span className="font-bold">Rebours</span>
-              <span>{countdownSales}/5</span>
+              <span>{countdownSales}/{HYLA_CHALLENGES.countdown.target}</span>
             </div>
             <span className="font-bold">{countdownDaysLeft}j</span>
           </div>
@@ -289,7 +289,7 @@ function ChallengeBanner({ isDark }: { isDark: boolean }) {
             <div className="flex items-center gap-2">
               <Trophy className="h-3.5 w-3.5" />
               <span className="font-bold">Rookie</span>
-              <span>{rookieSales}/15</span>
+              <span>{rookieSales}/{HYLA_CHALLENGES.rookie.target}</span>
             </div>
             <span className="font-bold">{rookieDaysLeft}j</span>
           </div>
