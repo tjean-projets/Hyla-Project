@@ -3,7 +3,7 @@ import { AppLayout, ALL_MOBILE_TABS } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check } from 'lucide-react';
+import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -76,6 +76,104 @@ function InviteLinkSection({ inviteCode, fullName }: { inviteCode?: string | nul
           <Share2 className="h-4 w-4" />
           Partager
         </button>
+      </div>
+    </div>
+  );
+}
+
+function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | null; userId?: string }) {
+  const [copiedBio, setCopiedBio] = useState(false);
+  const [copiedStory, setCopiedStory] = useState(false);
+
+  const bioLink = inviteCode ? `${window.location.origin}/p/${inviteCode}?src=bio` : '';
+  const storyLink = inviteCode ? `${window.location.origin}/p/${inviteCode}?src=story` : '';
+
+  const { data: leadCounts } = useQuery({
+    queryKey: ['lead-counts', userId],
+    queryFn: async () => {
+      if (!userId) return { bio: 0, story: 0, direct: 0 };
+      const { data } = await (supabase as any)
+        .from('public_leads')
+        .select('source')
+        .eq('profile_id', userId);
+      const counts = { bio: 0, story: 0, direct: 0 };
+      (data || []).forEach((l: any) => {
+        if (l.source === 'bio') counts.bio++;
+        else if (l.source === 'story') counts.story++;
+        else counts.direct++;
+      });
+      return counts;
+    },
+    enabled: !!userId,
+  });
+
+  const copyLink = async (link: string, type: 'bio' | 'story') => {
+    await navigator.clipboard.writeText(link);
+    if (type === 'bio') {
+      setCopiedBio(true);
+      setTimeout(() => setCopiedBio(false), 2000);
+    } else {
+      setCopiedStory(true);
+      setTimeout(() => setCopiedStory(false), 2000);
+    }
+  };
+
+  if (!inviteCode) return null;
+
+  return (
+    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100 p-5">
+      <div className="flex items-center gap-2 mb-1">
+        <Users className="h-4 w-4 text-green-600" />
+        <h3 className="text-base font-semibold text-gray-900">Page de contact</h3>
+      </div>
+      <p className="text-xs text-gray-500 mb-4">
+        Partagez ces liens sur vos réseaux sociaux. Les personnes intéressées rempliront un formulaire et seront ajoutées automatiquement à vos contacts.
+      </p>
+
+      {/* Bio link */}
+      <div className="mb-3">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-semibold text-gray-700">Lien Bio (permanent)</span>
+          {leadCounts && leadCounts.bio > 0 && (
+            <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+              {leadCounts.bio} lead{leadCounts.bio > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <code className="flex-1 bg-white rounded-lg border border-green-200 px-3 py-2 text-[11px] text-green-700 truncate font-mono">
+            {bioLink}
+          </code>
+          <button
+            onClick={() => copyLink(bioLink, 'bio')}
+            className="px-3 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg active:scale-[0.97]"
+          >
+            {copiedBio ? <Check className="h-3.5 w-3.5" /> : 'Copier'}
+          </button>
+        </div>
+      </div>
+
+      {/* Story link */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-semibold text-gray-700">Lien Story (tracking)</span>
+          {leadCounts && leadCounts.story > 0 && (
+            <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+              {leadCounts.story} lead{leadCounts.story > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <code className="flex-1 bg-white rounded-lg border border-purple-200 px-3 py-2 text-[11px] text-purple-700 truncate font-mono">
+            {storyLink}
+          </code>
+          <button
+            onClick={() => copyLink(storyLink, 'story')}
+            className="px-3 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg active:scale-[0.97]"
+          >
+            {copiedStory ? <Check className="h-3.5 w-3.5" /> : 'Copier'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -235,6 +333,8 @@ export default function SettingsPage() {
 
         {/* Invite Link */}
         <InviteLinkSection inviteCode={profile?.invite_code} fullName={profile?.full_name} />
+
+        <ContactLinksSection inviteCode={profile?.invite_code} userId={user?.id} />
 
         {/* Form Builder */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">

@@ -23,6 +23,7 @@ import ObjectifForm from "./pages/ObjectifForm";
 import InscriptionPage from "./pages/InscriptionPage";
 import JoinPage from "./pages/JoinPage";
 import AdminPanel from "./pages/AdminPanel";
+import PublicProfilePage from "./pages/PublicProfilePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,7 @@ function AppRoutes() {
       <Route path="/objectifs/:token" element={<ObjectifForm />} />
       <Route path="/inscription/:slug" element={<InscriptionPage />} />
       <Route path="/rejoindre/:inviteCode" element={<JoinPage />} />
+      <Route path="/p/:inviteCode" element={<PublicProfilePage />} />
 
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />

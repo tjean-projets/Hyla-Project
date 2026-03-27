@@ -560,6 +560,45 @@ export type Database = {
         }
         Relationships: []
       }
+      public_leads: {
+        Row: {
+          id: string
+          profile_id: string
+          first_name: string
+          last_name: string
+          phone: string
+          email: string | null
+          message: string | null
+          intent: 'acheter' | 'devenir_conseiller' | 'en_savoir_plus'
+          source: 'bio' | 'story' | 'direct'
+          status: 'nouveau' | 'converti'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          first_name: string
+          last_name: string
+          phone: string
+          email?: string | null
+          message?: string | null
+          intent: 'acheter' | 'devenir_conseiller' | 'en_savoir_plus'
+          source?: 'bio' | 'story' | 'direct'
+          status?: 'nouveau' | 'converti'
+          created_at?: string
+        }
+        Update: {
+          first_name?: string
+          last_name?: string
+          phone?: string
+          email?: string | null
+          message?: string | null
+          intent?: 'acheter' | 'devenir_conseiller' | 'en_savoir_plus'
+          source?: 'bio' | 'story' | 'direct'
+          status?: 'nouveau' | 'converti'
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
