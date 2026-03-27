@@ -1253,6 +1253,7 @@ export default function NetworkPage() {
   const [expandedTeamIds, setExpandedTeamIds] = useState<Set<string>>(new Set());
   const [subMemberToEdit, setSubMemberToEdit] = useState<{ member: TeamMember; parentName: string } | null>(null);
   const [showSubMemberConfirm, setShowSubMemberConfirm] = useState(false);
+  const [promoteMember, setPromoteMember] = useState<TeamMember | null>(null);
 
   const toggleTeamExpand = (memberId: string) => {
     setExpandedTeamIds(prev => {
@@ -1286,7 +1287,22 @@ export default function NetworkPage() {
         .select('*')
         .eq('user_id', user.id)
         .order('level', { ascending: true });
-      return data || [];
+      if (!data) return [];
+      // Fetch linked profiles to get role
+      const linkedIds = data.filter(m => m.linked_user_id).map(m => m.linked_user_id!);
+      if (linkedIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, role')
+          .in('id', linkedIds);
+        const roleMap: Record<string, string> = {};
+        profiles?.forEach(p => { roleMap[p.id] = (p as any).role || 'conseillere'; });
+        return data.map(m => ({
+          ...m,
+          role: m.linked_user_id ? roleMap[m.linked_user_id] || 'conseillere' : undefined,
+        }));
+      }
+      return data;
     },
     enabled: !!user,
   });
@@ -1501,11 +1517,28 @@ export default function NetworkPage() {
                   )}
                 </div>
 
+                {/* Promote to Manager button */}
+                {(member as any).linked_user_id && (member as any).role !== 'manager' && (member as any).role !== 'admin' && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setPromoteMember(member); }}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 mt-2 rounded-xl text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/15 hover:bg-amber-500/20 transition-colors active:scale-[0.98]"
+                  >
+                    <Crown className="h-3.5 w-3.5" />
+                    Passer Manager
+                  </button>
+                )}
+                {(member as any).linked_user_id && ((member as any).role === 'manager' || (member as any).role === 'admin') && (
+                  <span className="w-full flex items-center justify-center gap-1.5 py-1.5 mt-2 text-[10px] font-semibold text-amber-400">
+                    <Crown className="h-3 w-3" />
+                    Manager
+                  </span>
+                )}
+
                 {/* Expand sub-team button */}
                 {(member as any).linked_user_id && (
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleTeamExpand(member.id); }}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 mt-2 rounded-xl text-[11px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/15 hover:bg-indigo-500/20 transition-colors active:scale-[0.98]"
+                    className="w-full flex items-center justify-center gap-1.5 py-2 mt-1 rounded-xl text-[11px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/15 hover:bg-indigo-500/20 transition-colors active:scale-[0.98]"
                   >
                     {expandedTeamIds.has(member.id) ? (
                       <>
@@ -1557,6 +1590,44 @@ export default function NetworkPage() {
         parentName={subMemberToEdit?.parentName || ''}
         onConfirm={confirmSubMemberEdit}
       />
+
+      {/* Promote to Manager Dialog */}
+      <AlertDialog open={!!promoteMember} onOpenChange={(open) => { if (!open) setPromoteMember(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5 text-amber-500" />
+              Passer en Manager
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Voulez-vous passer <strong>{promoteMember?.first_name} {promoteMember?.last_name}</strong> en Manager ?
+              Cette personne aura accès à l'onglet Réseau et pourra gérer sa propre équipe.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-500 hover:bg-amber-600"
+              onClick={async () => {
+                if (!promoteMember?.linked_user_id) return;
+                const { error } = await supabase
+                  .from('profiles')
+                  .update({ role: 'manager' })
+                  .eq('id', promoteMember.linked_user_id);
+                if (error) {
+                  toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+                } else {
+                  toast({ title: `${promoteMember.first_name} est maintenant Manager !` });
+                  queryClient.invalidateQueries({ queryKey: ['team-members'] });
+                }
+                setPromoteMember(null);
+              }}
+            >
+              Confirmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Invite Link Dialog */}
       <InviteLinkDialog

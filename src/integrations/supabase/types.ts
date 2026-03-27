@@ -16,6 +16,7 @@ export type Database = {
           avatar_url: string | null
           phone: string | null
           email: string | null
+          role: 'conseillere' | 'manager' | 'admin'
           sponsor_user_id: string | null
           invite_code: string | null
           created_at: string
@@ -27,6 +28,7 @@ export type Database = {
           avatar_url?: string | null
           phone?: string | null
           email?: string | null
+          role?: 'conseillere' | 'manager' | 'admin'
           sponsor_user_id?: string | null
           invite_code?: string | null
           created_at?: string
@@ -38,6 +40,7 @@ export type Database = {
           avatar_url?: string | null
           phone?: string | null
           email?: string | null
+          role?: 'conseillere' | 'manager' | 'admin'
           sponsor_user_id?: string | null
           invite_code?: string | null
           updated_at?: string

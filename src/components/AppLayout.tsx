@@ -153,7 +153,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
     enabled: !!user,
     staleTime: 60000,
   });
-  const isManager = isAdmin || (teamCount != null && teamCount > 0);
+  const isManager = isAdmin || (profile as any)?.role === 'manager' || (profile as any)?.role === 'admin' || (teamCount != null && teamCount > 0);
 
   const isDark = variant === 'dark';
 
