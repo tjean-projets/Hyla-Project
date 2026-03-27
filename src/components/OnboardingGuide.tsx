@@ -32,7 +32,7 @@ const STEPS: OnboardingStep[] = [
   {
     title: 'Bienvenue !',
     description:
-      'Bienvenue sur Hyla Assistant, ton espace personnel pour g\u00e9rer ton activit\u00e9 Hyla. D\u00e9couvre les fonctionnalit\u00e9s en quelques \u00e9tapes.',
+      'Bienvenue sur Hyla Assistant, ton espace personnel pour gérer ton activité Hyla. Découvre les fonctionnalités en quelques étapes.',
     icon: Sparkles,
     color: '#f59e0b',
     bgColor: '#fef3c7',
@@ -48,23 +48,23 @@ const STEPS: OnboardingStep[] = [
   {
     title: 'Ventes',
     description:
-      'Enregistre tes ventes de machines Hyla. Le bar\u00e8me de commissions se calcule automatiquement en fonction du nombre de ventes.',
+      'Enregistre tes ventes de machines Hyla. Le barème de commissions se calcule automatiquement en fonction du nombre de ventes.',
     icon: ShoppingBag,
     color: '#8b5cf6',
     bgColor: '#ede9fe',
   },
   {
-    title: 'T\u00e2ches & Calendrier',
+    title: 'Tâches & Calendrier',
     description:
-      'Organise ton quotidien : relances, d\u00e9mos, suivis clients. Associe chaque t\u00e2che \u00e0 un contact pour ne rien oublier.',
+      'Organise ton quotidien : relances, démos, suivis clients. Associe chaque tâche à un contact pour ne rien oublier.',
     icon: CheckSquare,
     color: '#10b981',
     bgColor: '#d1fae5',
   },
   {
-    title: 'R\u00e9seau (Managers)',
+    title: 'Réseau (Managers)',
     description:
-      "Si tu es manager, ajoute les membres de ton \u00e9quipe dans l\u2019onglet R\u00e9seau. Indique qui est leur sponsor pour cr\u00e9er l\u2019arborescence automatiquement.",
+      "Si tu es manager, ajoute les membres de ton équipe dans l'onglet Réseau. Indique qui est leur sponsor pour créer l'arborescence automatiquement.",
     icon: Network,
     color: '#ec4899',
     bgColor: '#fce7f3',
@@ -72,7 +72,7 @@ const STEPS: OnboardingStep[] = [
   {
     title: 'Finance & Import CSV',
     description:
-      "Dans l\u2019onglet Finance, importe ton relev\u00e9 de commissions (fichier Excel/CSV). L\u2019outil fait le tri automatiquement en fonction des noms renseign\u00e9s dans ton R\u00e9seau et tes contacts.",
+      "Dans l'onglet Finance, importe ton relevé de commissions (fichier Excel/CSV). L'outil fait le tri automatiquement en fonction des noms renseignés dans ton Réseau et tes contacts.",
     icon: Wallet,
     color: '#f97316',
     bgColor: '#ffedd5',
@@ -80,7 +80,7 @@ const STEPS: OnboardingStep[] = [
   {
     title: 'Commissions',
     description:
-      'Suis l\u2019\u00e9volution de tes commissions directes et r\u00e9seau mois par mois. Tout est calcul\u00e9 automatiquement.',
+      "Suis l'évolution de tes commissions directes et réseau mois par mois. Tout est calculé automatiquement.",
     icon: TrendingUp,
     color: '#06b6d4',
     bgColor: '#cffafe',
@@ -88,7 +88,7 @@ const STEPS: OnboardingStep[] = [
   {
     title: "C'est parti !",
     description:
-      'Tu es pr\u00eat(e) ! Commence par ajouter tes premiers contacts et enregistrer tes ventes. Bonne r\u00e9ussite avec Hyla !',
+      'Tu es prêt(e) ! Commence par ajouter tes premiers contacts et enregistrer tes ventes. Bonne réussite avec Hyla !',
     icon: Rocket,
     color: '#3b82f6',
     bgColor: '#dbeafe',
@@ -167,14 +167,14 @@ export default function OnboardingGuide() {
                 height: 8,
                 backgroundColor: i === step ? '#3b82f6' : '#e5e7eb',
               }}
-              aria-label={`\u00c9tape ${i + 1}`}
+              aria-label={`Étape ${i + 1}`}
             />
           ))}
         </div>
 
         {/* ── Step counter ── */}
         <p className="text-center text-[11px] text-gray-400 -mt-1">
-          \u00c9tape {step + 1} sur {STEPS.length}
+          {'Étape'} {step + 1} sur {STEPS.length}
         </p>
 
         {/* ── Navigation buttons ── */}
@@ -185,7 +185,7 @@ export default function OnboardingGuide() {
               className="flex items-center justify-center gap-1 flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 active:scale-[0.97] transition-all"
             >
               <ChevronLeft className="h-4 w-4" />
-              Pr\u00e9c\u00e9dent
+              Précédent
             </button>
           )}
           <button
