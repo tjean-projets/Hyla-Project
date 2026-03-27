@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
+import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, IMPORT_STATUS_LABELS, IMPORT_STATUS_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -61,6 +62,7 @@ type TabId = typeof TABS[number]['id'];
 
 export default function Finance() {
   const { user, profile } = useAuth();
+  const effectiveId = useEffectiveUserId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabId>('imports');
@@ -77,44 +79,44 @@ export default function Finance() {
 
   // ── Imports data ──
   const { data: imports = [] } = useQuery({
-    queryKey: ['commission-imports', user?.id],
+    queryKey: ['commission-imports', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('commission_imports')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .order('uploaded_at', { ascending: false });
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const { data: teamMembers = [] } = useQuery({
-    queryKey: ['team-members-import', user?.id],
+    queryKey: ['team-members-import', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
-      const { data } = await supabase.from('team_members').select('*').eq('user_id', user.id);
+      if (!effectiveId) return [];
+      const { data } = await supabase.from('team_members').select('*').eq('user_id', effectiveId);
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   // Fetch team members recursively (including sub-members from linked accounts)
   const { data: allTreeMembers = [] } = useQuery({
-    queryKey: ['team-tree-members', user?.id],
+    queryKey: ['team-tree-members', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
 
       // Start with direct team members
       const { data: direct } = await supabase
         .from('team_members')
         .select('*, profiles!team_members_linked_user_id_fkey(id)')
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveId);
 
       if (!direct) return [];
 
-      const allMembers: any[] = direct.map(m => ({ ...m, _depth: 1, _owner_user_id: user.id }));
+      const allMembers: any[] = direct.map(m => ({ ...m, _depth: 1, _owner_user_id: effectiveId }));
 
       // For each member with linked_user_id, fetch their team_members too
       const linkedUserIds = direct
@@ -147,24 +149,24 @@ export default function Finance() {
 
       return allMembers;
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   // ── Commissions for invoice ──
   const { data: invoiceCommissions = [] } = useQuery({
-    queryKey: ['invoice-commissions', user?.id, invoicePeriod],
+    queryKey: ['invoice-commissions', effectiveId, invoicePeriod],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('commissions')
         .select('*, team_members(first_name, last_name)')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .eq('period', invoicePeriod)
         .eq('status', 'validee')
         .order('type');
       return data || [];
     },
-    enabled: !!user && activeTab === 'factures',
+    enabled: !!effectiveId && activeTab === 'factures',
   });
 
   const invoiceTotal = invoiceCommissions.reduce((s: number, c: any) => s + c.amount, 0);

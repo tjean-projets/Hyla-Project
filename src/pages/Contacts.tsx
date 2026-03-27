@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
+import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, CONTACT_STATUS_LABELS, CONTACT_STATUS_COLORS, PRIORITY_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Network, Trash2, Settings } from 'lucide-react';
@@ -172,6 +173,7 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
 
 export default function Contacts() {
   const { user } = useAuth();
+  const effectiveId = useEffectiveUserId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -184,45 +186,45 @@ export default function Contacts() {
   const [draggingContact, setDraggingContact] = useState<Contact | null>(null);
 
   const { data: contacts = [], isLoading } = useQuery({
-    queryKey: ['contacts', user?.id],
+    queryKey: ['contacts', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('contacts')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .order('created_at', { ascending: false });
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const { data: stages = [] } = useQuery({
-    queryKey: ['pipeline-stages', user?.id],
+    queryKey: ['pipeline-stages', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('pipeline_stages')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .order('position');
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   // Fetch team_members to know which contacts are already in the network
   const { data: teamMembers = [] } = useQuery({
-    queryKey: ['team-members', user?.id],
+    queryKey: ['team-members', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('team_members')
         .select('id, contact_id, first_name, last_name')
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveId);
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const addToNetwork = useMutation({

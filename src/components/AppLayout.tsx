@@ -25,6 +25,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase, isSuperAdmin, HYLA_CHALLENGES } from '@/lib/supabase';
 import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { useImpersonationSafe } from '@/hooks/useImpersonation';
+import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import {
   Dialog,
   DialogContent,
@@ -58,55 +59,56 @@ function NotifItem({ color, title, subtitle, meta, action, actionLabel }: {
 function NotificationCenter({ user, profile, isDark }: { user: any; profile: any; isDark: boolean }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const effectiveId = useEffectiveUserId();
 
   // Query new leads
   const { data: newLeads = [] } = useQuery({
-    queryKey: ['notif-leads', user?.id],
+    queryKey: ['notif-leads', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('public_leads')
         .select('*')
-        .eq('profile_id', user.id)
+        .eq('profile_id', effectiveId)
         .eq('status', 'nouveau')
         .order('created_at', { ascending: false })
         .limit(10);
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
     refetchInterval: 30000,
   });
 
   // Query overdue tasks
   const { data: overdueTasks = [] } = useQuery({
-    queryKey: ['notif-overdue', user?.id],
+    queryKey: ['notif-overdue', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('tasks')
         .select('*, contacts(first_name, last_name)')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .eq('status', 'a_faire')
         .lt('due_date', new Date().toISOString())
         .order('due_date', { ascending: true })
         .limit(10);
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   // Query today's tasks
   const { data: todayTasks = [] } = useQuery({
-    queryKey: ['notif-today', user?.id],
+    queryKey: ['notif-today', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const today = new Date();
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
       const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
       const { data } = await supabase
         .from('tasks')
         .select('*, contacts(first_name, last_name)')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .eq('status', 'a_faire')
         .gte('due_date', startOfDay)
         .lt('due_date', endOfDay)
@@ -114,7 +116,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
         .limit(10);
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const totalCount = newLeads.length + overdueTasks.length + todayTasks.length;
@@ -231,30 +233,31 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
 
 function ChallengeBanner({ isDark }: { isDark: boolean }) {
   const { user } = useAuth();
+  const effectiveId = useEffectiveUserId();
 
   const { data: deals = [] } = useQuery({
-    queryKey: ['challenge-deals', user?.id],
+    queryKey: ['challenge-deals', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
-      const { data } = await supabase.from('deals').select('id, signed_at').eq('user_id', user.id).eq('status', 'signee');
+      if (!effectiveId) return [];
+      const { data } = await supabase.from('deals').select('id, signed_at').eq('user_id', effectiveId).eq('status', 'signee');
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
     staleTime: 60000,
   });
 
   const { data: profileData } = useQuery({
-    queryKey: ['profile-date', user?.id],
+    queryKey: ['profile-date', effectiveId],
     queryFn: async () => {
-      if (!user) return null;
-      const { data } = await supabase.from('profiles').select('created_at').eq('id', user.id).single();
+      if (!effectiveId) return null;
+      const { data } = await supabase.from('profiles').select('created_at').eq('id', effectiveId).single();
       return data;
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
     staleTime: 300000,
   });
 
-  if (!user || !profileData) return null;
+  if (!effectiveId || !profileData) return null;
 
   const startDate = new Date(profileData.created_at);
   const now = new Date();
@@ -344,18 +347,20 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAdmin = isSuperAdmin(user?.email);
 
+  const effectiveId = useEffectiveUserId();
+
   // Check if user is a manager (has team members)
   const { data: teamCount } = useQuery({
-    queryKey: ['team-count', user?.id],
+    queryKey: ['team-count', effectiveId],
     queryFn: async () => {
-      if (!user) return 0;
+      if (!effectiveId) return 0;
       const { count } = await supabase
         .from('team_members')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveId);
       return count || 0;
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
     staleTime: 60000,
   });
   const isManager = isAdmin || profile?.role === 'manager' || profile?.role === 'admin' || (teamCount != null && teamCount > 0);

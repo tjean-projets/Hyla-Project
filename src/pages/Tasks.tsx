@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
+import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, TASK_TYPE_LABELS_HYLA, TASK_STATUS_LABELS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Check, Clock, Trash2, User, GripVertical } from 'lucide-react';
@@ -179,6 +180,7 @@ function TaskForm({
 
 export default function Tasks() {
   const { user } = useAuth();
+  const effectiveId = useEffectiveUserId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
@@ -188,31 +190,31 @@ export default function Tasks() {
   const [draggingTask, setDraggingTask] = useState<any>(null);
 
   const { data: tasks = [] } = useQuery({
-    queryKey: ['tasks', user?.id],
+    queryKey: ['tasks', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('tasks')
         .select('*, contacts(first_name, last_name)')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .order('due_date', { ascending: true, nullsFirst: false });
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const { data: contacts = [] } = useQuery({
-    queryKey: ['contacts-for-tasks', user?.id],
+    queryKey: ['contacts-for-tasks', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('contacts')
         .select('id, first_name, last_name')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .order('first_name');
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const completeTask = useMutation({

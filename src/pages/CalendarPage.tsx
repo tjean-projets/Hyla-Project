@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
+import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, APPOINTMENT_TYPE_LABELS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, MapPin, Clock, CalendarCheck, ChevronRight } from 'lucide-react';
@@ -29,23 +30,24 @@ const TYPE_COLORS: Record<string, string> = {
 
 export default function CalendarPage() {
   const { user } = useAuth();
+  const effectiveId = useEffectiveUserId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', type: 'rdv' as string, date: '', duration: '60', location: '', notes: '' });
 
   const { data: appointments = [] } = useQuery({
-    queryKey: ['appointments', user?.id],
+    queryKey: ['appointments', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('appointments')
         .select('*, contacts(first_name, last_name)')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .order('date', { ascending: true });
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const createApt = useMutation({

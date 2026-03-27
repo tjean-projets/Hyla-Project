@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS, HYLA_PRODUCTS, HYLA_COMMISSION_SCALE, getHylaCommission } from '@/lib/supabase';
+import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -157,6 +158,7 @@ function DealForm({ onSuccess, contacts, initialData, onDelete }: {
 
 export default function Deals() {
   const { user } = useAuth();
+  const effectiveId = useEffectiveUserId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -165,27 +167,27 @@ export default function Deals() {
   const [editingDeal, setEditingDeal] = useState<any | null>(null);
 
   const { data: deals = [], isLoading } = useQuery({
-    queryKey: ['deals', user?.id],
+    queryKey: ['deals', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('deals')
         .select('*, contacts(first_name, last_name), team_members:sold_by(first_name, last_name)')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .order('created_at', { ascending: false });
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const { data: contacts = [] } = useQuery({
-    queryKey: ['contacts-list', user?.id],
+    queryKey: ['contacts-list', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
-      const { data } = await supabase.from('contacts').select('id, first_name, last_name').eq('user_id', user.id).order('first_name');
+      if (!effectiveId) return [];
+      const { data } = await supabase.from('contacts').select('id, first_name, last_name').eq('user_id', effectiveId).order('first_name');
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const deleteMutation = useMutation({

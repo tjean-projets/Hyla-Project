@@ -16,56 +16,58 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useState } from 'react';
 import OnboardingGuide from '@/components/OnboardingGuide';
+import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 
 export default function Dashboard() {
   const { user, profile } = useAuth();
+  const effectiveId = useEffectiveUserId();
   const [showChallenge, setShowChallenge] = useState<'countdown' | 'rookie' | null>(null);
 
   const { data: kpis } = useQuery({
-    queryKey: ['dashboard-kpis', user?.id],
+    queryKey: ['dashboard-kpis', effectiveId],
     queryFn: async () => {
-      if (!user) return null;
-      const { data, error } = await supabase.rpc('get_dashboard_kpis', { p_user_id: user.id });
+      if (!effectiveId) return null;
+      const { data, error } = await supabase.rpc('get_dashboard_kpis', { p_user_id: effectiveId });
       if (error) throw error;
       return data as Record<string, number>;
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const { data: deals = [] } = useQuery({
-    queryKey: ['dashboard-deals', user?.id],
+    queryKey: ['dashboard-deals', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
-      const { data } = await supabase.from('deals').select('id, signed_at').eq('user_id', user.id).eq('status', 'signee');
+      if (!effectiveId) return [];
+      const { data } = await supabase.from('deals').select('id, signed_at').eq('user_id', effectiveId).eq('status', 'signee');
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const { data: profileData } = useQuery({
-    queryKey: ['profile-date-dash', user?.id],
+    queryKey: ['profile-date-dash', effectiveId],
     queryFn: async () => {
-      if (!user) return null;
-      const { data } = await supabase.from('profiles').select('created_at').eq('id', user.id).single();
+      if (!effectiveId) return null;
+      const { data } = await supabase.from('profiles').select('created_at').eq('id', effectiveId).single();
       return data;
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const { data: upcomingTasks } = useQuery({
-    queryKey: ['upcoming-tasks', user?.id],
+    queryKey: ['upcoming-tasks', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('tasks')
         .select('*, contacts(first_name, last_name)')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .in('status', ['a_faire', 'en_cours'])
         .order('due_date', { ascending: true })
         .limit(5);
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const k = kpis || {} as Record<string, number>;

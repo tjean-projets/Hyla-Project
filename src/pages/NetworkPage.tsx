@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
+import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, HYLA_NETWORK_TIERS, HYLA_NETWORK_COMMISSION } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Users, UserPlus, Star, Trophy, Crown, Award, ChevronUp, Zap, Trash2, Target, Copy, Mail, Edit3, CheckCircle, Clock, Sparkles, Link2, Share2, Eye, EyeOff, AlertTriangle, ChevronDown, ChevronRight, Network, DollarSign, ShoppingCart, UserMinus } from 'lucide-react';
@@ -1300,6 +1301,7 @@ function SubMemberEditConfirmDialog({
 
 export default function NetworkPage() {
   const { user, profile } = useAuth();
+  const effectiveId = useEffectiveUserId();
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
@@ -1335,13 +1337,13 @@ export default function NetworkPage() {
   };
 
   const { data: members = [], isLoading } = useQuery({
-    queryKey: ['team-members', user?.id],
+    queryKey: ['team-members', effectiveId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('team_members')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .order('level', { ascending: true });
       if (!data) return [];
       // Fetch linked profiles to get role
@@ -1360,7 +1362,7 @@ export default function NetworkPage() {
       }
       return data;
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const filtered = members.filter(m =>
@@ -1428,7 +1430,7 @@ export default function NetworkPage() {
             </DialogTitle>
           </DialogHeader>
           {objectifsMember && user && (
-            <ObjectifsPanel member={objectifsMember} userId={user.id} />
+            <ObjectifsPanel member={objectifsMember} userId={effectiveId!} />
           )}
         </DialogContent>
       </Dialog>
@@ -1638,7 +1640,7 @@ export default function NetworkPage() {
         </div>
 
         {/* ── Mon Réseau Hyla (downline) ── */}
-        {user && <DownlineSection currentUserId={user.id} />}
+        {effectiveId && <DownlineSection currentUserId={effectiveId} />}
       </div>
 
       {/* Sub-member edit confirmation dialog */}

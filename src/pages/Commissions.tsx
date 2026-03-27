@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
+import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, COMMISSION_TYPE_LABELS } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, Zap, Trophy, Star, ArrowUp, DollarSign } from 'lucide-react';
@@ -9,23 +10,24 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 export default function Commissions() {
   const { user } = useAuth();
+  const effectiveId = useEffectiveUserId();
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear().toString());
 
   const { data: commissions = [] } = useQuery({
-    queryKey: ['commissions', user?.id, selectedYear],
+    queryKey: ['commissions', effectiveId, selectedYear],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveId) return [];
       const { data } = await supabase
         .from('commissions')
         .select('*, team_members(first_name, last_name)')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .gte('period', `${selectedYear}-01`)
         .lte('period', `${selectedYear}-12`)
         .order('period', { ascending: false });
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   const totalDirecte = commissions.filter((c: any) => c.type === 'directe' && c.status === 'validee').reduce((s: number, c: any) => s + c.amount, 0);
