@@ -353,16 +353,10 @@ BEGIN
   );
   -- Create default pipeline stages
   INSERT INTO pipeline_stages (user_id, name, position, color) VALUES
-    (NEW.id, 'Nouveau contact', 0, '#6B7280'),
-    (NEW.id, 'À appeler', 1, '#3B82F6'),
-    (NEW.id, 'RDV à fixer', 2, '#8B5CF6'),
-    (NEW.id, 'Démo prévue', 3, '#F59E0B'),
-    (NEW.id, 'Démo faite', 4, '#F97316'),
-    (NEW.id, 'En réflexion', 5, '#EC4899'),
-    (NEW.id, 'Vente signée', 6, '#10B981'),
-    (NEW.id, 'Vente perdue', 7, '#EF4444'),
-    (NEW.id, 'À relancer', 8, '#6366F1'),
-    (NEW.id, 'Fidélisation', 9, '#14B8A6');
+    (NEW.id, 'Nouveau', 0, '#3b82f6'),
+    (NEW.id, 'Contacté', 1, '#f59e0b'),
+    (NEW.id, 'Gagné', 2, '#22c55e'),
+    (NEW.id, 'Perdu', 3, '#ef4444');
   -- Create default settings
   INSERT INTO user_settings (user_id) VALUES (NEW.id);
   RETURN NEW;

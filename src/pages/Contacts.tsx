@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, CONTACT_STATUS_LABELS, CONTACT_STATUS_COLORS, PRIORITY_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Network, Trash2 } from 'lucide-react';
+import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Network, Trash2, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -179,6 +179,9 @@ export default function Contacts() {
   const [showForm, setShowForm] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [view, setView] = useState<'list' | 'pipeline'>('list');
+  const [showStageManager, setShowStageManager] = useState(false);
+  const [editStages, setEditStages] = useState<{id?: string, name: string, color: string, position: number}[]>([]);
+  const [draggingContact, setDraggingContact] = useState<Contact | null>(null);
 
   const { data: contacts = [], isLoading } = useQuery({
     queryKey: ['contacts', user?.id],
@@ -318,6 +321,14 @@ export default function Contacts() {
             >
               Pipeline
             </button>
+            {view === 'pipeline' && (
+              <button
+                onClick={() => { setEditStages(stages.map(s => ({...s}))); setShowStageManager(true); }}
+                className="px-2 py-1.5 text-gray-400 hover:text-gray-600"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -376,40 +387,104 @@ export default function Contacts() {
 
         {/* Pipeline / Kanban view */}
         {view === 'pipeline' && (
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {contactsByStage.map((stage) => (
-              <div key={stage.id} className="min-w-[260px] max-w-[280px] flex-shrink-0">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
-                  <span className="text-sm font-semibold text-gray-700">{stage.name}</span>
-                  <span className="text-xs text-gray-400 ml-auto">{stage.contacts.length}</span>
+          <>
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {contactsByStage.map((stage) => (
+                <div
+                  key={stage.id}
+                  className="min-w-[200px] max-w-[260px] flex-shrink-0 rounded-2xl border-2 border-transparent transition-colors"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add('bg-blue-50', 'border-blue-300');
+                  }}
+                  onDragLeave={(e) => {
+                    e.currentTarget.classList.remove('bg-blue-50', 'border-blue-300');
+                  }}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('bg-blue-50', 'border-blue-300');
+                    const contactId = e.dataTransfer.getData('contactId');
+                    if (contactId) {
+                      await supabase.from('contacts').update({ pipeline_stage_id: stage.id }).eq('id', contactId);
+                      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
+                    <span className="text-sm font-semibold text-gray-700">{stage.name}</span>
+                    <span className="text-xs text-gray-400 ml-auto">{stage.contacts.length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {stage.contacts.map((contact) => (
+                      <div
+                        key={contact.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('contactId', contact.id);
+                          e.dataTransfer.setData('fromStageId', stage.id);
+                          (e.currentTarget as HTMLElement).style.opacity = '0.5';
+                        }}
+                        onDragEnd={(e) => {
+                          (e.currentTarget as HTMLElement).style.opacity = '1';
+                        }}
+                        onTouchStart={() => setDraggingContact(contact)}
+                        className="bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => {
+                          if (!draggingContact) setEditingContact(contact);
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <GripVertical className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />
+                          <p className="font-medium text-sm text-gray-900">{contact.first_name} {contact.last_name}</p>
+                          {networkContactIds.has(contact.id) && (
+                            <Network className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                          )}
+                        </div>
+                        {contact.phone && <p className="text-xs text-gray-400 mt-1 ml-5">{contact.phone}</p>}
+                        <div className="flex items-center gap-2 mt-2 ml-5">
+                          <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium ${CONTACT_STATUS_COLORS[contact.status]}`}>
+                            {CONTACT_STATUS_LABELS[contact.status]}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    {stage.contacts.length === 0 && (
+                      <div className="bg-gray-50 rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400">
+                        Aucun contact
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  {stage.contacts.map((contact) => (
-                    <div key={contact.id} className="bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setEditingContact(contact)}>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm text-gray-900">{contact.first_name} {contact.last_name}</p>
-                        {networkContactIds.has(contact.id) && (
-                          <Network className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
-                        )}
-                      </div>
-                      {contact.phone && <p className="text-xs text-gray-400 mt-1">{contact.phone}</p>}
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium ${CONTACT_STATUS_COLORS[contact.status]}`}>
-                          {CONTACT_STATUS_LABELS[contact.status]}
-                        </span>
-                      </div>
-                    </div>
+              ))}
+            </div>
+
+            {/* Touch drag indicator */}
+            {draggingContact && (
+              <div className="fixed bottom-20 left-4 right-4 bg-white rounded-2xl shadow-xl border p-3 z-50">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-gray-500 text-center flex-1">Déplacer {draggingContact.first_name} vers :</p>
+                  <button onClick={() => setDraggingContact(null)} className="text-xs text-gray-400 hover:text-gray-600 px-2">✕</button>
+                </div>
+                <div className="flex gap-2 overflow-x-auto">
+                  {stages.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={async () => {
+                        await supabase.from('contacts').update({ pipeline_stage_id: s.id }).eq('id', draggingContact.id);
+                        queryClient.invalidateQueries({ queryKey: ['contacts'] });
+                        setDraggingContact(null);
+                      }}
+                      className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-semibold border"
+                      style={{ borderColor: s.color, color: s.color }}
+                    >
+                      {s.name}
+                    </button>
                   ))}
-                  {stage.contacts.length === 0 && (
-                    <div className="bg-gray-50 rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400">
-                      Aucun contact
-                    </div>
-                  )}
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
 
@@ -428,6 +503,84 @@ export default function Contacts() {
               onAddToNetwork={(contact) => addToNetwork.mutate(contact)}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Stage Manager Dialog */}
+      <Dialog open={showStageManager} onOpenChange={setShowStageManager}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Gérer les étapes du pipeline</DialogTitle></DialogHeader>
+          <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+            {editStages.sort((a, b) => a.position - b.position).map((stage, idx) => (
+              <div key={stage.id || idx} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2">
+                <GripVertical className="h-4 w-4 text-gray-300 flex-shrink-0" />
+                <div
+                  className="h-4 w-4 rounded-full flex-shrink-0 cursor-pointer"
+                  style={{ backgroundColor: stage.color }}
+                  onClick={() => {
+                    const colors = ['#3b82f6','#f59e0b','#8b5cf6','#ec4899','#22c55e','#ef4444','#f97316','#06b6d4'];
+                    const currentIdx = colors.indexOf(stage.color);
+                    const nextColor = colors[(currentIdx + 1) % colors.length];
+                    const updated = [...editStages];
+                    updated[idx] = {...updated[idx], color: nextColor};
+                    setEditStages(updated);
+                  }}
+                />
+                <Input
+                  className="h-8 text-sm flex-1"
+                  value={stage.name}
+                  onChange={(e) => {
+                    const updated = [...editStages];
+                    updated[idx] = {...updated[idx], name: e.target.value};
+                    setEditStages(updated);
+                  }}
+                />
+                <button
+                  onClick={() => setEditStages(editStages.filter((_, i) => i !== idx))}
+                  className="p-1 text-red-400 hover:text-red-600"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => setEditStages([...editStages, { name: '', color: '#3b82f6', position: editStages.length + 1 }])}
+            className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-blue-300"
+          >
+            + Ajouter une étape
+          </button>
+          <button
+            onClick={async () => {
+              if (!user) return;
+              // Delete removed stages
+              const existingIds = stages.map(s => s.id);
+              const keptIds = editStages.filter(s => s.id).map(s => s.id!);
+              const toDelete = existingIds.filter(id => !keptIds.includes(id));
+              for (const id of toDelete) {
+                // Move contacts from deleted stage to first kept stage
+                if (keptIds.length > 0) {
+                  await supabase.from('contacts').update({ pipeline_stage_id: keptIds[0] }).eq('pipeline_stage_id', id);
+                }
+                await supabase.from('pipeline_stages').delete().eq('id', id);
+              }
+              // Upsert remaining
+              for (let i = 0; i < editStages.length; i++) {
+                const s = editStages[i];
+                if (s.id) {
+                  await supabase.from('pipeline_stages').update({ name: s.name, color: s.color, position: i + 1 }).eq('id', s.id);
+                } else {
+                  await supabase.from('pipeline_stages').insert({ user_id: user.id, name: s.name, color: s.color, position: i + 1 });
+                }
+              }
+              queryClient.invalidateQueries({ queryKey: ['pipeline-stages'] });
+              setShowStageManager(false);
+              toast({ title: 'Pipeline mis à jour' });
+            }}
+            className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl"
+          >
+            Sauvegarder
+          </button>
         </DialogContent>
       </Dialog>
     </AppLayout>
