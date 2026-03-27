@@ -3,7 +3,7 @@ import { AppLayout, ALL_MOBILE_TABS } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, GripVertical, FileText, Smartphone } from 'lucide-react';
+import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,6 +19,66 @@ interface FormQuestion {
 
 function generateId() {
   return Math.random().toString(36).substring(2, 10);
+}
+
+function InviteLinkSection({ inviteCode, fullName }: { inviteCode?: string | null; fullName?: string | null }) {
+  const [copied, setCopied] = useState(false);
+  const inviteLink = inviteCode ? `${window.location.origin}/rejoindre/${inviteCode}` : '';
+
+  const copyLink = async () => {
+    if (!inviteLink) return;
+    await navigator.clipboard.writeText(inviteLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const shareLink = async () => {
+    if (!inviteLink) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Rejoins Hyla Assistant',
+          text: `${fullName || 'Un partenaire'} t'invite à rejoindre Hyla Assistant !`,
+          url: inviteLink,
+        });
+      } catch {}
+    } else {
+      copyLink();
+    }
+  };
+
+  if (!inviteCode) return null;
+
+  return (
+    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-5">
+      <div className="flex items-center gap-2 mb-1">
+        <Link2 className="h-4 w-4 text-blue-600" />
+        <h3 className="text-base font-semibold text-gray-900">Lien d'invitation</h3>
+      </div>
+      <p className="text-xs text-gray-500 mb-4">
+        Partagez ce lien pour inviter un autre manager ou conseiller à créer son espace Hyla Assistant. Aucun lien de subordination n'est créé — la personne aura son propre espace indépendant.
+      </p>
+      <div className="bg-white rounded-xl border border-blue-200 p-3 flex items-center gap-2">
+        <code className="flex-1 text-xs text-blue-700 truncate font-mono">{inviteLink}</code>
+      </div>
+      <div className="flex gap-2 mt-3">
+        <button
+          onClick={copyLink}
+          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white border border-blue-200 text-blue-700 font-semibold text-sm rounded-xl active:scale-[0.98] transition-transform"
+        >
+          {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+          {copied ? 'Copié !' : 'Copier le lien'}
+        </button>
+        <button
+          onClick={shareLink}
+          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white font-semibold text-sm rounded-xl active:scale-[0.98] transition-transform"
+        >
+          <Share2 className="h-4 w-4" />
+          Partager
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function SettingsPage() {
@@ -139,6 +199,9 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+
+        {/* Invite Link */}
+        <InviteLinkSection inviteCode={profile?.invite_code} fullName={profile?.full_name} />
 
         {/* Form Builder */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">

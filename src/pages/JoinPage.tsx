@@ -87,13 +87,8 @@ export default function JoinPage() {
       return;
     }
 
-    // Set sponsor_user_id on the new user's profile
-    if (authData.user) {
-      await supabase
-        .from('profiles')
-        .update({ sponsor_user_id: inviterUserId })
-        .eq('id', authData.user.id);
-    }
+    // No sponsor relationship is created here — this is a peer invite
+    // The new user gets their own independent space
 
     setSubmitting(false);
     setSuccess(true);
