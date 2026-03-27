@@ -15,6 +15,7 @@ import {
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useState } from 'react';
+import OnboardingGuide from '@/components/OnboardingGuide';
 
 export default function Dashboard() {
   const { user, profile } = useAuth();
@@ -351,6 +352,8 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <OnboardingGuide />
     </AppLayout>
   );
 }
