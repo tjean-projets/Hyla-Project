@@ -64,7 +64,7 @@ function MemberForm({
         phone: initialData.phone || '',
         email: initialData.email || '',
         sponsor_id: initialData.sponsor_id || '',
-        role: initialData.level === 4 ? 'elite' : initialData.level === 3 ? 'senior' : initialData.level === 2 ? 'manager' : 'conseillere',
+        role: initialData.level >= 2 ? 'manager' : 'conseillere',
         joined_at: initialData.joined_at || '',
         notes: initialData.notes || '',
       });
@@ -82,7 +82,7 @@ function MemberForm({
         phone: form.phone || null,
         email: form.email || null,
         sponsor_id: form.sponsor_id || null,
-        level: form.role === 'elite' ? 4 : form.role === 'senior' ? 3 : form.role === 'manager' ? 2 : 1,
+        level: form.role === 'manager' ? 2 : 1,
         joined_at: form.joined_at || null,
         notes: form.notes || null,
         matching_names: [`${form.first_name} ${form.last_name}`.toLowerCase()],
@@ -168,10 +168,8 @@ function MemberForm({
           <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
             <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="conseillere">Conseillère</SelectItem>
+              <SelectItem value="conseillere">Conseiller(ère)</SelectItem>
               <SelectItem value="manager">Manager</SelectItem>
-              <SelectItem value="senior">Senior Manager</SelectItem>
-              <SelectItem value="elite">Elite Manager</SelectItem>
             </SelectContent>
           </Select>
         </div>
