@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, HYLA_NETWORK_TIERS, HYLA_NETWORK_COMMISSION } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Users, UserPlus, Star, Trophy, Crown, Award, ChevronUp, Zap, Trash2, Target, Copy, Mail, Edit3, CheckCircle, Clock, Sparkles, Link2 } from 'lucide-react';
+import { Plus, Search, Users, UserPlus, Star, Trophy, Crown, Award, ChevronUp, Zap, Trash2, Target, Copy, Mail, Edit3, CheckCircle, Clock, Sparkles, Link2, Share2, Eye, EyeOff, AlertTriangle, ChevronDown, ChevronRight, Network, DollarSign, ShoppingCart, UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import type { Tables } from '@/integrations/supabase/types';
 
 type TeamMember = Tables<'team_members'>;
@@ -622,13 +623,441 @@ function ProgressRing({ value, max, label, color }: { value: number; max: number
   );
 }
 
+/* ── Invite Link Dialog ── */
+function InviteLinkDialog({ open, onOpenChange, inviteCode }: { open: boolean; onOpenChange: (open: boolean) => void; inviteCode: string | null }) {
+  const { toast } = useToast();
+  const inviteUrl = inviteCode ? `${window.location.origin}/rejoindre/${inviteCode}` : '';
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(inviteUrl);
+    toast({ title: 'Lien copié !' });
+  };
+
+  const shareLink = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Rejoins mon réseau Hyla', text: 'Je t\'invite à rejoindre mon réseau Hyla !', url: inviteUrl });
+      } catch { /* user cancelled */ }
+    } else {
+      copyLink();
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <UserPlus className="h-4 w-4 text-blue-600" />
+            Inviter un partenaire
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">Partagez ce lien pour inviter un nouveau partenaire à rejoindre votre réseau Hyla.</p>
+          <div className="flex gap-2">
+            <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-xs text-gray-600 truncate border">
+              {inviteUrl || 'Aucun code d\'invitation'}
+            </div>
+            <button onClick={copyLink} disabled={!inviteCode} className="px-3 py-2.5 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50">
+              <Copy className="h-4 w-4 text-gray-600" />
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={copyLink} disabled={!inviteCode}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl text-sm disabled:opacity-50 active:scale-[0.98]">
+              <Copy className="h-3.5 w-3.5" /> Copier le lien
+            </button>
+            <button onClick={shareLink} disabled={!inviteCode}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-violet-600 text-white font-semibold rounded-xl text-sm disabled:opacity-50 active:scale-[0.98]">
+              <Share2 className="h-3.5 w-3.5" /> Partager
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ── Manager Stats Panel ── */
+function ManagerStatsPanel({ userId, memberName, open, onOpenChange }: { userId: string; memberName: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['manager-stats', userId],
+    queryFn: async () => {
+      // Fetch deals
+      const { data: deals } = await supabase
+        .from('deals')
+        .select('id, amount, commission_direct, status')
+        .eq('user_id', userId);
+      const signedDeals = (deals || []).filter(d => d.status === 'signee' || d.status === 'livree');
+      const totalVentes = signedDeals.length;
+      const totalCA = signedDeals.reduce((s, d) => s + (d.amount || 0), 0);
+
+      // Fetch commissions
+      const { data: commissions } = await supabase
+        .from('commissions')
+        .select('amount')
+        .eq('user_id', userId);
+      const totalCommissions = (commissions || []).reduce((s, c) => s + (c.amount || 0), 0);
+
+      // Fetch team size
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('user_id', userId);
+      const teamSize = (teamMembers || []).length;
+
+      return { totalVentes, totalCA, totalCommissions, teamSize };
+    },
+    enabled: open && !!userId,
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Eye className="h-4 w-4 text-blue-600" />
+            Stats — {memberName}
+          </DialogTitle>
+        </DialogHeader>
+        {isLoading ? (
+          <div className="py-8 text-center text-gray-400 text-sm">Chargement...</div>
+        ) : stats ? (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-blue-50 rounded-xl p-4 text-center">
+              <ShoppingCart className="h-5 w-5 text-blue-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-gray-900">{stats.totalVentes}</p>
+              <p className="text-xs text-gray-500">Ventes</p>
+            </div>
+            <div className="bg-green-50 rounded-xl p-4 text-center">
+              <DollarSign className="h-5 w-5 text-green-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-gray-900">{stats.totalCA.toLocaleString('fr-FR')} &euro;</p>
+              <p className="text-xs text-gray-500">CA total</p>
+            </div>
+            <div className="bg-amber-50 rounded-xl p-4 text-center">
+              <DollarSign className="h-5 w-5 text-amber-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-gray-900">{stats.totalCommissions.toLocaleString('fr-FR')} &euro;</p>
+              <p className="text-xs text-gray-500">Commissions</p>
+            </div>
+            <div className="bg-violet-50 rounded-xl p-4 text-center">
+              <Users className="h-5 w-5 text-violet-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-gray-900">{stats.teamSize}</p>
+              <p className="text-xs text-gray-500">Equipe</p>
+            </div>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ── Delete Account Double Confirmation ── */
+function DeleteAccountDialog({
+  open, onOpenChange, memberName, onConfirm, isPending,
+}: {
+  open: boolean; onOpenChange: (open: boolean) => void;
+  memberName: string; onConfirm: () => void; isPending: boolean;
+}) {
+  const [step, setStep] = useState<1 | 2>(1);
+  const [confirmName, setConfirmName] = useState('');
+
+  useEffect(() => {
+    if (!open) { setStep(1); setConfirmName(''); }
+  }, [open]);
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+            <AlertTriangle className="h-5 w-5" />
+            {step === 1 ? 'Supprimer le compte' : 'Confirmation finale'}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {step === 1
+              ? `Etes-vous sur de vouloir supprimer le compte de ${memberName} ? Cette action est irreversible.`
+              : `Confirmer la suppression : tapez le nom complet de la personne pour confirmer.`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {step === 2 && (
+          <div className="py-2">
+            <Input
+              placeholder={memberName}
+              value={confirmName}
+              onChange={(e) => setConfirmName(e.target.value)}
+              className="h-11"
+            />
+            {confirmName.length > 0 && confirmName !== memberName && (
+              <p className="text-xs text-red-500 mt-1">Le nom ne correspond pas</p>
+            )}
+          </div>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuler</AlertDialogCancel>
+          {step === 1 ? (
+            <button
+              onClick={() => setStep(2)}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium px-4 py-2 bg-red-600 text-white hover:bg-red-700"
+            >
+              Continuer
+            </button>
+          ) : (
+            <button
+              onClick={onConfirm}
+              disabled={confirmName !== memberName || isPending}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium px-4 py-2 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {isPending ? 'Suppression...' : 'Supprimer definitivement'}
+            </button>
+          )}
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+/* ── Downline Tree Types & Helpers ── */
+interface DownlineMember {
+  id: string;
+  full_name: string;
+  email: string | null;
+  sponsor_user_id: string | null;
+  invite_code: string | null;
+  level: number; // depth in tree: 1 = direct, 2 = indirect...
+  hasAccount: boolean; // linked_user_id on their team_member record or they have a profile
+  userId: string; // their actual user id (profile id)
+}
+
+function buildDownlineTree(
+  allProfiles: { id: string; full_name: string; email: string | null; sponsor_user_id: string | null; invite_code: string | null }[],
+  currentUserId: string,
+): DownlineMember[] {
+  const result: DownlineMember[] = [];
+  const byParent = new Map<string, typeof allProfiles>();
+  allProfiles.forEach(p => {
+    const sid = p.sponsor_user_id;
+    if (sid) {
+      if (!byParent.has(sid)) byParent.set(sid, []);
+      byParent.get(sid)!.push(p);
+    }
+  });
+
+  function walk(parentId: string, depth: number) {
+    const children = byParent.get(parentId) || [];
+    for (const child of children) {
+      result.push({
+        id: child.id,
+        full_name: child.full_name || 'Sans nom',
+        email: child.email,
+        sponsor_user_id: child.sponsor_user_id,
+        invite_code: child.invite_code,
+        level: depth,
+        hasAccount: true, // they have a profile so they have an account
+        userId: child.id,
+      });
+      walk(child.id, depth + 1);
+    }
+  }
+  walk(currentUserId, 1);
+  return result;
+}
+
+/* ── Downline Section ── */
+function DownlineSection({ currentUserId }: { currentUserId: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [statsUserId, setStatsUserId] = useState<string | null>(null);
+  const [statsName, setStatsName] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<DownlineMember | null>(null);
+
+  // Fetch all profiles with sponsor_user_id to build the tree
+  const { data: downline = [], isLoading } = useQuery({
+    queryKey: ['downline-tree', currentUserId],
+    queryFn: async () => {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, sponsor_user_id, invite_code');
+      if (!profiles) return [];
+      return buildDownlineTree(profiles as any, currentUserId);
+    },
+    enabled: !!currentUserId,
+  });
+
+  // Deactivate account mutation
+  const deactivateMutation = useMutation({
+    mutationFn: async (member: DownlineMember) => {
+      // Find team_member record linked to this user
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('linked_user_id' as any, member.userId);
+      if (teamMembers && teamMembers.length > 0) {
+        for (const tm of teamMembers) {
+          await supabase.from('team_members').update({
+            linked_user_id: null,
+            status: 'inactif',
+          } as any).eq('id', tm.id);
+        }
+      }
+      // Also remove sponsor link on their profile
+      await supabase.from('profiles').update({ sponsor_user_id: null } as any).eq('id', member.userId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['downline-tree'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      toast({ title: 'Compte desactive' });
+      setDeleteTarget(null);
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+        <p className="text-sm text-gray-400 text-center">Chargement du reseau...</p>
+      </div>
+    );
+  }
+
+  if (downline.length === 0) {
+    return (
+      <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+        <div className="flex items-center gap-2 mb-3">
+          <Network className="h-5 w-5 text-violet-400" />
+          <h3 className="text-sm font-bold text-white">Mon Reseau Hyla</h3>
+        </div>
+        <div className="text-center py-8">
+          <Users className="h-10 w-10 text-gray-600 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Aucun filleul dans votre reseau</p>
+          <p className="text-xs text-gray-600 mt-1">Partagez votre lien d'invitation pour developper votre equipe</p>
+        </div>
+      </div>
+    );
+  }
+
+  const directCount = downline.filter(d => d.level === 1).length;
+  const indirectCount = downline.filter(d => d.level > 1).length;
+
+  return (
+    <>
+      <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Network className="h-5 w-5 text-violet-400" />
+          <h3 className="text-sm font-bold text-white">Mon Reseau Hyla</h3>
+          <span className="ml-auto text-xs text-gray-500">{downline.length} membre{downline.length > 1 ? 's' : ''}</span>
+        </div>
+
+        {/* Summary */}
+        <div className="flex gap-3 mb-4">
+          <div className="flex-1 bg-violet-500/10 rounded-xl px-3 py-2 text-center">
+            <p className="text-lg font-bold text-violet-300">{directCount}</p>
+            <p className="text-[10px] text-gray-500">Directs (N1)</p>
+          </div>
+          <div className="flex-1 bg-blue-500/10 rounded-xl px-3 py-2 text-center">
+            <p className="text-lg font-bold text-blue-300">{indirectCount}</p>
+            <p className="text-[10px] text-gray-500">Indirects</p>
+          </div>
+        </div>
+
+        {/* Tree list */}
+        <div className="space-y-2">
+          {downline.map((member) => {
+            const isExpanded = expandedId === member.id;
+            const isDirect = member.level === 1;
+            return (
+              <div key={member.id} className="bg-white/[0.04] rounded-xl border border-white/5 overflow-hidden">
+                <div
+                  className="flex items-center gap-3 p-3 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                  onClick={() => setExpandedId(isExpanded ? null : member.id)}
+                >
+                  {/* Indentation */}
+                  <div style={{ width: (member.level - 1) * 16 }} className="flex-shrink-0" />
+
+                  <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500/30 to-indigo-500/30 flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-bold text-xs">
+                      {member.full_name.split(' ').map(n => n.charAt(0)).join('').slice(0, 2)}
+                    </span>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-white truncate">{member.full_name}</p>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                        isDirect ? 'bg-violet-500/20 text-violet-300' : 'bg-blue-500/20 text-blue-300'
+                      }`}>
+                        N{member.level}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {member.email && <span className="text-[10px] text-gray-500 truncate">{member.email}</span>}
+                      {member.hasAccount && (
+                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
+                          Connecte
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-gray-500 flex-shrink-0" />}
+                </div>
+
+                {isExpanded && (
+                  <div className="px-3 pb-3 flex gap-2 border-t border-white/5 pt-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setStatsUserId(member.userId); setStatsName(member.full_name); }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/20 active:scale-[0.97]"
+                    >
+                      <Eye className="h-3.5 w-3.5" /> Voir
+                    </button>
+                    {isDirect && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(member); }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-red-500/15 text-red-400 border border-red-500/20 active:scale-[0.97]"
+                      >
+                        <UserMinus className="h-3.5 w-3.5" /> Supprimer le compte
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Manager Stats Dialog */}
+      {statsUserId && (
+        <ManagerStatsPanel
+          userId={statsUserId}
+          memberName={statsName}
+          open={!!statsUserId}
+          onOpenChange={(open) => { if (!open) { setStatsUserId(null); setStatsName(''); } }}
+        />
+      )}
+
+      {/* Delete Account Dialog */}
+      {deleteTarget && (
+        <DeleteAccountDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+          memberName={deleteTarget.full_name}
+          onConfirm={() => deactivateMutation.mutate(deleteTarget)}
+          isPending={deactivateMutation.isPending}
+        />
+      )}
+    </>
+  );
+}
+
 export default function NetworkPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [objectifsMember, setObjectifsMember] = useState<TeamMember | null>(null);
   const [assistantMember, setAssistantMember] = useState<TeamMember | null>(null);
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['team-members', user?.id],
@@ -667,13 +1096,22 @@ export default function NetworkPage() {
       title="Mon Réseau"
       variant="dark"
       actions={
-        <button
-          onClick={() => { setEditingMember(null); setShowForm(true); }}
-          className="flex items-center gap-2 px-4 py-2 bg-[#3b82f6] text-white font-semibold rounded-xl active:bg-[#3b82f6]/80"
-        >
-          <UserPlus className="h-4 w-4" />
-          Ajouter
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowInviteDialog(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white font-semibold rounded-xl active:bg-violet-700"
+          >
+            <Share2 className="h-4 w-4" />
+            Inviter
+          </button>
+          <button
+            onClick={() => { setEditingMember(null); setShowForm(true); }}
+            className="flex items-center gap-2 px-4 py-2 bg-[#3b82f6] text-white font-semibold rounded-xl active:bg-[#3b82f6]/80"
+          >
+            <UserPlus className="h-4 w-4" />
+            Ajouter
+          </button>
+        </div>
       }
     >
       <Dialog open={showForm} onOpenChange={(open) => { if (!open) handleCloseForm(); else setShowForm(true); }}>
@@ -856,7 +1294,17 @@ export default function NetworkPage() {
             </div>
           )}
         </div>
+
+        {/* ── Mon Réseau Hyla (downline) ── */}
+        {user && <DownlineSection currentUserId={user.id} />}
       </div>
+
+      {/* Invite Link Dialog */}
+      <InviteLinkDialog
+        open={showInviteDialog}
+        onOpenChange={setShowInviteDialog}
+        inviteCode={profile?.invite_code || null}
+      />
     </AppLayout>
   );
 }

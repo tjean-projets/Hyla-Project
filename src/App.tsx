@@ -21,6 +21,8 @@ import Finance from "./pages/Finance";
 import SettingsPage from "./pages/SettingsPage";
 import ObjectifForm from "./pages/ObjectifForm";
 import InscriptionPage from "./pages/InscriptionPage";
+import JoinPage from "./pages/JoinPage";
+import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +65,7 @@ function AppRoutes() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/objectifs/:token" element={<ObjectifForm />} />
       <Route path="/inscription/:slug" element={<InscriptionPage />} />
+      <Route path="/rejoindre/:inviteCode" element={<JoinPage />} />
 
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
@@ -74,6 +77,7 @@ function AppRoutes() {
       <Route path="/imports" element={<Navigate to="/finance" replace />} />
       <Route path="/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+      <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
 
       <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
       <Route path="*" element={<NotFound />} />

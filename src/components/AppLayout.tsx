@@ -15,13 +15,14 @@ import {
   Menu,
   X,
   MoreHorizontal,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 import { Timer, Trophy } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSuperAdmin } from '@/lib/supabase';
 
 function ChallengeBanner({ isDark }: { isDark: boolean }) {
   const { user } = useAuth();
@@ -134,8 +135,9 @@ interface AppLayoutProps {
 
 export function AppLayout({ title, children, actions, variant = 'light', hideBanner = false }: AppLayoutProps) {
   const location = useLocation();
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isAdmin = isSuperAdmin(user?.email);
 
   const isDark = variant === 'dark';
 
@@ -177,6 +179,24 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
             );
           })}
         </nav>
+
+        {/* Admin link */}
+        {isAdmin && (
+          <div className="px-3 pt-2">
+            <NavLink
+              to="/admin"
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200',
+                location.pathname === '/admin'
+                  ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                  : 'text-red-400 hover:text-white hover:bg-red-500/10'
+              )}
+            >
+              <Shield className="h-[18px] w-[18px]" />
+              Admin
+            </NavLink>
+          </div>
+        )}
 
         {/* User + Logout */}
         <div className="p-3 border-t border-white/5">

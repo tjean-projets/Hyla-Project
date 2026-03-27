@@ -2,6 +2,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 export { supabase };
 
+// ── Super Admin ──
+export const SUPER_ADMIN_EMAILS = ['thomas.jean28@outlook.fr', 't.jean@360courtage.fr'];
+
+export function isSuperAdmin(email?: string | null): boolean {
+  return !!email && SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
 // ── Contact statuses ──
 export type ContactStatus = 'prospect' | 'cliente' | 'recrue' | 'inactive' | 'perdue' | 'partenaire';
 

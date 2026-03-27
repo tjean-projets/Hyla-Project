@@ -16,6 +16,8 @@ export type Database = {
           avatar_url: string | null
           phone: string | null
           email: string | null
+          sponsor_user_id: string | null
+          invite_code: string | null
           created_at: string
           updated_at: string
         }
@@ -25,6 +27,8 @@ export type Database = {
           avatar_url?: string | null
           phone?: string | null
           email?: string | null
+          sponsor_user_id?: string | null
+          invite_code?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -34,6 +38,8 @@ export type Database = {
           avatar_url?: string | null
           phone?: string | null
           email?: string | null
+          sponsor_user_id?: string | null
+          invite_code?: string | null
           updated_at?: string
         }
         Relationships: []
