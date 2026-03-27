@@ -100,6 +100,56 @@ export default function Finance() {
     enabled: !!user,
   });
 
+  // Fetch team members recursively (including sub-members from linked accounts)
+  const { data: allTreeMembers = [] } = useQuery({
+    queryKey: ['team-tree-members', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+
+      // Start with direct team members
+      const { data: direct } = await supabase
+        .from('team_members')
+        .select('*, profiles!team_members_linked_user_id_fkey(id)')
+        .eq('user_id', user.id);
+
+      if (!direct) return [];
+
+      const allMembers: any[] = direct.map(m => ({ ...m, _depth: 1, _owner_user_id: user.id }));
+
+      // For each member with linked_user_id, fetch their team_members too
+      const linkedUserIds = direct
+        .filter(m => m.linked_user_id)
+        .map(m => m.linked_user_id!);
+
+      for (const linkedId of linkedUserIds) {
+        const { data: subMembers } = await supabase
+          .from('team_members')
+          .select('*')
+          .eq('user_id', linkedId);
+
+        if (subMembers) {
+          for (const sm of subMembers) {
+            allMembers.push({ ...sm, _depth: 2, _owner_user_id: linkedId });
+
+            // Go one more level deep if needed
+            if (sm.linked_user_id) {
+              const { data: subSub } = await supabase
+                .from('team_members')
+                .select('*')
+                .eq('user_id', sm.linked_user_id);
+              if (subSub) {
+                allMembers.push(...subSub.map(s => ({ ...s, _depth: 3, _owner_user_id: sm.linked_user_id })));
+              }
+            }
+          }
+        }
+      }
+
+      return allMembers;
+    },
+    enabled: !!user,
+  });
+
   // ── Commissions for invoice ──
   const { data: invoiceCommissions = [] } = useQuery({
     queryKey: ['invoice-commissions', user?.id, invoicePeriod],
@@ -173,7 +223,7 @@ export default function Finance() {
       const isOwner = ownerName ? matchScore(ownerName, rowName) >= 80 : false;
 
       let bestMatch: { member: any; confidence: number } | null = null;
-      for (const member of teamMembers) {
+      for (const member of allTreeMembers) {
         const fullName = `${member.first_name} ${member.last_name}`;
         const names = [fullName, ...(member.matching_names || [])];
         for (const name of names) {
@@ -204,7 +254,7 @@ export default function Finance() {
 
     setMatchResults(results);
     setFlow({ ...flow, step: 'matching' });
-  }, [flow, teamMembers, profile]);
+  }, [flow, allTreeMembers, profile]);
 
   // ── Save import ──
   const saveImport = useMutation({
@@ -240,6 +290,23 @@ export default function Finance() {
       if (rowsError) throw rowsError;
 
       await supabase.rpc('consolidate_import_commissions', { p_import_id: importRecord.id });
+
+      // Also create commissions in linked users' spaces (cascade MLM tree)
+      const linkedCommissions = matchResults
+        .filter(r => r.matched_member?._owner_user_id && r.matched_member._owner_user_id !== user.id)
+        .map(r => ({
+          user_id: r.matched_member._owner_user_id,
+          type: 'directe' as const,
+          amount: r.amount,
+          period: flow.period,
+          status: 'validee' as const,
+          team_member_id: r.matched_member.id,
+          notes: `Import par ${profile?.full_name || 'manager'} - ${r.row_name}`,
+        }));
+
+      if (linkedCommissions.length > 0) {
+        await supabase.from('commissions').insert(linkedCommissions);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['commission-imports'] });

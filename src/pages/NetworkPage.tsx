@@ -1056,6 +1056,192 @@ function DownlineSection({ currentUserId }: { currentUserId: string }) {
   );
 }
 
+/* ── Sub-Team Tree: recursive cascade visibility ── */
+function SubTeamTree({
+  userId,
+  parentMemberName,
+  depth = 1,
+  onEditSubMember,
+}: {
+  userId: string;
+  parentMemberName: string;
+  depth?: number;
+  onEditSubMember?: (member: TeamMember, parentName: string) => void;
+}) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  // TODO: Need RLS policy for manager read access
+  // The existing 004_mlm_system.sql migration adds manager_read_downline_team
+  // which should allow this query if the user is in the downline chain.
+  const { data: subMembers = [], isLoading } = useQuery({
+    queryKey: ['sub-team-members', userId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('user_id', userId)
+        .order('level', { ascending: true });
+      return (data || []) as TeamMember[];
+    },
+    enabled: !!userId,
+  });
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="pl-4 py-2">
+        <p className="text-[11px] text-gray-500 animate-pulse">Chargement de l'équipe...</p>
+      </div>
+    );
+  }
+
+  if (subMembers.length === 0) {
+    return (
+      <div className="pl-4 py-2">
+        <p className="text-[11px] text-gray-500 italic">Aucun membre dans cette équipe</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative ml-3 mt-1 mb-1">
+      {/* Vertical tree line */}
+      <div className="absolute left-0 top-0 bottom-0 w-px bg-white/10" />
+
+      <div className="space-y-1.5 pl-4">
+        {subMembers.map((sub) => {
+          const hasLinkedUser = !!(sub as any).linked_user_id;
+          const isExpanded = expandedIds.has(sub.id);
+          const isManager = sub.level >= 2;
+
+          return (
+            <div key={sub.id}>
+              {/* Horizontal branch connector */}
+              <div className="relative">
+                <div className="absolute -left-4 top-4 w-3 h-px bg-white/10" />
+
+                <div className="bg-white/[0.03] rounded-xl border border-white/5 overflow-hidden">
+                  <div className="flex items-center gap-2 p-2.5">
+                    {/* Avatar */}
+                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-gray-500/30 to-gray-600/30 flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-[10px]">
+                        {sub.first_name.charAt(0)}{sub.last_name.charAt(0)}
+                      </span>
+                    </div>
+
+                    {/* Info */}
+                    <div
+                      className="flex-1 min-w-0 cursor-pointer"
+                      onClick={() => onEditSubMember?.(sub, parentMemberName)}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-semibold text-white/90 truncate">
+                          {sub.first_name} {sub.last_name}
+                        </p>
+                        {/* Depth badge */}
+                        <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-indigo-500/20 text-indigo-300 flex-shrink-0">
+                          N{depth}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[10px] text-gray-500">
+                          {isManager ? 'Manager' : 'Conseillère'}
+                        </span>
+                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
+                          sub.status === 'actif'
+                            ? 'bg-emerald-500/15 text-emerald-400'
+                            : 'bg-white/5 text-gray-500'
+                        }`}>
+                          {sub.status === 'actif' ? 'Actif' : 'Inactif'}
+                        </span>
+                        {hasLinkedUser && (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
+                            Connecté
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expand button if has linked account */}
+                    {hasLinkedUser && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleExpand(sub.id); }}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium bg-violet-500/10 text-violet-400 border border-violet-500/15 hover:bg-violet-500/20 transition-colors flex-shrink-0"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                        Équipe
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Recursively render sub-team */}
+                  {hasLinkedUser && isExpanded && (
+                    <div className="border-t border-white/5">
+                      <SubTeamTree
+                        userId={(sub as any).linked_user_id}
+                        parentMemberName={`${sub.first_name} ${sub.last_name}`}
+                        depth={depth + 1}
+                        onEditSubMember={onEditSubMember}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Confirmation dialog for editing sub-member data ── */
+function SubMemberEditConfirmDialog({
+  open,
+  onOpenChange,
+  parentName,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  parentName: string;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            Modifier un sous-membre
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Vous allez modifier les données de l'équipe de {parentName}. Continuer ?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuler</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>
+            Continuer
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export default function NetworkPage() {
   const { user, profile } = useAuth();
   const [search, setSearch] = useState('');
@@ -1064,6 +1250,32 @@ export default function NetworkPage() {
   const [objectifsMember, setObjectifsMember] = useState<TeamMember | null>(null);
   const [assistantMember, setAssistantMember] = useState<TeamMember | null>(null);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [expandedTeamIds, setExpandedTeamIds] = useState<Set<string>>(new Set());
+  const [subMemberToEdit, setSubMemberToEdit] = useState<{ member: TeamMember; parentName: string } | null>(null);
+  const [showSubMemberConfirm, setShowSubMemberConfirm] = useState(false);
+
+  const toggleTeamExpand = (memberId: string) => {
+    setExpandedTeamIds(prev => {
+      const next = new Set(prev);
+      if (next.has(memberId)) next.delete(memberId);
+      else next.add(memberId);
+      return next;
+    });
+  };
+
+  const handleSubMemberEdit = (member: TeamMember, parentName: string) => {
+    setSubMemberToEdit({ member, parentName });
+    setShowSubMemberConfirm(true);
+  };
+
+  const confirmSubMemberEdit = () => {
+    if (subMemberToEdit) {
+      setEditingMember(subMemberToEdit.member);
+      setShowForm(true);
+    }
+    setShowSubMemberConfirm(false);
+    setSubMemberToEdit(null);
+  };
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['team-members', user?.id],
@@ -1288,6 +1500,36 @@ export default function NetworkPage() {
                     </button>
                   )}
                 </div>
+
+                {/* Expand sub-team button */}
+                {(member as any).linked_user_id && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleTeamExpand(member.id); }}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 mt-2 rounded-xl text-[11px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/15 hover:bg-indigo-500/20 transition-colors active:scale-[0.98]"
+                  >
+                    {expandedTeamIds.has(member.id) ? (
+                      <>
+                        <ChevronDown className="h-3.5 w-3.5" />
+                        Masquer l'équipe
+                      </>
+                    ) : (
+                      <>
+                        <ChevronRight className="h-3.5 w-3.5" />
+                        Voir l'équipe
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {/* Sub-team tree (cascade) */}
+                {(member as any).linked_user_id && expandedTeamIds.has(member.id) && (
+                  <SubTeamTree
+                    userId={(member as any).linked_user_id}
+                    parentMemberName={`${member.first_name} ${member.last_name}`}
+                    depth={1}
+                    onEditSubMember={handleSubMemberEdit}
+                  />
+                )}
               </div>
             );
           })}
@@ -1304,6 +1546,17 @@ export default function NetworkPage() {
         {/* ── Mon Réseau Hyla (downline) ── */}
         {user && <DownlineSection currentUserId={user.id} />}
       </div>
+
+      {/* Sub-member edit confirmation dialog */}
+      <SubMemberEditConfirmDialog
+        open={showSubMemberConfirm}
+        onOpenChange={(open) => {
+          setShowSubMemberConfirm(open);
+          if (!open) setSubMemberToEdit(null);
+        }}
+        parentName={subMemberToEdit?.parentName || ''}
+        onConfirm={confirmSubMemberEdit}
+      />
 
       {/* Invite Link Dialog */}
       <InviteLinkDialog
