@@ -25,7 +25,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase, isSuperAdmin, HYLA_CHALLENGES } from '@/lib/supabase';
 import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { useImpersonationSafe } from '@/hooks/useImpersonation';
-import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
+import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
 import {
   Dialog,
   DialogContent,
@@ -343,7 +343,9 @@ interface AppLayoutProps {
 
 export function AppLayout({ title, children, actions, variant = 'light', hideBanner = false }: AppLayoutProps) {
   const location = useLocation();
-  const { signOut, profile, user } = useAuth();
+  const { signOut, profile: authProfile, user } = useAuth();
+  const { profile: effectiveProfile } = useEffectiveProfile();
+  const profile = effectiveProfile || authProfile;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAdmin = isSuperAdmin(user?.email);
 
@@ -373,7 +375,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
     <div className={cn('min-h-screen', isDark ? 'bg-[#0f1729]' : 'bg-[#f0f4f8]')}>
       <ImpersonationBanner />
       {/* ── Desktop Sidebar (Mockup 2 style: dark blue) ── */}
-      <aside className="fixed left-0 top-0 bottom-0 w-[220px] bg-[#111827] hidden md:flex flex-col z-40">
+      <aside className={cn("fixed left-0 bottom-0 w-[220px] bg-[#111827] hidden md:flex flex-col z-40", isImpersonating ? 'top-10' : 'top-0')}>
         {/* Logo */}
         <div className="px-5 py-6">
           <div className="flex items-center gap-2.5">

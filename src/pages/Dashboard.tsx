@@ -16,11 +16,12 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useState } from 'react';
 import OnboardingGuide from '@/components/OnboardingGuide';
-import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
+import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
 
 export default function Dashboard() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const effectiveId = useEffectiveUserId();
+  const { profile } = useEffectiveProfile();
   const [showChallenge, setShowChallenge] = useState<'countdown' | 'rookie' | null>(null);
 
   const { data: kpis } = useQuery({
