@@ -133,8 +133,8 @@ export const HYLA_COMMISSION_SCALE = [
 
 // Commission réseau
 export const HYLA_NETWORK_COMMISSION = {
-  recrue_directe: 100, // € par vente d'une recrue directe
-  reseau: 30,          // € par vente du réseau élargi
+  recrue_directe: 120, // € par vente d'une recrue directe (Manager)
+  reseau: 30,          // € par toutes les ventes du réseau
 };
 
 // Challenges
@@ -156,10 +156,8 @@ export const HYLA_PRODUCTS = [
 
 // Niveaux réseau Hyla
 export const HYLA_NETWORK_TIERS = [
-  { min: 0, label: 'Conseillère', description: 'Recommande le Hyla autour de soi' },
-  { min: 4, label: 'Manager', description: '4+ partenaires qui dupliquent' },
-  { min: 10, label: 'Senior Manager', description: 'Équipe structurée et active' },
-  { min: 20, label: 'Elite Manager', description: 'Leader confirmée du réseau' },
+  { min: 0, label: 'Conseillère', description: 'Recommande le Hyla autour de soi • 100€/vente recrue directe' },
+  { min: 4, label: 'Manager', description: '4+ partenaires • 120€/vente recrue directe • 30€/vente réseau' },
 ];
 
 export function getHylaCommission(machinesSold: number): number {

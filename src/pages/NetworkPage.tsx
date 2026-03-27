@@ -22,12 +22,10 @@ function generateSlug(firstName: string, lastName: string): string {
     .toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 }
 
-/* ── Tier badge Hyla: Conseillère → Manager → Senior → Elite ── */
+/* ── Tier badge Hyla: Conseillère → Manager ── */
 const TIERS = [
   { ...HYLA_NETWORK_TIERS[0], color: 'from-blue-500 to-blue-400', text: 'text-blue-300', icon: Award },
   { ...HYLA_NETWORK_TIERS[1], color: 'from-amber-500 to-amber-400', text: 'text-amber-300', icon: Star },
-  { ...HYLA_NETWORK_TIERS[2], color: 'from-yellow-500 to-yellow-300', text: 'text-yellow-200', icon: Trophy },
-  { ...HYLA_NETWORK_TIERS[3], color: 'from-violet-500 to-indigo-400', text: 'text-violet-200', icon: Crown },
 ];
 
 function getTier(count: number) {
