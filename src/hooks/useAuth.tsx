@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: { full_name: string; avatar_url: string | null; invite_code: string | null; sponsor_user_id: string | null } | null;
+  profile: { full_name: string; avatar_url: string | null; invite_code: string | null; sponsor_user_id: string | null; role: string | null } | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<{ full_name: string; avatar_url: string | null; invite_code: string | null; sponsor_user_id: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ full_name: string; avatar_url: string | null; invite_code: string | null; sponsor_user_id: string | null; role: string | null } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const initializedRef = useRef(false);
 
@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data } = await supabase
         .from('profiles')
-        .select('full_name, avatar_url, invite_code, sponsor_user_id')
+        .select('full_name, avatar_url, invite_code, sponsor_user_id, role')
         .eq('id', userId)
         .maybeSingle();
       if (data) {
