@@ -139,6 +139,22 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAdmin = isSuperAdmin(user?.email);
 
+  // Check if user is a manager (has team members)
+  const { data: teamCount } = useQuery({
+    queryKey: ['team-count', user?.id],
+    queryFn: async () => {
+      if (!user) return 0;
+      const { count } = await supabase
+        .from('team_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      return count || 0;
+    },
+    enabled: !!user,
+    staleTime: 60000,
+  });
+  const isManager = isAdmin || (teamCount != null && teamCount > 0);
+
   const isDark = variant === 'dark';
 
   return (
@@ -162,6 +178,20 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
               link.to === '/dashboard'
                 ? location.pathname === '/dashboard'
                 : location.pathname.startsWith(link.to);
+            const isLocked = link.to === '/network' && !isManager;
+            if (isLocked) {
+              return (
+                <div
+                  key={link.to}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-gray-600 cursor-not-allowed opacity-40"
+                  title="Réservé aux Managers"
+                >
+                  <link.icon className="h-[18px] w-[18px]" />
+                  {link.label}
+                  <span className="ml-auto text-[9px] bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded">Manager</span>
+                </div>
+              );
+            }
             return (
               <NavLink
                 key={link.to}
@@ -304,12 +334,12 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
       </main>
 
       {/* ── Mobile Bottom Nav ── */}
-      <MobileBottomNav isDark={isDark} />
+      <MobileBottomNav isDark={isDark} isManager={isManager} />
     </div>
   );
 }
 
-function MobileBottomNav({ isDark }: { isDark: boolean }) {
+function MobileBottomNav({ isDark, isManager = true }: { isDark: boolean; isManager?: boolean }) {
   const location = useLocation();
   const [showMore, setShowMore] = useState(false);
   const mainTabs = getMobileNavLinks().slice(0, 4);
@@ -332,6 +362,18 @@ function MobileBottomNav({ isDark }: { isDark: boolean }) {
               <div className="grid grid-cols-4 gap-1">
                 {moreItems.map((link) => {
                   const isActive = location.pathname.startsWith(link.to);
+                  const locked = link.to === '/network' && !isManager;
+                  if (locked) {
+                    return (
+                      <div
+                        key={link.to}
+                        className="flex flex-col items-center gap-1 py-3 px-1 rounded-xl text-[10px] font-medium opacity-30 cursor-not-allowed text-gray-400"
+                      >
+                        <link.icon className="h-5 w-5" />
+                        {link.label}
+                      </div>
+                    );
+                  }
                   return (
                     <NavLink
                       key={link.to}
@@ -365,6 +407,18 @@ function MobileBottomNav({ isDark }: { isDark: boolean }) {
             const isActive = link.to === '/dashboard'
               ? location.pathname === '/dashboard'
               : location.pathname.startsWith(link.to);
+            const locked = link.to === '/network' && !isManager;
+            if (locked) {
+              return (
+                <div
+                  key={link.to}
+                  className="flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-medium opacity-30 cursor-not-allowed text-gray-400"
+                >
+                  <div className="p-1.5 rounded-xl"><link.icon className="h-5 w-5" /></div>
+                  {link.label}
+                </div>
+              );
+            }
             return (
               <NavLink
                 key={link.to}
