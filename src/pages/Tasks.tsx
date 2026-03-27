@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, TASK_TYPE_LABELS_HYLA, TASK_STATUS_LABELS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Check, Clock, Trash2, User } from 'lucide-react';
+import { Plus, Check, Clock, Trash2, User, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -184,6 +184,8 @@ export default function Tasks() {
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<any | null>(null);
   const [filter, setFilter] = useState<string>('active');
+  const [view, setView] = useState<'list' | 'kanban'>('list');
+  const [draggingTask, setDraggingTask] = useState<any>(null);
 
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks', user?.id],
@@ -265,12 +267,16 @@ export default function Tasks() {
       </Dialog>
 
       <div className="space-y-4">
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
-          {[['active', 'À faire'], ['done', 'Terminées'], ['all', 'Toutes']].map(([key, label]) => (
-            <button key={key} onClick={() => setFilter(key)} className={`px-3 py-1.5 text-sm font-medium rounded-md ${filter === key ? 'bg-white shadow-sm' : 'text-gray-500'}`}>{label}</button>
-          ))}
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+            {[['active', 'À faire'], ['done', 'Terminées'], ['all', 'Toutes']].map(([key, label]) => (
+              <button key={key} onClick={() => { setFilter(key); setView('list'); }} className={`px-3 py-1.5 text-sm font-medium rounded-md ${filter === key && view === 'list' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>{label}</button>
+            ))}
+            <button onClick={() => setView('kanban')} className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'kanban' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Kanban</button>
+          </div>
         </div>
 
+        {view === 'list' && (
         <div className="space-y-2">
           {filtered.map((task: any) => (
             <div
@@ -313,7 +319,133 @@ export default function Tasks() {
           ))}
           {filtered.length === 0 && <p className="text-center py-12 text-gray-400">Aucune tâche</p>}
         </div>
+        )}
+
+        {view === 'kanban' && (
+          <div className="flex gap-3 overflow-x-auto pb-4">
+            {[
+              { status: 'a_faire', label: 'À faire', color: '#3b82f6', bgColor: 'bg-blue-50' },
+              { status: 'en_cours', label: 'En cours', color: '#f59e0b', bgColor: 'bg-amber-50' },
+              { status: 'terminee', label: 'Terminée', color: '#22c55e', bgColor: 'bg-green-50' },
+            ].map((col) => {
+              const colTasks = tasks.filter((t: any) => t.status === col.status);
+              return (
+                <div
+                  key={col.status}
+                  className="min-w-[220px] max-w-[280px] flex-shrink-0 flex-1"
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.backgroundColor = col.bgColor.includes('blue') ? '#eff6ff' : col.bgColor.includes('amber') ? '#fffbeb' : '#f0fdf4'; }}
+                  onDragLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    e.currentTarget.style.backgroundColor = '';
+                    const taskId = e.dataTransfer.getData('taskId');
+                    if (taskId) {
+                      const updates: any = { status: col.status };
+                      if (col.status === 'terminee') updates.completed_at = new Date().toISOString();
+                      await supabase.from('tasks').update(updates).eq('id', taskId);
+                      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: col.color }} />
+                    <span className="text-sm font-semibold text-gray-700">{col.label}</span>
+                    <span className="text-xs text-gray-400 ml-auto">{colTasks.length}</span>
+                  </div>
+                  <div className="space-y-2 min-h-[100px]">
+                    {colTasks.map((task: any) => (
+                      <div
+                        key={task.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('taskId', task.id);
+                          (e.currentTarget as HTMLElement).style.opacity = '0.5';
+                        }}
+                        onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
+                        onTouchStart={() => setDraggingTask(task)}
+                        onClick={() => handleOpenEdit(task)}
+                        className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.98]"
+                      >
+                        <div className="flex items-start gap-2">
+                          <GripVertical className="h-4 w-4 text-gray-300 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium ${task.status === 'terminee' ? 'text-gray-400 line-through' : 'text-gray-900'} truncate`}>{task.title}</p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium">
+                                {TASK_TYPE_LABELS_HYLA[task.type as keyof typeof TASK_TYPE_LABELS_HYLA] || task.type}
+                              </span>
+                              {task.contacts && (
+                                <span className="text-[10px] text-blue-500 flex items-center gap-0.5">
+                                  <User className="h-2.5 w-2.5" />
+                                  {task.contacts.first_name} {task.contacts.last_name}
+                                </span>
+                              )}
+                            </div>
+                            {task.due_date && (
+                              <p className={`text-[10px] mt-1 flex items-center gap-1 ${
+                                new Date(task.due_date) < new Date() && task.status !== 'terminee' ? 'text-red-500 font-semibold' : 'text-gray-400'
+                              }`}>
+                                <Clock className="h-2.5 w-2.5" />
+                                {new Date(task.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                              </p>
+                            )}
+                          </div>
+                          {task.status !== 'terminee' && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); completeTask.mutate(task.id); }}
+                              className="h-5 w-5 rounded-full border-2 border-gray-300 hover:border-green-400 flex items-center justify-center flex-shrink-0 transition-colors"
+                            />
+                          )}
+                          {task.status === 'terminee' && (
+                            <div className="h-5 w-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                              <Check className="h-3 w-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {colTasks.length === 0 && (
+                      <div className="bg-gray-50 rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400">
+                        Aucune tâche
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      {/* Touch drag bar for mobile */}
+      {draggingTask && (
+        <div className="fixed bottom-20 left-4 right-4 bg-white rounded-2xl shadow-xl border p-3 z-50">
+          <p className="text-xs text-gray-500 mb-2 text-center">Déplacer « {draggingTask.title} » vers :</p>
+          <div className="flex gap-2">
+            {[
+              { status: 'a_faire', label: 'À faire', color: '#3b82f6' },
+              { status: 'en_cours', label: 'En cours', color: '#f59e0b' },
+              { status: 'terminee', label: 'Terminée', color: '#22c55e' },
+            ].map(col => (
+              <button
+                key={col.status}
+                onClick={async () => {
+                  const updates: any = { status: col.status };
+                  if (col.status === 'terminee') updates.completed_at = new Date().toISOString();
+                  await supabase.from('tasks').update(updates).eq('id', draggingTask.id);
+                  queryClient.invalidateQueries({ queryKey: ['tasks'] });
+                  setDraggingTask(null);
+                }}
+                className="flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold border-2 active:scale-[0.97]"
+                style={{ borderColor: col.color, color: col.color }}
+              >
+                {col.label}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setDraggingTask(null)} className="w-full mt-2 text-xs text-gray-400 py-1">Annuler</button>
+        </div>
+      )}
     </AppLayout>
   );
 }
