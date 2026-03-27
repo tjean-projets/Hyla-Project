@@ -88,6 +88,8 @@ export default function SettingsPage() {
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [emailSaving, setEmailSaving] = useState(false);
   const [questions, setQuestions] = useState<FormQuestion[]>([]);
 
   // Mobile nav customization
@@ -182,8 +184,39 @@ export default function SettingsPage() {
               <Input value={fullName} onChange={(e) => setFullName(e.target.value)} className="h-11" />
             </div>
             <div>
-              <Label className="text-xs">Email</Label>
-              <Input value={user?.email || ''} disabled className="bg-gray-50 h-11" />
+              <Label className="text-xs">Email actuel</Label>
+              <Input value={user?.email || ''} disabled className="bg-gray-50 h-11 text-gray-500" />
+            </div>
+            <div>
+              <Label className="text-xs">Changer d'email</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="Nouvelle adresse email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="h-11 flex-1"
+                />
+                <button
+                  onClick={async () => {
+                    if (!newEmail || newEmail === user?.email) return;
+                    setEmailSaving(true);
+                    const { error } = await supabase.auth.updateUser({ email: newEmail });
+                    setEmailSaving(false);
+                    if (error) {
+                      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+                    } else {
+                      toast({ title: 'Email de confirmation envoyé', description: 'Vérifie ta nouvelle adresse email pour confirmer le changement.' });
+                      setNewEmail('');
+                    }
+                  }}
+                  disabled={emailSaving || !newEmail || newEmail === user?.email}
+                  className="px-4 h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-sm rounded-xl disabled:opacity-30 transition-colors whitespace-nowrap"
+                >
+                  {emailSaving ? '...' : 'Modifier'}
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">Un email de confirmation sera envoyé aux deux adresses.</p>
             </div>
             <div>
               <Label className="text-xs">Téléphone</Label>
