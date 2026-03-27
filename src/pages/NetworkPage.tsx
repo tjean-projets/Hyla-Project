@@ -52,7 +52,7 @@ function MemberForm({
 
   const [form, setForm] = useState({
     first_name: '', last_name: '', internal_id: '', phone: '', email: '',
-    sponsor_id: '', level: '1', joined_at: '', notes: '',
+    sponsor_id: '', role: 'conseillere', joined_at: '', notes: '',
   });
 
   useEffect(() => {
@@ -64,7 +64,7 @@ function MemberForm({
         phone: initialData.phone || '',
         email: initialData.email || '',
         sponsor_id: initialData.sponsor_id || '',
-        level: String(initialData.level || 1),
+        role: initialData.level === 4 ? 'elite' : initialData.level === 3 ? 'senior' : initialData.level === 2 ? 'manager' : 'conseillere',
         joined_at: initialData.joined_at || '',
         notes: initialData.notes || '',
       });
@@ -82,7 +82,7 @@ function MemberForm({
         phone: form.phone || null,
         email: form.email || null,
         sponsor_id: form.sponsor_id || null,
-        level: parseInt(form.level) || 1,
+        level: form.role === 'elite' ? 4 : form.role === 'senior' ? 3 : form.role === 'manager' ? 2 : 1,
         joined_at: form.joined_at || null,
         notes: form.notes || null,
         matching_names: [`${form.first_name} ${form.last_name}`.toLowerCase()],
@@ -164,8 +164,16 @@ function MemberForm({
       <div className="grid grid-cols-2 gap-3">
         <div><Label>ID interne</Label><Input className="h-11" value={form.internal_id} onChange={(e) => setForm({ ...form, internal_id: e.target.value })} placeholder="Matricule Hyla" /></div>
         <div>
-          <Label>Niveau</Label>
-          <Input className="h-11" type="number" min="1" value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} />
+          <Label>Rôle</Label>
+          <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+            <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="conseillere">Conseillère</SelectItem>
+              <SelectItem value="manager">Manager</SelectItem>
+              <SelectItem value="senior">Senior Manager</SelectItem>
+              <SelectItem value="elite">Elite Manager</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
