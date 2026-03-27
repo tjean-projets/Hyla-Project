@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -23,6 +23,209 @@ import { useState } from 'react';
 import { Timer, Trophy } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase, isSuperAdmin } from '@/lib/supabase';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+
+/* ── Notification Center ── */
+
+function NotifItem({ color, title, subtitle, meta, action, actionLabel }: {
+  color: string; title: string; subtitle: string; meta: string; action: () => void; actionLabel: string;
+}) {
+  return (
+    <div
+      onClick={action}
+      className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors active:scale-[0.99]"
+    >
+      <div className={cn('w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0', color)} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{title}</p>
+        {subtitle && <p className="text-xs text-gray-500 truncate">{subtitle}</p>}
+        <p className="text-[10px] text-gray-400 mt-0.5">{meta}</p>
+      </div>
+      <button className="text-[11px] text-blue-600 font-semibold flex-shrink-0 px-2 py-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-500/10">
+        {actionLabel}
+      </button>
+    </div>
+  );
+}
+
+function NotificationCenter({ user, profile, isDark }: { user: any; profile: any; isDark: boolean }) {
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+
+  // Query new leads
+  const { data: newLeads = [] } = useQuery({
+    queryKey: ['notif-leads', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from('public_leads')
+        .select('*')
+        .eq('profile_id', user.id)
+        .eq('status', 'nouveau')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      return data || [];
+    },
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
+
+  // Query overdue tasks
+  const { data: overdueTasks = [] } = useQuery({
+    queryKey: ['notif-overdue', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from('tasks')
+        .select('*, contacts(first_name, last_name)')
+        .eq('user_id', user.id)
+        .eq('status', 'a_faire')
+        .lt('due_date', new Date().toISOString())
+        .order('due_date', { ascending: true })
+        .limit(10);
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  // Query today's tasks
+  const { data: todayTasks = [] } = useQuery({
+    queryKey: ['notif-today', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+      const { data } = await supabase
+        .from('tasks')
+        .select('*, contacts(first_name, last_name)')
+        .eq('user_id', user.id)
+        .eq('status', 'a_faire')
+        .gte('due_date', startOfDay)
+        .lt('due_date', endOfDay)
+        .order('due_date', { ascending: true })
+        .limit(10);
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const totalCount = newLeads.length + overdueTasks.length + todayTasks.length;
+
+  function timeAgo(date: string) {
+    const diff = Date.now() - new Date(date).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return mins + 'min';
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return hours + 'h';
+    return Math.floor(hours / 24) + 'j';
+  }
+
+  const notifications = [
+    ...newLeads.map((l: any) => ({
+      id: 'lead-' + l.id,
+      type: 'lead' as const,
+      color: 'bg-green-500',
+      title: `${l.first_name} ${l.last_name}`,
+      subtitle: l.intent === 'acheter' ? 'Veut acheter un Hyla' : l.intent === 'devenir_conseiller' ? 'Veut devenir conseiller(e)' : 'Veut en savoir plus',
+      meta: `via ${l.source === 'bio' ? 'Bio' : l.source === 'story' ? 'Story' : 'Direct'} \u2022 ${timeAgo(l.created_at)}`,
+      action: () => { setOpen(false); navigate('/contacts'); },
+      actionLabel: 'Voir',
+    })),
+    ...overdueTasks.map((t: any) => ({
+      id: 'overdue-' + t.id,
+      type: 'overdue' as const,
+      color: 'bg-red-500',
+      title: t.title,
+      subtitle: t.contacts ? `${t.contacts.first_name} ${t.contacts.last_name}` : 'Sans contact',
+      meta: `En retard de ${timeAgo(t.due_date)}`,
+      action: () => { setOpen(false); navigate('/tasks'); },
+      actionLabel: 'Voir',
+    })),
+    ...todayTasks.map((t: any) => ({
+      id: 'today-' + t.id,
+      type: 'today' as const,
+      color: 'bg-orange-500',
+      title: t.title,
+      subtitle: t.contacts ? `${t.contacts.first_name} ${t.contacts.last_name}` : '',
+      meta: 'Aujourd\'hui' + (t.due_date ? ' \u2022 ' + new Date(t.due_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''),
+      action: () => { setOpen(false); navigate('/tasks'); },
+      actionLabel: 'Voir',
+    })),
+  ];
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className={cn(
+          'relative p-2 rounded-xl transition-colors',
+          isDark ? 'hover:bg-white/5 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
+        )}
+      >
+        <Bell className="h-5 w-5" />
+        {totalCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+            {totalCount > 9 ? '9+' : totalCount}
+          </span>
+        )}
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className={cn('max-w-md max-h-[80vh] overflow-y-auto', isDark && 'bg-[#1a2332] border-white/10')}>
+          <DialogHeader>
+            <DialogTitle className={cn('flex items-center gap-2', isDark && 'text-white')}>
+              <Bell className="h-5 w-5" />
+              Notifications
+              {totalCount > 0 && (
+                <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">{totalCount}</span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          {notifications.length === 0 ? (
+            <div className="text-center py-8">
+              <Bell className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">Aucune notification</p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {newLeads.length > 0 && (
+                <>
+                  <p className="text-[10px] font-bold text-green-600 uppercase mt-2 mb-1 px-1">Nouveaux leads ({newLeads.length})</p>
+                  {notifications.filter(n => n.type === 'lead').map(n => (
+                    <NotifItem key={n.id} {...n} />
+                  ))}
+                </>
+              )}
+              {overdueTasks.length > 0 && (
+                <>
+                  <p className="text-[10px] font-bold text-red-600 uppercase mt-3 mb-1 px-1">En retard ({overdueTasks.length})</p>
+                  {notifications.filter(n => n.type === 'overdue').map(n => (
+                    <NotifItem key={n.id} {...n} />
+                  ))}
+                </>
+              )}
+              {todayTasks.length > 0 && (
+                <>
+                  <p className="text-[10px] font-bold text-orange-600 uppercase mt-3 mb-1 px-1">Aujourd&apos;hui ({todayTasks.length})</p>
+                  {notifications.filter(n => n.type === 'today').map(n => (
+                    <NotifItem key={n.id} {...n} />
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
 function ChallengeBanner({ isDark }: { isDark: boolean }) {
   const { user } = useAuth();
@@ -260,8 +463,9 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
             </div>
             <h1 className={cn('text-sm font-semibold', isDark ? 'text-white' : 'text-gray-900')}>{title}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {actions && <div className="flex items-center gap-2">{actions}</div>}
+            <NotificationCenter user={user} profile={profile} isDark={isDark} />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className={cn('p-2', isDark ? 'text-gray-400' : 'text-gray-500')}
@@ -312,13 +516,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
         <h1 className={cn('text-xl font-bold', isDark ? 'text-white' : 'text-gray-900')}>{title}</h1>
         <div className="flex items-center gap-4">
           {actions}
-          <button className={cn(
-            'relative p-2 rounded-xl transition-colors',
-            isDark ? 'hover:bg-white/5 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
-          )}>
-            <Bell className="h-5 w-5" />
-            <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">3</span>
-          </button>
+          <NotificationCenter user={user} profile={profile} isDark={isDark} />
           <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6] flex items-center justify-center text-white text-sm font-bold cursor-pointer">
             {(profile?.full_name || 'U').charAt(0).toUpperCase()}
           </div>
