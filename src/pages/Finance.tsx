@@ -490,12 +490,12 @@ export default function Finance() {
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <FileSpreadsheet className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                      <p className="text-xs text-gray-500 mb-2">CSV ou Excel</p>
+                      <p className="text-xs text-gray-500 mb-2">CSV, Excel ou template Excel</p>
                       <p className="text-xs font-semibold text-blue-500">Cliquer pour choisir un fichier</p>
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept=".csv,.xlsx,.xls"
+                        accept=".csv,.xlsx,.xls,.xltx,.xlsm"
                         onChange={handleFileUpload}
                         className="hidden"
                       />
