@@ -69,6 +69,7 @@ export default function Finance() {
   const [showImport, setShowImport] = useState(false);
   const [invoicePeriod, setInvoicePeriod] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [flow, setFlow] = useState<ImportFlowState>({
     step: 'upload', rawData: [], columns: [],
     mapping: { name_col: '', amount_col: '', id_col: '' },
@@ -209,6 +210,8 @@ export default function Finance() {
       }
     };
     reader.readAsArrayBuffer(file);
+    // Reset input so the same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }, [flow.period, toast]);
 
   // ── Run matching ──
@@ -458,8 +461,15 @@ export default function Finance() {
             </button>
 
             {/* Import dialog */}
-            <Dialog open={showImport} onOpenChange={setShowImport}>
-              <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
+            <Dialog open={showImport} onOpenChange={(open) => {
+              setShowImport(open);
+              if (!open) {
+                // Reset flow when closing
+                setFlow({ step: 'upload', rawData: [], columns: [], mapping: { name_col: '', amount_col: '', id_col: '' }, period: flow.period, fileName: '' });
+                setMatchResults([]);
+              }
+            }}>
+              <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4" onOpenAutoFocus={(e) => e.preventDefault()}>
                 <DialogHeader>
                   <DialogTitle className="text-base">
                     {flow.step === 'upload' && 'Importer des commissions'}
@@ -475,10 +485,20 @@ export default function Finance() {
                       <Label className="text-xs">Période</Label>
                       <Input type="month" value={flow.period} onChange={(e) => setFlow({ ...flow, period: e.target.value })} className="h-11" />
                     </div>
-                    <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center">
+                    <div
+                      className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
                       <FileSpreadsheet className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                      <p className="text-xs text-gray-500 mb-3">CSV ou Excel</p>
-                      <Input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileUpload} className="text-sm" />
+                      <p className="text-xs text-gray-500 mb-2">CSV ou Excel</p>
+                      <p className="text-xs font-semibold text-blue-500">Cliquer pour choisir un fichier</p>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
                     </div>
                   </div>
                 )}
