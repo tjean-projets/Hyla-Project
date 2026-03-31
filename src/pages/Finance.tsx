@@ -123,7 +123,7 @@ export default function Finance() {
       // Start with direct team members
       const { data: direct } = await supabase
         .from('team_members')
-        .select('*, profiles!team_members_linked_user_id_fkey(id)')
+        .select('*')
         .eq('user_id', effectiveId);
 
       if (!direct) return [];
