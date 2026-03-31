@@ -192,21 +192,16 @@ export default function Commissions() {
   };
 
   return (
-    <AppLayout title="Commissions" variant="dark">
-      <div className="space-y-6">
-        {/* ── Year selector ── */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-[#3b82f6]" />
-            <span className="text-sm font-bold text-white">
-              {selectedMonth === 'all' ? `Année ${selectedYear}` : `${MONTHS_FR[parseInt(selectedMonth) - 1]} ${selectedYear}`}
-            </span>
-          </div>
+    <AppLayout title="Commissions">
+      <div className="space-y-4">
+        {/* ── Filtres ── */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <span className="text-sm font-semibold text-gray-900">
+            {selectedMonth === 'all' ? `Année ${selectedYear}` : `${MONTHS_FR[parseInt(selectedMonth) - 1]} ${selectedYear}`}
+          </span>
           <div className="flex gap-2">
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[130px] bg-white/[0.06] border-white/10 text-white">
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les mois</SelectItem>
                 {MONTHS_FR.map((m, i) => (
@@ -215,9 +210,7 @@ export default function Commissions() {
               </SelectContent>
             </Select>
             <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="w-[100px] bg-white/[0.06] border-white/10 text-white">
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {[now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2].map(y => (
                   <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
@@ -227,12 +220,12 @@ export default function Commissions() {
           </div>
         </div>
 
-        {/* ── View toggle: Perso / Équipe ── */}
-        <div className="flex gap-1 bg-white/[0.06] rounded-xl p-1 border border-white/10">
+        {/* ── View toggle ── */}
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
           <button
             onClick={() => setView('perso')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-              view === 'perso' ? 'bg-[#3b82f6] text-white shadow-lg' : 'text-gray-400 hover:text-white'
+              view === 'perso' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             <DollarSign className="h-4 w-4" /> Mes commissions
@@ -240,89 +233,72 @@ export default function Commissions() {
           <button
             onClick={() => setView('equipe')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-              view === 'equipe' ? 'bg-[#3b82f6] text-white shadow-lg' : 'text-gray-400 hover:text-white'
+              view === 'equipe' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             <Users className="h-4 w-4" /> Mon équipe
           </button>
         </div>
 
-        {/* ── ÉQUIPE VIEW ── */}
+        {/* ── VUE ÉQUIPE ── */}
         {view === 'equipe' ? (
-          <div className="space-y-4">
-            {/* Team KPIs */}
-            <div className="bg-gradient-to-br from-violet-500/15 to-indigo-500/10 backdrop-blur-xl rounded-2xl border border-violet-500/20 p-5 text-center">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+          <div className="space-y-3">
+            {/* KPI total réseau */}
+            <div className="bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6] rounded-2xl p-5 text-center text-white">
+              <p className="text-[10px] uppercase font-semibold opacity-80 mb-1">
                 Total réseau {selectedMonth === 'all' ? selectedYear : `${MONTHS_FR[parseInt(selectedMonth) - 1]} ${selectedYear}`}
               </p>
-              <p className="text-3xl font-bold text-white">{teamTotal.toLocaleString('fr-FR')} <span className="text-lg text-gray-400">€</span></p>
-              <p className="text-xs text-gray-500 mt-1">{teamSummary.filter((m: any) => m.total > 0).length} membre{teamSummary.filter((m: any) => m.total > 0).length > 1 ? 's' : ''} actif{teamSummary.filter((m: any) => m.total > 0).length > 1 ? 's' : ''}</p>
+              <p className="text-3xl font-bold">{teamTotal.toLocaleString('fr-FR')} €</p>
+              <p className="text-xs opacity-70 mt-1">{teamSummary.filter((m: any) => m.total > 0).length} membre{teamSummary.filter((m: any) => m.total > 0).length > 1 ? 's' : ''} actif{teamSummary.filter((m: any) => m.total > 0).length > 1 ? 's' : ''}</p>
             </div>
 
-            {/* Export button */}
             <button
-              onClick={() => {
-                setExportMembers(new Set(teamMembers.map((m: any) => m.id)));
-                setShowExportDialog(true);
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-white/[0.06] border border-white/10 rounded-xl text-sm text-gray-400 hover:text-white hover:border-white/20 transition-all"
+              onClick={() => { setExportMembers(new Set(teamMembers.map((m: any) => m.id))); setShowExportDialog(true); }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors"
             >
               <FileText className="h-4 w-4" /> Exporter en PDF
             </button>
 
-            {/* Members list */}
             <div className="space-y-2">
               {teamSummary.map((m: any) => {
                 const isExpanded = expandedMemberId === m.id;
                 const maxVal = teamSummary[0]?.total || 1;
                 const pct = Math.round((m.total / maxVal) * 100);
                 return (
-                  <div key={m.id} className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
-                    <div
-                      className="flex items-center gap-3 p-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
-                      onClick={() => setExpandedMemberId(isExpanded ? null : m.id)}
-                    >
-                      <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500/30 to-indigo-500/30 flex items-center justify-center flex-shrink-0">
-                        <span className="text-white font-bold text-xs">{m.first_name.charAt(0)}{m.last_name.charAt(0)}</span>
+                  <div key={m.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="flex items-center gap-3 p-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExpandedMemberId(isExpanded ? null : m.id)}>
+                      <div className="h-10 w-10 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
+                        <span className="text-violet-700 font-bold text-xs">{m.first_name.charAt(0)}{m.last_name.charAt(0)}</span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <p className="text-sm font-semibold text-white truncate">{m.first_name} {m.last_name}</p>
-                          <p className="text-sm font-bold text-white ml-2">{m.total.toLocaleString('fr-FR')} €</p>
+                          <p className="text-sm font-semibold text-gray-900 truncate">{m.first_name} {m.last_name}</p>
+                          <p className="text-sm font-bold text-gray-900 ml-2">{m.total.toLocaleString('fr-FR')} €</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                          <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                             <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all duration-500" style={{ width: `${pct}%` }} />
                           </div>
-                          <span className="text-[10px] text-gray-500 whitespace-nowrap">{m.commissions.length} commission{m.commissions.length > 1 ? 's' : ''}</span>
+                          <span className="text-[10px] text-gray-400 whitespace-nowrap">{m.commissions.length} commission{m.commissions.length > 1 ? 's' : ''}</span>
                         </div>
                       </div>
-                      {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-gray-500 flex-shrink-0" />}
+                      {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />}
                     </div>
-
-                    {isExpanded && m.commissions.length > 0 && (
-                      <div className="px-4 pb-4 border-t border-white/5 pt-3">
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="text-gray-500">
-                              <th className="text-left pb-2">Période</th>
-                              <th className="text-right pb-2">Montant</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-white/5">
-                            {m.commissions.map((c: any) => (
-                              <tr key={c.id}>
-                                <td className="py-1.5 text-gray-400">{new Date(c.period + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</td>
-                                <td className="py-1.5 text-right font-semibold text-white">{c.amount.toLocaleString('fr-FR')} €</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                    {isExpanded && m.commissions.length === 0 && (
-                      <div className="px-4 pb-4 border-t border-white/5 pt-3">
-                        <p className="text-xs text-gray-600 text-center">Aucune commission cette année</p>
+                    {isExpanded && (
+                      <div className="px-4 pb-4 border-t border-gray-100 pt-3">
+                        {m.commissions.length > 0 ? (
+                          <table className="w-full text-xs">
+                            <thead><tr className="text-gray-400"><th className="text-left pb-2">Période</th><th className="text-right pb-2">Montant</th></tr></thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {m.commissions.map((c: any) => (
+                                <tr key={c.id}>
+                                  <td className="py-1.5 text-gray-500">{new Date(c.period + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</td>
+                                  <td className="py-1.5 text-right font-semibold text-gray-900">{c.amount.toLocaleString('fr-FR')} €</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : <p className="text-xs text-gray-400 text-center">Aucune commission cette année</p>}
                       </div>
                     )}
                   </div>
@@ -330,140 +306,124 @@ export default function Commissions() {
               })}
               {teamSummary.length === 0 && (
                 <div className="text-center py-12">
-                  <Users className="h-8 w-8 text-gray-700 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">Aucun membre dans le réseau</p>
+                  <Users className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm text-gray-400">Aucun membre dans le réseau</p>
                 </div>
               )}
             </div>
           </div>
         ) : (
         <>
-
-        {/* ── Hero total (glassmorphism) ── */}
-        <div className="bg-gradient-to-br from-[#3b82f6]/20 to-[#8b5cf6]/10 backdrop-blur-xl rounded-2xl border border-[#3b82f6]/20 p-6 text-center">
-          <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Total commissions</p>
-          <p className="text-4xl font-bold text-white">{total.toLocaleString('fr-FR')} <span className="text-xl text-gray-400">€</span></p>
-          <div className="flex justify-center gap-8 mt-4">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <div className="h-2 w-2 rounded-full bg-[#3b82f6]" />
-                <span className="text-[10px] text-gray-400 uppercase tracking-wider">Directes</span>
+        {/* ── KPI totaux ── */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl p-4 text-white">
+            <p className="text-[10px] uppercase font-semibold opacity-80">Total commissions</p>
+            <p className="text-2xl font-bold mt-1">{total.toLocaleString('fr-FR')} €</p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <div className="flex justify-between">
+              <div>
+                <p className="text-[10px] text-gray-400 uppercase font-semibold">Directes</p>
+                <p className="text-lg font-bold text-blue-600 mt-1">{totalDirecte.toLocaleString('fr-FR')} €</p>
               </div>
-              <p className="text-lg font-bold text-white">{totalDirecte.toLocaleString('fr-FR')} €</p>
-            </div>
-            <div className="h-10 w-px bg-white/10" />
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <div className="h-2 w-2 rounded-full bg-amber-400" />
-                <span className="text-[10px] text-gray-400 uppercase tracking-wider">Réseau</span>
+              <div className="text-right">
+                <p className="text-[10px] text-gray-400 uppercase font-semibold">Réseau</p>
+                <p className="text-lg font-bold text-amber-600 mt-1">{totalReseau.toLocaleString('fr-FR')} €</p>
               </div>
-              <p className="text-lg font-bold text-white">{totalReseau.toLocaleString('fr-FR')} €</p>
             </div>
           </div>
         </div>
 
-        {/* ── Chart (dark style) ── */}
-        <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-          <h3 className="text-sm font-bold text-white mb-4">Évolution mensuelle</h3>
-          <ResponsiveContainer width="100%" height={240}>
+        {/* ── Graphique ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Évolution mensuelle</h3>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={months}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1f2937', border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 12, color: '#fff', boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-                }}
+                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
                 formatter={(value: number) => `${value.toLocaleString('fr-FR')} €`}
               />
-              <Bar dataKey="Directes" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="Réseau" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="Directes" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Réseau" fill="#f59e0b" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* ── Déclaration micro-entreprise ── */}
         {total > 0 && (
-          <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/5 backdrop-blur-xl rounded-2xl border border-orange-500/15 p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <FileText className="h-5 w-5 text-orange-400" />
-              <h3 className="text-sm font-bold text-white">Déclaration micro-entreprise</h3>
-              <span className="ml-auto text-[10px] text-gray-500">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <FileText className="h-4 w-4 text-orange-500" />
+              <h3 className="text-sm font-semibold text-gray-900">Déclaration micro-entreprise</h3>
+              <span className="ml-auto text-[10px] text-gray-400">
                 {selectedMonth === 'all' ? selectedYear : `${MONTHS_FR[parseInt(selectedMonth) - 1]} ${selectedYear}`}
               </span>
             </div>
-            <p className="text-xs text-gray-400 mb-4">
-              Montants à reporter dans votre déclaration URSSAF / impots.gouv.fr
-            </p>
-            <div className="space-y-3">
-              <div className="bg-white/[0.04] rounded-xl p-4 border border-white/5">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-gray-400">Case 1 — Ventes de marchandises (BIC)</span>
-                  <span className="text-xs text-gray-600">Non applicable</span>
+            <p className="text-xs text-gray-400 mb-3">Montants à reporter dans votre déclaration URSSAF / impots.gouv.fr</p>
+            <div className="space-y-2">
+              <div className="rounded-xl p-3 border border-gray-100 bg-gray-50">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-xs text-gray-500">Case 1 — Ventes de marchandises (BIC)</span>
+                  <span className="text-xs text-gray-400">Non applicable</span>
                 </div>
-                <p className="text-xl font-bold text-gray-600">0 €</p>
+                <p className="text-lg font-bold text-gray-400">0 €</p>
               </div>
-              <div className="bg-white/[0.04] rounded-xl p-4 border border-orange-500/20 ring-1 ring-orange-500/10">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-orange-300 font-semibold">Case 2 — Prestations de services (BIC)</span>
-                  <span className="text-[10px] bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded font-semibold">Commissions MLM</span>
+              <div className="rounded-xl p-3 border border-orange-200 bg-orange-50">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-xs text-orange-700 font-semibold">Case 2 — Prestations de services (BIC)</span>
+                  <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-semibold">Commissions MLM</span>
                 </div>
-                <p className="text-xl font-bold text-white">{total.toLocaleString('fr-FR')} €</p>
-                <div className="flex gap-4 mt-2 text-[10px] text-gray-500">
+                <p className="text-lg font-bold text-orange-800">{total.toLocaleString('fr-FR')} €</p>
+                <div className="flex gap-4 mt-1 text-[10px] text-orange-600">
                   <span>Directes : {totalDirecte.toLocaleString('fr-FR')} €</span>
                   <span>Réseau : {totalReseau.toLocaleString('fr-FR')} €</span>
                 </div>
               </div>
-              <div className="bg-white/[0.04] rounded-xl p-4 border border-white/5">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-gray-400">Case 3 — Autres prestations de services (BNC)</span>
-                  <span className="text-xs text-gray-600">Non applicable</span>
+              <div className="rounded-xl p-3 border border-gray-100 bg-gray-50">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-xs text-gray-500">Case 3 — Autres prestations de services (BNC)</span>
+                  <span className="text-xs text-gray-400">Non applicable</span>
                 </div>
-                <p className="text-xl font-bold text-gray-600">0 €</p>
+                <p className="text-lg font-bold text-gray-400">0 €</p>
               </div>
             </div>
-            <p className="text-[10px] text-gray-600 mt-3">
-              Les commissions Hyla (directes + réseau) sont des prestations de services commerciales (BIC).
-              Taux de cotisations URSSAF : 21,1% du CA déclaré.
+            <p className="text-[10px] text-gray-400 mt-3">
+              Les commissions Hyla (directes + réseau) sont des prestations de services commerciales (BIC). Taux de cotisations URSSAF : 21,1% du CA déclaré.
             </p>
-            <button
-              onClick={exportComptableCSV}
-              className="w-full mt-3 py-2 flex items-center justify-center gap-2 text-xs font-semibold bg-white/[0.06] border border-white/10 rounded-xl text-gray-400 hover:text-white hover:border-white/20 transition-all"
-            >
+            <button onClick={exportComptableCSV} className="w-full mt-3 py-2 flex items-center justify-center gap-2 text-xs font-semibold border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
               <Download className="h-3.5 w-3.5" /> Exporter le récap comptable (CSV)
             </button>
           </div>
         )}
 
-        {/* ── Top contributeurs (leaderboard style, mockup 3) ── */}
+        {/* ── Top contributeurs ── */}
         {memberList.length > 0 && (
-          <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-            <div className="flex items-center gap-2 mb-5">
-              <Trophy className="h-5 w-5 text-yellow-400" />
-              <h3 className="text-sm font-bold text-white">Top contributeurs réseau</h3>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Trophy className="h-4 w-4 text-yellow-500" />
+              <h3 className="text-sm font-semibold text-gray-900">Top contributeurs réseau</h3>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {memberList.slice(0, 10).map((m: any, i: number) => {
                 const maxVal = (memberList[0] as any).total || 1;
                 const pct = Math.round((m.total / maxVal) * 100);
                 return (
                   <div key={i} className="flex items-center gap-3">
-                    <span className={`text-sm font-bold w-6 text-center ${
-                      i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-gray-600'
+                    <span className={`text-sm font-bold w-6 text-center flex-shrink-0 ${
+                      i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-amber-600' : 'text-gray-400'
                     }`}>
                       {i < 3 ? <Star className="h-4 w-4 fill-current inline" /> : i + 1}
                     </span>
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-white">{m.name}</span>
-                        <span className="text-sm font-bold text-white">{m.total.toLocaleString('fr-FR')} €</span>
+                        <span className="text-sm font-medium text-gray-800">{m.name}</span>
+                        <span className="text-sm font-bold text-gray-900">{m.total.toLocaleString('fr-FR')} €</span>
                       </div>
-                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] transition-all duration-700"
-                          style={{ width: `${pct}%` }}
-                        />
+                      <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] transition-all duration-700" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   </div>
@@ -473,42 +433,38 @@ export default function Commissions() {
           </div>
         )}
 
-        {/* ── Commission detail table (dark) ── */}
-        <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
+        {/* ── Tableau détail ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/10">
-                <th className="text-left px-5 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Période</th>
-                <th className="text-left px-5 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Type</th>
-                <th className="text-left px-5 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 hidden md:table-cell">Membre</th>
-                <th className="text-right px-5 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Montant</th>
-                <th className="text-left px-5 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Statut</th>
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Période</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Type</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500 hidden md:table-cell">Membre</th>
+                <th className="text-right px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Montant</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Statut</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-gray-50">
               {filteredCommissions.slice(0, 50).map((c: any) => (
-                <tr key={c.id} className="hover:bg-white/[0.03] transition-colors">
-                  <td className="px-5 py-3.5 text-gray-300">{c.period}</td>
-                  <td className="px-5 py-3.5">
-                    <span className={`inline-flex px-2.5 py-1 rounded-lg text-[10px] font-semibold ${
-                      c.type === 'directe'
-                        ? 'bg-[#3b82f6]/15 text-blue-400 border border-[#3b82f6]/20'
-                        : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 text-gray-600">{c.period}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold ${
+                      c.type === 'directe' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
                     }`}>
                       {COMMISSION_TYPE_LABELS[c.type as keyof typeof COMMISSION_TYPE_LABELS]}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-gray-500 hidden md:table-cell">
+                  <td className="px-4 py-3 text-gray-500 hidden md:table-cell">
                     {c.team_members ? `${c.team_members.first_name} ${c.team_members.last_name}` : 'Moi'}
                   </td>
-                  <td className="px-5 py-3.5 text-right font-bold text-white">{c.amount.toLocaleString('fr-FR')} €</td>
-                  <td className="px-5 py-3.5">
-                    <span className={`inline-flex px-2.5 py-1 rounded-lg text-[10px] font-semibold ${
-                      c.status === 'validee'
-                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                        : c.status === 'en_attente'
-                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
-                        : 'bg-white/5 text-gray-500 border border-white/10'
+                  <td className="px-4 py-3 text-right font-bold text-gray-900">{c.amount.toLocaleString('fr-FR')} €</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold ${
+                      c.status === 'validee' ? 'bg-emerald-50 text-emerald-700'
+                      : c.status === 'en_attente' ? 'bg-amber-50 text-amber-700'
+                      : 'bg-gray-100 text-gray-500'
                     }`}>
                       {c.status === 'validee' ? 'Validée' : c.status === 'en_attente' ? 'En attente' : c.status}
                     </span>
@@ -516,9 +472,8 @@ export default function Commissions() {
                 </tr>
               ))}
               {filteredCommissions.length === 0 && (
-                <tr><td colSpan={5} className="px-5 py-16 text-center text-gray-600">
-                  <DollarSign className="h-8 w-8 mx-auto mb-2 text-gray-700" />
-                  Aucune commission
+                <tr><td colSpan={5} className="px-4 py-16 text-center text-gray-400">
+                  <DollarSign className="h-8 w-8 mx-auto mb-2 text-gray-300" />Aucune commission
                 </td></tr>
               )}
             </tbody>
