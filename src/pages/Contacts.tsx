@@ -270,6 +270,8 @@ export default function Contacts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      queryClient.invalidateQueries({ queryKey: ['team-count'] });
+      queryClient.invalidateQueries({ queryKey: ['stats-members'] });
       toast({ title: 'Membre ajouté au réseau' });
       setEditingContact(null);
     },

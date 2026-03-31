@@ -23,8 +23,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, theme);
-    // Apply to document for global CSS access
-    document.documentElement.setAttribute('data-theme', theme);
+    // Tailwind dark mode uses the 'dark' class on <html>
+    document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
   const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');

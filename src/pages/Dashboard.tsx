@@ -62,7 +62,7 @@ export default function Dashboard() {
     queryKey: ['profile-date-dash', effectiveId],
     queryFn: async () => {
       if (!effectiveId) return null;
-      const { data } = await supabase.from('profiles').select('created_at').eq('id', effectiveId).single();
+      const { data } = await supabase.from('profiles').select('created_at, challenge_start_date').eq('id', effectiveId).single();
       return data;
     },
     enabled: !!effectiveId,
@@ -93,7 +93,9 @@ export default function Dashboard() {
   const commissionAffichee = commTotal > 0 ? commTotal : getHylaCommission(nbSignees);
 
   // Challenge calculations (centralisé via HYLA_CHALLENGES)
-  const startDate = profileData ? new Date(profileData.created_at) : new Date();
+  const startDate = profileData
+    ? new Date((profileData as any).challenge_start_date || profileData.created_at)
+    : new Date();
   const now = new Date();
 
   const countdownEnd = new Date(startDate);

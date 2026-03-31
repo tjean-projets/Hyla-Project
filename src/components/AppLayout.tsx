@@ -126,6 +126,27 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
     enabled: !!effectiveId,
   });
 
+  // Query upcoming appointments (next 24h)
+  const { data: upcomingApts = [] } = useQuery({
+    queryKey: ['notif-apts', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const now = new Date();
+      const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const { data } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('user_id', effectiveId)
+        .gte('date', now.toISOString())
+        .lte('date', in24h.toISOString())
+        .order('date', { ascending: true })
+        .limit(5);
+      return data || [];
+    },
+    enabled: !!effectiveId,
+    refetchInterval: 30000,
+  });
+
   // Query Hyla notifications from DB
   const { data: hylaNotifs = [] } = useQuery({
     queryKey: ['notif-hyla', effectiveId],
@@ -144,7 +165,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
     refetchInterval: 15000,
   });
 
-  const totalCount = newLeads.length + overdueTasks.length + todayTasks.length + hylaNotifs.length;
+  const totalCount = newLeads.length + overdueTasks.length + todayTasks.length + hylaNotifs.length + upcomingApts.length;
 
   function timeAgo(date: string) {
     const diff = Date.now() - new Date(date).getTime();
@@ -201,6 +222,21 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
         setOpen(false);
         if (n.link) navigate(n.link);
       },
+      actionLabel: 'Voir',
+    })),
+    ...upcomingApts.map((a: any) => ({
+      id: 'apt-' + a.id,
+      type: 'apt' as const,
+      color: 'bg-blue-500',
+      title: a.title,
+      subtitle: new Date(a.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      meta: (() => {
+        const diff = new Date(a.date).getTime() - Date.now();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 60) return `Dans ${mins} min`;
+        return `Dans ${Math.floor(mins / 60)}h`;
+      })(),
+      action: () => { setOpen(false); navigate('/calendar'); },
       actionLabel: 'Voir',
     })),
   ];
@@ -264,6 +300,14 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
                   ))}
                 </>
               )}
+              {upcomingApts.length > 0 && (
+                <>
+                  <p className="text-[10px] font-bold text-blue-600 uppercase mt-3 mb-1 px-1">RDV à venir ({upcomingApts.length})</p>
+                  {notifications.filter(n => n.type === 'apt').map(n => (
+                    <NotifItem key={n.id} {...n} isDark={isDark} />
+                  ))}
+                </>
+              )}
             </div>
           )}
         </DialogContent>
@@ -291,7 +335,7 @@ function ChallengeBanner({ isDark }: { isDark: boolean }) {
     queryKey: ['profile-date', effectiveId],
     queryFn: async () => {
       if (!effectiveId) return null;
-      const { data } = await supabase.from('profiles').select('created_at').eq('id', effectiveId).single();
+      const { data } = await supabase.from('profiles').select('created_at, challenge_start_date').eq('id', effectiveId).single();
       return data;
     },
     enabled: !!effectiveId,
@@ -300,7 +344,9 @@ function ChallengeBanner({ isDark }: { isDark: boolean }) {
 
   if (!effectiveId || !profileData) return null;
 
-  const startDate = new Date(profileData.created_at);
+  const startDate = profileData
+    ? new Date((profileData as any).challenge_start_date || profileData.created_at)
+    : new Date();
   const now = new Date();
 
   const countdownEnd = new Date(startDate);

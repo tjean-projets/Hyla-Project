@@ -3,12 +3,13 @@ import { AppLayout, ALL_MOBILE_TABS } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint } from 'lucide-react';
+import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint, Eye } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useThemeSafe } from '@/hooks/useTheme';
+import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
 
 interface FormQuestion {
   id: string;
@@ -181,7 +182,9 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
 }
 
 export default function SettingsPage() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const { profile, isImpersonating } = useEffectiveProfile();
+  const effectiveUserId = useEffectiveUserId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const themeCtx = useThemeSafe();
@@ -189,6 +192,8 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [challengeStartDate, setChallengeStartDate] = useState('');
+  const [savingChallengeDate, setSavingChallengeDate] = useState(false);
   const [emailSaving, setEmailSaving] = useState(false);
   const [questions, setQuestions] = useState<FormQuestion[]>([]);
   const [showPurge, setShowPurge] = useState(false);
@@ -209,22 +214,26 @@ export default function SettingsPage() {
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || '');
+      setPhone((profile as any).phone || '');
+      if ((profile as any).challenge_start_date) {
+        setChallengeStartDate((profile as any).challenge_start_date);
+      }
     }
   }, [profile]);
 
-  // Load form config
+  // Load form config (uses effective user ID — shows impersonated user's form config)
   const { data: formConfig } = useQuery({
-    queryKey: ['form-config', user?.id],
+    queryKey: ['form-config', effectiveUserId],
     queryFn: async () => {
-      if (!user) return null;
+      if (!effectiveUserId) return null;
       const { data } = await supabase
         .from('objectif_form_config')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .maybeSingle();
       return data;
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   useEffect(() => {
@@ -276,12 +285,40 @@ export default function SettingsPage() {
     setQuestions(questions.filter((_, i) => i !== index));
   };
 
+  const saveChallengeDate = async () => {
+    if (!effectiveUserId) return;
+    setSavingChallengeDate(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ challenge_start_date: challengeStartDate || null } as any)
+      .eq('id', effectiveUserId);
+    setSavingChallengeDate(false);
+    if (error) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['profile-date'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-date-dash'] });
+      toast({ title: 'Date sauvegardée', description: 'Tes challenges sont recalculés à partir de cette date.' });
+    }
+  };
+
   return (
     <AppLayout title="Paramètres">
       <div className="max-w-2xl space-y-8">
+
+        {/* Impersonation banner */}
+        {isImpersonating && (
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            <Eye className="h-4 w-4 text-amber-600 flex-shrink-0" />
+            <p className="text-sm text-amber-800 font-medium">
+              Vue en lecture — profil de <strong>{profile?.full_name || 'ce partenaire'}</strong>. Les modifications ne sont pas disponibles en mode impersonation.
+            </p>
+          </div>
+        )}
+
         {/* Profile */}
         <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
-          <h3 className="text-base font-semibold text-foreground mb-4">Mon profil</h3>
+          <h3 className="text-base font-semibold text-foreground mb-4">{isImpersonating ? 'Profil du partenaire' : 'Mon profil'}</h3>
           <div className="space-y-4">
             {/* ID Hyla Assistant */}
             {profile?.invite_code && (
@@ -309,51 +346,55 @@ export default function SettingsPage() {
             </div>
             <div>
               <Label className="text-xs">Email actuel</Label>
-              <Input value={user?.email || ''} disabled className="bg-muted h-11 text-muted-foreground" />
+              <Input value={isImpersonating ? (profile as any)?.email || '' : user?.email || ''} disabled className="bg-muted h-11 text-muted-foreground" />
             </div>
-            <div>
-              <Label className="text-xs">Changer d'email</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="email"
-                  placeholder="Nouvelle adresse email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  className="h-11 flex-1"
-                />
-                <button
-                  onClick={async () => {
-                    if (!newEmail || newEmail === user?.email) return;
-                    setEmailSaving(true);
-                    const { error } = await supabase.auth.updateUser({ email: newEmail });
-                    setEmailSaving(false);
-                    if (error) {
-                      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
-                    } else {
-                      toast({ title: 'Email de confirmation envoyé', description: 'Vérifie ta nouvelle adresse email pour confirmer le changement.' });
-                      setNewEmail('');
-                    }
-                  }}
-                  disabled={emailSaving || !newEmail || newEmail === user?.email}
-                  className="px-4 h-11 bg-muted hover:bg-gray-200 text-foreground font-semibold text-sm rounded-xl disabled:opacity-30 transition-colors whitespace-nowrap"
-                >
-                  {emailSaving ? '...' : 'Modifier'}
-                </button>
+            {!isImpersonating && (
+              <div>
+                <Label className="text-xs">Changer d'email</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="Nouvelle adresse email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    className="h-11 flex-1"
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!newEmail || newEmail === user?.email) return;
+                      setEmailSaving(true);
+                      const { error } = await supabase.auth.updateUser({ email: newEmail });
+                      setEmailSaving(false);
+                      if (error) {
+                        toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+                      } else {
+                        toast({ title: 'Email de confirmation envoyé', description: 'Vérifie ta nouvelle adresse email pour confirmer le changement.' });
+                        setNewEmail('');
+                      }
+                    }}
+                    disabled={emailSaving || !newEmail || newEmail === user?.email}
+                    className="px-4 h-11 bg-muted hover:bg-gray-200 text-foreground font-semibold text-sm rounded-xl disabled:opacity-30 transition-colors whitespace-nowrap"
+                  >
+                    {emailSaving ? '...' : 'Modifier'}
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">Un email de confirmation sera envoyé aux deux adresses.</p>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">Un email de confirmation sera envoyé aux deux adresses.</p>
-            </div>
+            )}
             <div>
               <Label className="text-xs">Téléphone</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11" />
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isImpersonating} className="h-11" />
             </div>
-            <button
-              onClick={() => saveProfile.mutate()}
-              disabled={saveProfile.isPending}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
-            >
-              <Save className="h-4 w-4" />
-              Sauvegarder
-            </button>
+            {!isImpersonating && (
+              <button
+                onClick={() => saveProfile.mutate()}
+                disabled={saveProfile.isPending}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
+              >
+                <Save className="h-4 w-4" />
+                Sauvegarder
+              </button>
+            )}
           </div>
         </div>
 
@@ -374,10 +415,39 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Challenges */}
+        {!isImpersonating && (
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+            <h3 className="text-base font-semibold text-foreground mb-1">Mes challenges</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Date de départ de tes challenges Hyla (Compte à Rebours &amp; Rookie). Par défaut, la date de création de ton compte est utilisée.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Date de départ des challenges</Label>
+                <Input
+                  type="date"
+                  value={challengeStartDate}
+                  onChange={(e) => setChallengeStartDate(e.target.value)}
+                  className="h-11"
+                />
+              </div>
+              <button
+                onClick={saveChallengeDate}
+                disabled={savingChallengeDate}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
+              >
+                <Save className="h-4 w-4" />
+                {savingChallengeDate ? 'Enregistrement...' : 'Sauvegarder'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Invite Link */}
         <InviteLinkSection inviteCode={profile?.invite_code} fullName={profile?.full_name} />
 
-        <ContactLinksSection inviteCode={profile?.invite_code} userId={user?.id} />
+        <ContactLinksSection inviteCode={profile?.invite_code} userId={effectiveUserId} />
 
         {/* Form Builder */}
         <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
@@ -453,14 +523,16 @@ export default function SettingsPage() {
             Ajouter une question
           </button>
 
-          <button
-            onClick={() => saveFormConfig.mutate()}
-            disabled={saveFormConfig.isPending}
-            className="w-full flex items-center justify-center gap-2 py-3 mt-4 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
-          >
-            <Save className="h-4 w-4" />
-            {saveFormConfig.isPending ? 'Enregistrement...' : 'Sauvegarder le formulaire'}
-          </button>
+          {!isImpersonating && (
+            <button
+              onClick={() => saveFormConfig.mutate()}
+              disabled={saveFormConfig.isPending}
+              className="w-full flex items-center justify-center gap-2 py-3 mt-4 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              {saveFormConfig.isPending ? 'Enregistrement...' : 'Sauvegarder le formulaire'}
+            </button>
+          )}
         </div>
 
         {/* Mobile Nav Customization */}
@@ -593,8 +665,8 @@ export default function SettingsPage() {
             <p className="text-[10px] text-red-500 text-center mt-1">Sélectionne exactement 5 onglets</p>
           )}
         </div>
-        {/* Purge Data */}
-        <div className="bg-card rounded-2xl shadow-sm border border-red-100 p-5">
+        {/* Purge Data — hidden when impersonating */}
+        {!isImpersonating && <div className="bg-card rounded-2xl shadow-sm border border-red-100 p-5">
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle className="h-4 w-4 text-red-500" />
             <h3 className="text-base font-semibold text-red-600">Zone dangereuse</h3>
@@ -664,7 +736,7 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
-        </div>
+        </div>}
       </div>
     </AppLayout>
   );
