@@ -256,7 +256,7 @@ export default function Deals() {
       if (!effectiveId) return [];
       const { data } = await supabase
         .from('deals')
-        .select('*, contacts(first_name, last_name), team_members:sold_by(first_name, last_name)')
+        .select('*, contacts(first_name, last_name)')
         .eq('user_id', effectiveId)
         .order('created_at', { ascending: false });
       return data || [];
@@ -498,9 +498,9 @@ export default function Deals() {
                       </span>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      {deal.team_members ? (
+                      {deal.sold_by && teamMembers.find((m: any) => m.id === deal.sold_by) ? (
                         <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                          {deal.team_members.first_name} {deal.team_members.last_name}
+                          {(() => { const m = teamMembers.find((m: any) => m.id === deal.sold_by); return `${m?.first_name} ${m?.last_name}`; })()}
                         </span>
                       ) : (
                         <span className="text-gray-300 text-xs">—</span>
@@ -566,10 +566,10 @@ export default function Deals() {
                         </p>
                         {deal.product && <p className="text-xs text-muted-foreground mt-0.5 truncate">{deal.product}</p>}
                         <p className="text-sm font-bold text-[#3b82f6] mt-1">{(deal.amount || 0).toLocaleString('fr-FR')} €</p>
-                        {deal.team_members && (
+                        {deal.sold_by && teamMembers.find((m: any) => m.id === deal.sold_by) && (
                           <span className="text-[10px] bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded-full flex items-center gap-1 mt-1 w-fit">
                             <Users className="h-2.5 w-2.5" />
-                            {deal.team_members.first_name}
+                            {teamMembers.find((m: any) => m.id === deal.sold_by)?.first_name}
                           </span>
                         )}
                         {deal.signed_at && (
