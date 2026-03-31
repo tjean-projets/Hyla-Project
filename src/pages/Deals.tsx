@@ -102,7 +102,13 @@ function DealForm({ onSuccess, contacts, initialData, onDelete }: {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
-      toast({ title: isEdit ? 'Vente modifiée' : 'Vente créée' });
+      queryClient.invalidateQueries({ queryKey: ['commissions'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
+      const wasJustSigned = form.status === 'signee' && !(isEdit && initialData?.signed_at);
+      toast({
+        title: isEdit ? 'Vente modifiée' : 'Vente créée',
+        description: wasJustSigned ? `Commission de ${parseFloat(form.amount).toLocaleString('fr-FR')}€ créée automatiquement` : undefined,
+      });
       onSuccess();
     },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
@@ -124,7 +130,7 @@ function DealForm({ onSuccess, contacts, initialData, onDelete }: {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Montant (€) *</Label>
-          <Input className="h-11" type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
+          <Input className="h-11" type="number" step="0.01" placeholder="0,00" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
         </div>
         <div>
           <Label>Statut</Label>
@@ -168,6 +174,13 @@ function DealForm({ onSuccess, contacts, initialData, onDelete }: {
         <Label>Notes</Label>
         <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
       </div>
+      {form.status === 'signee' && parseFloat(form.amount) > 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2">
+          <span className="text-emerald-600 text-xs font-medium">Commission auto :</span>
+          <span className="text-emerald-700 text-sm font-bold">{parseFloat(form.amount).toLocaleString('fr-FR')} €</span>
+          <span className="text-emerald-500 text-[10px]">sera créée à la validation</span>
+        </div>
+      )}
       <button type="submit" disabled={mutation.isPending} className="w-full py-3 bg-[#3b82f6] text-white font-semibold rounded-xl hover:bg-[#3b82f6]/90 disabled:opacity-50">
         {mutation.isPending ? (isEdit ? 'Enregistrement...' : 'Création...') : (isEdit ? 'Enregistrer' : 'Créer la vente')}
       </button>

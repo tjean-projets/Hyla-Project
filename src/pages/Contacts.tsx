@@ -434,6 +434,7 @@ export default function Contacts() {
                     if (contactId) {
                       await supabase.from('contacts').update({ pipeline_stage_id: stage.id }).eq('id', contactId);
                       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+                      toast({ title: `Contact déplacé vers "${stage.name}"` });
                     }
                   }}
                 >
