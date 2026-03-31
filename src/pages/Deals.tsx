@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS, HYLA_PRODUCTS, HYLA_COMMISSION_SCALE, getHylaCommission } from '@/lib/supabase';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Clock, TrendingUp } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -15,9 +15,10 @@ import type { Tables } from '@/integrations/supabase/types';
 
 type Deal = Tables<'deals'>;
 
-function DealForm({ onSuccess, contacts, initialData, onDelete }: {
+function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
   onSuccess: () => void;
   contacts: Tables<'contacts'>[];
+  teamMembers: any[];
   initialData?: any | null;
   onDelete?: () => void;
 }) {
@@ -27,7 +28,7 @@ function DealForm({ onSuccess, contacts, initialData, onDelete }: {
   const isEdit = !!initialData;
 
   const [form, setForm] = useState({
-    contact_id: '', amount: '', product: '', deal_type: '', status: 'en_cours' as Deal['status'], notes: '',
+    contact_id: '', amount: '', product: '', deal_type: '', status: 'en_cours' as Deal['status'], notes: '', sold_by: '',
   });
 
   useEffect(() => {
@@ -39,6 +40,7 @@ function DealForm({ onSuccess, contacts, initialData, onDelete }: {
         deal_type: initialData.deal_type || '',
         status: initialData.status || 'en_cours',
         notes: initialData.notes || '',
+        sold_by: initialData.sold_by || '',
       });
     }
   }, [initialData]);
@@ -58,6 +60,7 @@ function DealForm({ onSuccess, contacts, initialData, onDelete }: {
           deal_type: form.deal_type || null,
           status: form.status,
           notes: form.notes || null,
+          sold_by: form.sold_by || null,
         };
         if (form.status === 'signee' && !initialData.signed_at) {
           updateData.signed_at = new Date().toISOString();
@@ -73,6 +76,7 @@ function DealForm({ onSuccess, contacts, initialData, onDelete }: {
           deal_type: form.deal_type || null,
           status: form.status,
           notes: form.notes || null,
+          sold_by: form.sold_by || null,
           signed_at: form.status === 'signee' ? new Date().toISOString() : null,
         }).select('id').single();
         if (error) throw error;
@@ -170,6 +174,21 @@ function DealForm({ onSuccess, contacts, initialData, onDelete }: {
           </Select>
         </div>
       </div>
+      {teamMembers.length > 0 && (
+        <div>
+          <Label>Vendu par (membre réseau)</Label>
+          <Select value={form.sold_by || '__moi__'} onValueChange={(v) => setForm({ ...form, sold_by: v === '__moi__' ? '' : v })}>
+            <SelectTrigger className="h-11"><SelectValue placeholder="Moi-même" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__moi__">👤 Moi-même</SelectItem>
+              {teamMembers.map((m: any) => (
+                <SelectItem key={m.id} value={m.id}>{m.first_name} {m.last_name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[10px] text-gray-400 mt-1">Permet d'estimer les commissions réseau avant l'import</p>
+        </div>
+      )}
       <div>
         <Label>Notes</Label>
         <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
@@ -227,6 +246,17 @@ export default function Deals() {
     enabled: !!effectiveId,
   });
 
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['team-members-deals', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase.from('team_members').select('id, first_name, last_name').eq('user_id', effectiveId).eq('status', 'actif').order('first_name');
+      return data || [];
+    },
+    enabled: !!effectiveId,
+    staleTime: 60000,
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (dealId: string) => {
       const { error } = await supabase.from('deals').delete().eq('id', dealId);
@@ -251,6 +281,11 @@ export default function Deals() {
   const nbSignees = deals.filter((d: any) => d.status === 'signee').length;
   const commissionEstimee = getHylaCommission(nbSignees);
 
+  // Pending deals with sold_by → commission réseau estimée (30€/vente pour manager)
+  const pendingDeals = deals.filter((d: any) => d.status === 'en_cours' || d.status === 'en_attente');
+  const pendingWithSeller = pendingDeals.filter((d: any) => d.sold_by);
+  const pendingReseauEstim = pendingWithSeller.length * 30; // 30€ réseau/vente manager
+
   return (
     <AppLayout
       title="Ventes"
@@ -264,7 +299,7 @@ export default function Deals() {
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader><DialogTitle>Nouvelle vente</DialogTitle></DialogHeader>
-            <DealForm onSuccess={() => setShowForm(false)} contacts={contacts} />
+            <DealForm onSuccess={() => setShowForm(false)} contacts={contacts} teamMembers={teamMembers} />
           </DialogContent>
         </Dialog>
       }
@@ -277,6 +312,7 @@ export default function Deals() {
             <DealForm
               onSuccess={() => setEditingDeal(null)}
               contacts={contacts}
+              teamMembers={teamMembers}
               initialData={editingDeal}
               onDelete={() => deleteMutation.mutate(editingDeal.id)}
             />
@@ -320,9 +356,48 @@ export default function Deals() {
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
             <p className="text-[10px] text-gray-400 uppercase font-semibold">En cours</p>
-            <p className="text-lg font-bold text-amber-600 mt-1">{deals.filter((d: any) => d.status === 'en_attente' || d.status === 'en_cours').length}</p>
+            <p className="text-lg font-bold text-amber-600 mt-1">{pendingDeals.length}</p>
           </div>
         </div>
+
+        {/* Estimation commissions réseau en cours */}
+        {pendingWithSeller.length > 0 && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Clock className="h-4 w-4 text-amber-600" />
+              <p className="text-sm font-semibold text-amber-800">Commissions réseau en attente</p>
+              <span className="ml-auto text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">estimation</span>
+            </div>
+            <div className="space-y-2">
+              {pendingWithSeller.map((d: any) => {
+                const seller = d.team_members;
+                return (
+                  <div key={d.id} className="flex items-center justify-between bg-white/70 rounded-xl px-3 py-2">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-800">
+                        {seller ? `${seller.first_name} ${seller.last_name}` : 'Membre réseau'}
+                      </p>
+                      <p className="text-[10px] text-gray-400">
+                        {d.product || 'Sans produit'} • {d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : ''}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-amber-700">+30 €</p>
+                      <p className="text-[10px] text-gray-400">réseau</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-3 pt-3 border-t border-amber-200 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="h-3.5 w-3.5 text-amber-600" />
+                <span className="text-xs font-medium text-amber-700">{pendingWithSeller.length} vente(s) en cours</span>
+              </div>
+              <span className="text-sm font-bold text-amber-800">~{pendingReseauEstim} € estimés</span>
+            </div>
+          </div>
+        )}
 
         {/* Toolbar */}
         <div className="flex flex-col md:flex-row gap-3">
@@ -347,9 +422,10 @@ export default function Deals() {
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Cliente</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Produit</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 hidden md:table-cell">Produit</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-500">Montant</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Statut</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 hidden md:table-cell">Vendu par</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 hidden md:table-cell">Date</th>
               </tr>
             </thead>
@@ -359,12 +435,21 @@ export default function Deals() {
                   <td className="px-4 py-3 font-medium text-gray-900">
                     {deal.contacts ? `${deal.contacts.first_name} ${deal.contacts.last_name}` : '—'}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{deal.product || '—'}</td>
+                  <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{deal.product || '—'}</td>
                   <td className="px-4 py-3 text-right font-semibold text-gray-900">{deal.amount.toLocaleString('fr-FR')} €</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${DEAL_STATUS_COLORS[deal.status as keyof typeof DEAL_STATUS_COLORS]}`}>
                       {DEAL_STATUS_LABELS[deal.status as keyof typeof DEAL_STATUS_LABELS]}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    {deal.team_members ? (
+                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                        {deal.team_members.first_name} {deal.team_members.last_name}
+                      </span>
+                    ) : (
+                      <span className="text-gray-300 text-xs">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-gray-400 hidden md:table-cell">
                     {new Date(deal.created_at).toLocaleDateString('fr-FR')}
@@ -372,7 +457,7 @@ export default function Deals() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-400">{isLoading ? 'Chargement...' : 'Aucune vente'}</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400">{isLoading ? 'Chargement...' : 'Aucune vente'}</td></tr>
               )}
             </tbody>
           </table>
