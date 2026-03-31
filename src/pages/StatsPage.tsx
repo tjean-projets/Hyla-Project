@@ -135,11 +135,11 @@ export default function StatsPage() {
         {/* ── Hero KPIs ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 stagger-children">
           <div className="bg-gradient-to-br from-[#3b82f6]/20 to-[#8b5cf6]/10 backdrop-blur-xl rounded-2xl border border-[#3b82f6]/20 p-4 animate-stagger-in">
-            <p className="text-[10px] text-gray-400 uppercase">CA Total</p>
+            <p className="text-[10px] text-muted-foreground uppercase">CA Total</p>
             <p className="text-xl font-bold text-white">{totalCA.toLocaleString('fr-FR')}€</p>
           </div>
           <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] rounded-2xl border border-white/10 p-4 animate-stagger-in">
-            <p className="text-[10px] text-gray-400 uppercase">Ce mois</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Ce mois</p>
             <p className="text-xl font-bold text-white">{currentMonthCA.toLocaleString('fr-FR')}€</p>
             {monthGrowth !== 0 && (
               <div className={`flex items-center gap-1 mt-1 text-[10px] font-semibold ${monthGrowth > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -149,14 +149,14 @@ export default function StatsPage() {
             )}
           </div>
           <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] rounded-2xl border border-white/10 p-4 animate-stagger-in">
-            <p className="text-[10px] text-gray-400 uppercase">Équipe</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Équipe</p>
             <p className="text-xl font-bold text-white">{members.length}</p>
-            <p className="text-[10px] text-gray-500">{members.filter((m: any) => m.status === 'actif').length} actifs</p>
+            <p className="text-[10px] text-muted-foreground">{members.filter((m: any) => m.status === 'actif').length} actifs</p>
           </div>
           <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] rounded-2xl border border-white/10 p-4 animate-stagger-in">
-            <p className="text-[10px] text-gray-400 uppercase">Conversion</p>
+            <p className="text-[10px] text-muted-foreground uppercase">Conversion</p>
             <p className="text-xl font-bold text-white">{conversionRate}%</p>
-            <p className="text-[10px] text-gray-500">{recrues}/{totalContacts} contacts</p>
+            <p className="text-[10px] text-muted-foreground">{recrues}/{totalContacts} contacts</p>
           </div>
         </div>
 
@@ -192,8 +192,8 @@ export default function StatsPage() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex justify-center gap-6 mt-2 text-xs">
-                <div className="flex items-center gap-1.5"><div className="h-2.5 w-2.5 rounded-full bg-[#3b82f6]" /><span className="text-gray-400">Directe {totalDirecte.toLocaleString('fr-FR')}€</span></div>
-                <div className="flex items-center gap-1.5"><div className="h-2.5 w-2.5 rounded-full bg-[#f59e0b]" /><span className="text-gray-400">Réseau {totalReseau.toLocaleString('fr-FR')}€</span></div>
+                <div className="flex items-center gap-1.5"><div className="h-2.5 w-2.5 rounded-full bg-[#3b82f6]" /><span className="text-muted-foreground">Directe {totalDirecte.toLocaleString('fr-FR')}€</span></div>
+                <div className="flex items-center gap-1.5"><div className="h-2.5 w-2.5 rounded-full bg-[#f59e0b]" /><span className="text-muted-foreground">Réseau {totalReseau.toLocaleString('fr-FR')}€</span></div>
               </div>
             </div>
 
@@ -227,7 +227,7 @@ export default function StatsPage() {
                 return (
                   <div key={i} className="flex items-center gap-3">
                     <span className={`text-sm font-bold w-6 text-center ${
-                      i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-gray-600'
+                      i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-muted-foreground'
                     }`}>
                       {i + 1}
                     </span>
@@ -242,7 +242,7 @@ export default function StatsPage() {
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <p className="text-[10px] text-gray-500 mt-0.5">{m.count} commission{m.count > 1 ? 's' : ''}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{m.count} commission{m.count > 1 ? 's' : ''}</p>
                     </div>
                   </div>
                 );

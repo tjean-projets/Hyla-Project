@@ -44,19 +44,17 @@ function NotifItem({ color, title, subtitle, meta, action, actionLabel, isDark }
     <div
       onClick={action}
       className={cn(
-        'flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-colors active:scale-[0.99]',
-        isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'
+        'flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-colors active:scale-[0.99] hover:bg-muted'
       )}
     >
       <div className={cn('w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0', color)} />
       <div className="flex-1 min-w-0">
-        <p className={cn('text-sm font-semibold truncate', isDark ? 'text-white' : 'text-gray-900')}>{title}</p>
-        {subtitle && <p className={cn('text-xs truncate', isDark ? 'text-gray-400' : 'text-gray-500')}>{subtitle}</p>}
-        <p className={cn('text-[10px] mt-0.5', isDark ? 'text-gray-500' : 'text-gray-400')}>{meta}</p>
+        <p className={cn('text-sm font-semibold truncate text-foreground')}>{title}</p>
+        {subtitle && <p className={cn('text-xs truncate text-muted-foreground')}>{subtitle}</p>}
+        <p className={cn('text-[10px] mt-0.5 text-muted-foreground')}>{meta}</p>
       </div>
       <button className={cn(
-        'text-[11px] text-blue-500 font-semibold flex-shrink-0 px-2 py-1 rounded-lg',
-        isDark ? 'hover:bg-blue-500/10' : 'hover:bg-blue-50'
+        'text-[11px] text-blue-500 font-semibold flex-shrink-0 px-2 py-1 rounded-lg hover:bg-blue-50'
       )}>
         {actionLabel}
       </button>
@@ -212,8 +210,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
       <button
         onClick={() => setOpen(true)}
         className={cn(
-          'relative p-2 rounded-xl transition-colors',
-          isDark ? 'hover:bg-white/5 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
+          'relative p-2 rounded-xl transition-colors hover:bg-muted text-muted-foreground'
         )}
       >
         <Bell className="h-5 w-5" />
@@ -225,9 +222,9 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className={cn('max-w-md max-h-[80vh] overflow-y-auto', isDark && 'bg-[#1a2332] border-white/10')}>
+        <DialogContent className={cn('max-w-md max-h-[80vh] overflow-y-auto')}>
           <DialogHeader>
-            <DialogTitle className={cn('flex items-center gap-2', isDark && 'text-white')}>
+            <DialogTitle className={cn('flex items-center gap-2')}>
               <Bell className="h-5 w-5" />
               Notifications
               {totalCount > 0 && (
@@ -238,8 +235,8 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
 
           {notifications.length === 0 ? (
             <div className="text-center py-8">
-              <Bell className={cn('h-8 w-8 mx-auto mb-2', isDark ? 'text-gray-600' : 'text-gray-300')} />
-              <p className={cn('text-sm', isDark ? 'text-gray-500' : 'text-gray-400')}>Aucune notification</p>
+              <Bell className={cn('h-8 w-8 mx-auto mb-2 text-muted-foreground')} />
+              <p className={cn('text-sm text-muted-foreground')}>Aucune notification</p>
             </div>
           ) : (
             <div className="space-y-1">
@@ -321,7 +318,7 @@ function ChallengeBanner({ isDark }: { isDark: boolean }) {
   if (!countdownActive && !rookieActive) return null;
 
   return (
-    <div className={cn('md:ml-[220px]', isDark ? 'bg-[#0f1729]' : 'bg-[#f0f4f8]')}>
+    <div className={cn('md:ml-[220px] bg-background')}>
       <div className="flex flex-col gap-1.5 px-4 md:px-8 pt-3">
         {countdownActive && (
           <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl text-white text-[11px] font-medium">
@@ -419,7 +416,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
   const isImpersonating = impersonation?.isImpersonating ?? false;
 
   return (
-    <div className={cn('min-h-screen', isDark ? 'bg-[#0f1729]' : 'bg-[#f0f4f8]')}>
+    <div className={cn('min-h-screen bg-background')}>
       <ImpersonationBanner />
       {/* ── Desktop Sidebar (Mockup 2 style: dark blue) ── */}
       <aside className={cn("fixed left-0 bottom-0 w-[220px] bg-[#111827] hidden md:flex flex-col z-40", isImpersonating ? 'top-10' : 'top-0')}>
@@ -514,8 +511,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
 
       {/* ── Mobile Header ── */}
       <header className={cn(
-        'sticky top-0 z-40 md:hidden',
-        isDark ? 'bg-[#111827] border-b border-white/5' : 'bg-white border-b border-gray-200'
+        'sticky top-0 z-40 md:hidden bg-card border-b border-border'
       )}>
         <div className="flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-2.5">
@@ -524,14 +520,14 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
               alt="Hyla"
               className="h-8 w-8 rounded-xl object-cover shadow-md shadow-blue-500/20"
             />
-            <h1 className={cn('text-sm font-semibold', isDark ? 'text-white' : 'text-gray-900')}>{title}</h1>
+            <h1 className={cn('text-sm font-semibold text-foreground')}>{title}</h1>
           </div>
           <div className="flex items-center gap-1">
             {actions && <div className="flex items-center gap-2">{actions}</div>}
             <NotificationCenter user={user} profile={profile} isDark={isDark} />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className={cn('p-2', isDark ? 'text-gray-400' : 'text-gray-500')}
+              className={cn('p-2 text-muted-foreground')}
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -539,8 +535,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
         </div>
         {mobileMenuOpen && (
           <div className={cn(
-            'absolute top-14 left-0 right-0 shadow-xl py-2 px-3 z-50',
-            isDark ? 'bg-[#111827] border-b border-white/5' : 'bg-white border-b border-gray-200'
+            'absolute top-14 left-0 right-0 shadow-xl py-2 px-3 z-50 bg-card border-b border-border'
           )}>
             {sidebarLinks.map((link) => (
               <NavLink
@@ -551,14 +546,14 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
                   'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium',
                   location.pathname.startsWith(link.to)
                     ? 'bg-[#3b82f6] text-white'
-                    : isDark ? 'text-gray-400' : 'text-gray-500'
+                    : 'text-muted-foreground'
                 )}
               >
                 <link.icon className="h-[18px] w-[18px]" />
                 {link.label}
               </NavLink>
             ))}
-            <div className={cn('mt-2 pt-2 border-t', isDark ? 'border-white/10' : 'border-gray-200')}>
+            <div className={cn('mt-2 pt-2 border-t border-border')}>
               <button
                 onClick={() => { setMobileMenuOpen(false); signOut(); }}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 w-full"
@@ -573,10 +568,9 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
 
       {/* ── Desktop Top Bar (Mockup 2 style) ── */}
       <div className={cn(
-        'hidden md:flex items-center justify-between ml-[220px] px-8 py-4 border-b',
-        isDark ? 'bg-[#0f1729] border-white/5' : 'bg-white border-gray-200'
+        'hidden md:flex items-center justify-between ml-[220px] px-8 py-4 border-b bg-background border-border'
       )}>
-        <h1 className={cn('text-xl font-bold', isDark ? 'text-white' : 'text-gray-900')}>{title}</h1>
+        <h1 className={cn('text-xl font-bold text-foreground')}>{title}</h1>
         <div className="flex items-center gap-4">
           {actions}
           <NotificationCenter user={user} profile={profile} isDark={isDark} />
@@ -617,8 +611,7 @@ function MobileBottomNav({ isDark, isManager = true }: { isDark: boolean; isMana
         <div className="fixed inset-0 z-40 md:hidden" onClick={() => setShowMore(false)}>
           <div className="absolute bottom-16 left-2 right-2 z-50" onClick={(e) => e.stopPropagation()}>
             <div className={cn(
-              'rounded-2xl shadow-xl border p-2',
-              isDark ? 'bg-[#1a2332] border-white/10' : 'bg-white border-gray-200'
+              'rounded-2xl shadow-xl border p-2 bg-card border-border'
             )}>
               <div className="grid grid-cols-4 gap-1">
                 {moreItems.map((link) => {
@@ -644,7 +637,7 @@ function MobileBottomNav({ isDark, isManager = true }: { isDark: boolean; isMana
                         'flex flex-col items-center gap-1 py-3 px-1 rounded-xl text-[10px] font-medium',
                         isActive
                           ? 'text-[#3b82f6] bg-[#3b82f6]/10'
-                          : isDark ? 'text-gray-400' : 'text-gray-500'
+                          : 'text-muted-foreground'
                       )}
                     >
                       <link.icon className="h-5 w-5" />
@@ -660,8 +653,7 @@ function MobileBottomNav({ isDark, isManager = true }: { isDark: boolean; isMana
 
       {/* Bottom bar */}
       <nav className={cn(
-        'fixed bottom-0 left-0 right-0 md:hidden z-40 border-t',
-        isDark ? 'bg-[#111827] border-white/5' : 'bg-white border-gray-200'
+        'fixed bottom-0 left-0 right-0 md:hidden z-40 border-t bg-card border-border'
       )}>
         <div className="flex items-center justify-around py-2 px-1">
           {mainTabs.map((link) => {
@@ -686,7 +678,7 @@ function MobileBottomNav({ isDark, isManager = true }: { isDark: boolean; isMana
                 to={link.to}
                 className={cn(
                   'flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-medium transition-colors rounded-xl',
-                  isActive ? 'text-[#3b82f6]' : isDark ? 'text-gray-500' : 'text-gray-400'
+                  isActive ? 'text-[#3b82f6]' : 'text-muted-foreground'
                 )}
               >
                 <div className={cn('p-1.5 rounded-xl transition-colors', isActive && 'bg-[#3b82f6]/10')}>
@@ -701,7 +693,7 @@ function MobileBottomNav({ isDark, isManager = true }: { isDark: boolean; isMana
             onClick={() => setShowMore(!showMore)}
             className={cn(
               'flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-medium transition-colors rounded-xl',
-              (showMore || isMoreActive) ? 'text-[#3b82f6]' : isDark ? 'text-gray-500' : 'text-gray-400'
+              (showMore || isMoreActive) ? 'text-[#3b82f6]' : 'text-muted-foreground'
             )}
           >
             <div className={cn('p-1.5 rounded-xl transition-colors', (showMore || isMoreActive) && 'bg-[#3b82f6]/10')}>

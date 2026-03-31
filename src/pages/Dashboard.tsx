@@ -134,8 +134,8 @@ export default function Dashboard() {
       <div className="space-y-5">
         {/* ── Greeting ── */}
         <div>
-          <h2 className="text-lg font-bold text-gray-900">Bonjour {firstName} !</h2>
-          <p className="text-xs text-gray-400 capitalize">{now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <h2 className="text-lg font-bold text-foreground">Bonjour {firstName} !</h2>
+          <p className="text-xs text-muted-foreground capitalize">{now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
 
         {/* ── Challenges (clickable cards) ── */}
@@ -155,7 +155,7 @@ export default function Dashboard() {
                   <span className="text-sm font-bold opacity-90">{countdownDaysLeft}j restants</span>
                 </div>
                 <div className="h-3 rounded-full bg-white/20 overflow-hidden">
-                  <div className="h-full rounded-full bg-white transition-all duration-700" style={{ width: `${countdownPct}%` }} />
+                  <div className="h-full rounded-full bg-card transition-all duration-700" style={{ width: `${countdownPct}%` }} />
                 </div>
                 {countdownSales >= HYLA_CHALLENGES.countdown.target && (
                   <div className="mt-2 text-center bg-white/20 rounded-xl py-1.5 text-sm font-bold">+{HYLA_CHALLENGES.countdown.bonus}€ débloqué !</div>
@@ -177,7 +177,7 @@ export default function Dashboard() {
                   <span className="text-sm font-bold opacity-90">{rookieDaysLeft}j restants</span>
                 </div>
                 <div className="h-3 rounded-full bg-white/20 overflow-hidden">
-                  <div className="h-full rounded-full bg-white transition-all duration-700" style={{ width: `${rookiePct}%` }} />
+                  <div className="h-full rounded-full bg-card transition-all duration-700" style={{ width: `${rookiePct}%` }} />
                 </div>
               </div>
             )}
@@ -205,15 +205,15 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-gray-500 uppercase">Ta progression</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase">Ta progression</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-black text-gray-900">{countdownSales}/{HYLA_CHALLENGES.countdown.target} ventes</span>
+                      <span className="text-2xl font-black text-foreground">{countdownSales}/{HYLA_CHALLENGES.countdown.target} ventes</span>
                       <span className="text-sm font-bold text-amber-600">{countdownDaysLeft} jours restants</span>
                     </div>
                     <div className="h-3 rounded-full bg-amber-100 overflow-hidden">
                       <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all" style={{ width: `${countdownPct}%` }} />
                     </div>
-                    <div className="flex justify-between text-[10px] text-gray-400">
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
                       <span>Début : {startDate.toLocaleDateString('fr-FR')}</span>
                       <span>Fin : {countdownEnd.toLocaleDateString('fr-FR')}</span>
                     </div>
@@ -223,8 +223,8 @@ export default function Dashboard() {
                       <p className="text-sm font-bold text-green-700">Challenge réussi ! +{HYLA_CHALLENGES.countdown.bonus}€ débloqué</p>
                     </div>
                   ) : (
-                    <div className="bg-gray-50 rounded-xl p-3">
-                      <p className="text-xs text-gray-600">
+                    <div className="bg-muted rounded-xl p-3">
+                      <p className="text-xs text-muted-foreground">
                         Il te reste <span className="font-bold">{HYLA_CHALLENGES.countdown.target - countdownSales} vente{HYLA_CHALLENGES.countdown.target - countdownSales > 1 ? 's' : ''}</span> à réaliser
                         en <span className="font-bold">{countdownDaysLeft} jours</span> pour décrocher le bonus de {HYLA_CHALLENGES.countdown.bonus}€.
                       </p>
@@ -251,21 +251,21 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-gray-500 uppercase">Ta progression</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase">Ta progression</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-black text-gray-900">{rookieSales}/{HYLA_CHALLENGES.rookie.target} ventes</span>
+                      <span className="text-2xl font-black text-foreground">{rookieSales}/{HYLA_CHALLENGES.rookie.target} ventes</span>
                       <span className="text-sm font-bold text-violet-600">{rookieDaysLeft} jours restants</span>
                     </div>
                     <div className="h-3 rounded-full bg-violet-100 overflow-hidden">
                       <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all" style={{ width: `${rookiePct}%` }} />
                     </div>
-                    <div className="flex justify-between text-[10px] text-gray-400">
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
                       <span>Début : {startDate.toLocaleDateString('fr-FR')}</span>
                       <span>Fin : {rookieEnd.toLocaleDateString('fr-FR')}</span>
                     </div>
                   </div>
-                  <div className="bg-gray-50 rounded-xl p-3">
-                    <p className="text-xs text-gray-600">
+                  <div className="bg-muted rounded-xl p-3">
+                    <p className="text-xs text-muted-foreground">
                       Il te reste <span className="font-bold">{HYLA_CHALLENGES.rookie.target - rookieSales} vente{HYLA_CHALLENGES.rookie.target - rookieSales > 1 ? 's' : ''}</span> à réaliser
                       en <span className="font-bold">{rookieDaysLeft} jours</span> pour décrocher le bonus de {HYLA_CHALLENGES.rookie.bonus}€.
                     </p>
@@ -278,14 +278,14 @@ export default function Dashboard() {
 
         {/* ── KPIs essentiels (4 cards) ── */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-semibold uppercase text-gray-400">CA du mois</p>
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">CA du mois</p>
               <TrendingUp className="h-4 w-4 text-emerald-500" />
             </div>
-            <p className="text-xl font-bold text-gray-900">{(commTotal > 0 ? commTotal : (k.ca_mois || 0)).toLocaleString('fr-FR')} <span className="text-sm text-gray-400">€</span></p>
+            <p className="text-xl font-bold text-foreground">{(commTotal > 0 ? commTotal : (k.ca_mois || 0)).toLocaleString('fr-FR')} <span className="text-sm text-muted-foreground">€</span></p>
             {(k.commissions_annee || 0) > 0 && (
-              <p className="text-[9px] text-gray-400 mt-1">{(k.commissions_annee || 0).toLocaleString('fr-FR')}€ cette année</p>
+              <p className="text-[9px] text-muted-foreground mt-1">{(k.commissions_annee || 0).toLocaleString('fr-FR')}€ cette année</p>
             )}
           </div>
           <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl p-4 text-white">
@@ -301,32 +301,32 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-semibold uppercase text-gray-400">Ventes</p>
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Ventes</p>
               <ShoppingBag className="h-4 w-4 text-violet-500" />
             </div>
-            <p className="text-xl font-bold text-gray-900">{nbSignees}</p>
+            <p className="text-xl font-bold text-foreground">{nbSignees}</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-semibold uppercase text-gray-400">Équipe</p>
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Équipe</p>
               <Users className="h-4 w-4 text-blue-500" />
             </div>
-            <p className="text-xl font-bold text-gray-900">{k.equipe_active || 0}</p>
+            <p className="text-xl font-bold text-foreground">{k.equipe_active || 0}</p>
           </div>
         </div>
 
         {/* ── Barème rapide ── */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-gray-900">Barème ventes</p>
-            <Target className="h-3.5 w-3.5 text-gray-400" />
+            <p className="text-xs font-semibold text-foreground">Barème ventes</p>
+            <Target className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
           <div className="flex gap-1.5 overflow-x-auto">
             {HYLA_COMMISSION_SCALE.map((s, i) => (
               <div key={i} className={`flex-shrink-0 text-center px-2.5 py-1.5 rounded-lg text-[10px] font-medium border ${
-                nbSignees >= s.machines ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-gray-50 border-gray-100 text-gray-400'
+                nbSignees >= s.machines ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-muted border-border text-muted-foreground'
               }`}>
                 <div className="font-bold text-xs">{s.commission}€</div>
                 <div>{s.label}</div>
@@ -336,8 +336,8 @@ export default function Dashboard() {
         </div>
 
         {/* ── Chart Ventes mensuelles ── */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <h3 className="text-xs font-bold text-gray-900 mb-3">Ventes signées / mois</h3>
+        <div className="bg-card rounded-2xl p-5 shadow-sm border border-border">
+          <h3 className="text-xs font-bold text-foreground mb-3">Ventes signées / mois</h3>
           <ResponsiveContainer width="100%" height={160}>
             <AreaChart data={monthlyData}>
               <defs>
@@ -357,32 +357,32 @@ export default function Dashboard() {
         </div>
 
         {/* ── Prochaines tâches ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
-            <h3 className="text-xs font-bold text-gray-900">Prochaines tâches</h3>
+            <h3 className="text-xs font-bold text-foreground">Prochaines tâches</h3>
             <a href="/tasks" className="text-[10px] text-[#3b82f6] font-medium flex items-center gap-0.5">
               Voir tout <ChevronRight className="h-3 w-3" />
             </a>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-border">
             {upcomingTasks && upcomingTasks.length > 0 ? upcomingTasks.slice(0, 4).map((task: any) => (
               <div key={task.id} className="px-4 py-3 flex items-center justify-between">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-800 truncate">{task.title}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{task.title}</p>
                   {task.contacts && (
-                    <p className="text-[10px] text-gray-400">{task.contacts.first_name} {task.contacts.last_name}</p>
+                    <p className="text-[10px] text-muted-foreground">{task.contacts.first_name} {task.contacts.last_name}</p>
                   )}
                 </div>
                 {task.due_date && (
                   <span className={`text-[10px] font-semibold px-2 py-1 rounded-lg flex-shrink-0 ml-2 ${
-                    new Date(task.due_date) < new Date() ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'
+                    new Date(task.due_date) < new Date() ? 'bg-red-50 text-red-600' : 'bg-muted text-muted-foreground'
                   }`}>
                     {new Date(task.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                   </span>
                 )}
               </div>
             )) : (
-              <div className="px-4 py-8 text-center text-sm text-gray-400">Aucune tâche</div>
+              <div className="px-4 py-8 text-center text-sm text-muted-foreground">Aucune tâche</div>
             )}
           </div>
         </div>

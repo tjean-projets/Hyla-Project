@@ -186,7 +186,7 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
               ))}
             </SelectContent>
           </Select>
-          <p className="text-[10px] text-gray-400 mt-1">Permet d'estimer les commissions réseau avant l'import</p>
+          <p className="text-[10px] text-muted-foreground mt-1">Permet d'estimer les commissions réseau avant l'import</p>
         </div>
       )}
       <div>
@@ -324,9 +324,9 @@ export default function Deals() {
         {/* KPI row */}
         {/* KPI cards */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <p className="text-[10px] text-gray-400 uppercase font-semibold">Machines vendues</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{nbSignees}</p>
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+            <p className="text-[10px] text-muted-foreground uppercase font-semibold">Machines vendues</p>
+            <p className="text-2xl font-bold text-foreground mt-1">{nbSignees}</p>
           </div>
           <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl p-4 text-white">
             <p className="text-[10px] uppercase font-semibold opacity-80">Commission estimée</p>
@@ -335,12 +335,12 @@ export default function Deals() {
         </div>
 
         {/* Barème Hyla */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <p className="text-xs font-semibold text-gray-900 mb-2">Barème commissions ventes</p>
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+          <p className="text-xs font-semibold text-foreground mb-2">Barème commissions ventes</p>
           <div className="flex gap-1.5 overflow-x-auto pb-1">
             {HYLA_COMMISSION_SCALE.map((s, i) => (
               <div key={i} className={`flex-shrink-0 text-center px-2.5 py-1.5 rounded-lg text-[10px] font-medium border ${
-                nbSignees >= s.machines ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-gray-50 border-gray-100 text-gray-400'
+                nbSignees >= s.machines ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-muted border-border text-muted-foreground'
               }`}>
                 <div className="font-bold text-xs">{s.commission}€</div>
                 <div>{s.label}</div>
@@ -350,12 +350,12 @@ export default function Deals() {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <p className="text-[10px] text-gray-400 uppercase font-semibold">CA total</p>
-            <p className="text-lg font-bold text-gray-900 mt-1">{totalMois.toLocaleString('fr-FR')} €</p>
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+            <p className="text-[10px] text-muted-foreground uppercase font-semibold">CA total</p>
+            <p className="text-lg font-bold text-foreground mt-1">{totalMois.toLocaleString('fr-FR')} €</p>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <p className="text-[10px] text-gray-400 uppercase font-semibold">En cours</p>
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+            <p className="text-[10px] text-muted-foreground uppercase font-semibold">En cours</p>
             <p className="text-lg font-bold text-amber-600 mt-1">{pendingDeals.length}</p>
           </div>
         </div>
@@ -374,16 +374,16 @@ export default function Deals() {
                 return (
                   <div key={d.id} className="flex items-center justify-between bg-white/70 rounded-xl px-3 py-2">
                     <div>
-                      <p className="text-xs font-semibold text-gray-800">
+                      <p className="text-xs font-semibold text-foreground">
                         {seller ? `${seller.first_name} ${seller.last_name}` : 'Membre réseau'}
                       </p>
-                      <p className="text-[10px] text-gray-400">
+                      <p className="text-[10px] text-muted-foreground">
                         {d.product || 'Sans produit'} • {d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : ''}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-amber-700">+30 €</p>
-                      <p className="text-[10px] text-gray-400">réseau</p>
+                      <p className="text-[10px] text-muted-foreground">réseau</p>
                     </div>
                   </div>
                 );
@@ -402,7 +402,7 @@ export default function Deals() {
         {/* Toolbar */}
         <div className="flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -417,26 +417,26 @@ export default function Deals() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted border-b">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Cliente</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 hidden md:table-cell">Produit</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500">Montant</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Statut</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 hidden md:table-cell">Vendu par</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 hidden md:table-cell">Date</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Cliente</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Produit</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Montant</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Vendu par</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border">
               {filtered.map((deal: any) => (
-                <tr key={deal.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setEditingDeal(deal)}>
-                  <td className="px-4 py-3 font-medium text-gray-900">
+                <tr key={deal.id} className="hover:bg-muted cursor-pointer" onClick={() => setEditingDeal(deal)}>
+                  <td className="px-4 py-3 font-medium text-foreground">
                     {deal.contacts ? `${deal.contacts.first_name} ${deal.contacts.last_name}` : '—'}
                   </td>
-                  <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{deal.product || '—'}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-900">{deal.amount.toLocaleString('fr-FR')} €</td>
+                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{deal.product || '—'}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-foreground">{deal.amount.toLocaleString('fr-FR')} €</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${DEAL_STATUS_COLORS[deal.status as keyof typeof DEAL_STATUS_COLORS]}`}>
                       {DEAL_STATUS_LABELS[deal.status as keyof typeof DEAL_STATUS_LABELS]}
@@ -451,13 +451,13 @@ export default function Deals() {
                       <span className="text-gray-300 text-xs">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-400 hidden md:table-cell">
+                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
                     {new Date(deal.created_at).toLocaleDateString('fr-FR')}
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400">{isLoading ? 'Chargement...' : 'Aucune vente'}</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">{isLoading ? 'Chargement...' : 'Aucune vente'}</td></tr>
               )}
             </tbody>
           </table>

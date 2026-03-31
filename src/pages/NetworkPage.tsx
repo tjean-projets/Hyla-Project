@@ -218,7 +218,7 @@ function MemberForm({
           <Label className="text-xs text-blue-700 font-semibold">🔗 Lier un compte Hyla Assistant (optionnel)</Label>
           <div className="flex gap-2">
             <Input
-              className="h-10 flex-1 bg-white text-sm font-mono uppercase"
+              className="h-10 flex-1 bg-card text-sm font-mono uppercase"
               placeholder="ID Hyla Assistant"
               value={hylaIdSearch}
               onChange={(e) => setHylaIdSearch(e.target.value)}
@@ -339,22 +339,22 @@ function AssistantPanel({ member }: { member: TeamMember }) {
     <div className="space-y-4">
       <div className="bg-gradient-to-br from-violet-50 to-indigo-50 rounded-xl p-4 text-center">
         <Sparkles className="h-8 w-8 text-violet-500 mx-auto mb-2" />
-        <p className="text-sm font-semibold text-gray-900">
+        <p className="text-sm font-semibold text-foreground">
           Invite {member.first_name} à créer son espace
         </p>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           En s'inscrivant, {member.first_name} aura accès à son propre CRM Hyla avec tous les outils (contacts, ventes, réseau, commissions, tâches...).
         </p>
       </div>
 
       <div>
-        <label className="text-xs font-medium text-gray-500 block mb-1.5">Lien d'inscription</label>
+        <label className="text-xs font-medium text-muted-foreground block mb-1.5">Lien d'inscription</label>
         <div className="flex gap-2">
-          <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-xs text-gray-600 truncate border">
+          <div className="flex-1 bg-muted rounded-xl px-3 py-2.5 text-xs text-muted-foreground truncate border">
             {inscriptionUrl}
           </div>
-          <button onClick={copyLink} className="px-3 py-2.5 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
-            <Copy className="h-4 w-4 text-gray-600" />
+          <button onClick={copyLink} className="px-3 py-2.5 bg-muted rounded-xl hover:bg-gray-200 transition-colors">
+            <Copy className="h-4 w-4 text-muted-foreground" />
           </button>
         </div>
       </div>
@@ -362,14 +362,14 @@ function AssistantPanel({ member }: { member: TeamMember }) {
       <div className="flex gap-2">
         <button
           onClick={copyLink}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs active:scale-[0.98]"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-muted text-foreground font-medium rounded-xl text-xs active:scale-[0.98]"
         >
           <Link2 className="h-3.5 w-3.5" />
           Copier le lien
         </button>
         <button
           onClick={sendEmail}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs active:scale-[0.98]"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-muted text-foreground font-medium rounded-xl text-xs active:scale-[0.98]"
         >
           <Mail className="h-3.5 w-3.5" />
           Envoyer par email
@@ -442,21 +442,21 @@ function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onS
         <div key={key} className="border rounded-xl overflow-hidden">
           <div className={`p-3 bg-${color}-50/50 border-b border-${color}-100`}>
             <p className={`text-[10px] font-bold text-${color}-600 uppercase mb-1`}>{label}</p>
-            <p className="text-sm text-gray-800">{text || <span className="text-gray-400 italic">Non renseigné</span>}</p>
+            <p className="text-sm text-foreground">{text || <span className="text-muted-foreground italic">Non renseigné</span>}</p>
             {(v > 0 || r > 0) && (
               <div className="flex gap-4 mt-1.5">
-                {v > 0 && <span className="text-[10px] text-gray-500">{v} ventes</span>}
-                {r > 0 && <span className="text-[10px] text-gray-500">{r} recrues</span>}
+                {v > 0 && <span className="text-[10px] text-muted-foreground">{v} ventes</span>}
+                {r > 0 && <span className="text-[10px] text-muted-foreground">{r} recrues</span>}
               </div>
             )}
           </div>
-          <div className="p-2 bg-white">
+          <div className="p-2 bg-card">
             <textarea
               value={notes[noteKey]}
               onChange={(e) => setNotes({ ...notes, [noteKey]: e.target.value })}
               placeholder={`Notes de suivi ${label.toLowerCase()}...`}
               rows={2}
-              className="w-full text-xs text-gray-600 border-0 bg-gray-50 rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+              className="w-full text-xs text-muted-foreground border-0 bg-muted rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
             />
           </div>
         </div>
@@ -465,19 +465,19 @@ function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onS
       {objective.actions && (
         <div className="border rounded-xl p-3 border-violet-200 bg-violet-50/50">
           <p className="text-[10px] font-bold text-violet-600 uppercase mb-1">Actions</p>
-          <p className="text-sm text-gray-800 whitespace-pre-line">{objective.actions}</p>
+          <p className="text-sm text-foreground whitespace-pre-line">{objective.actions}</p>
         </div>
       )}
 
       {/* Custom answers */}
       {customQuestions.length > 0 && Object.keys(customAnswers).length > 0 && (
-        <div className="border rounded-xl p-3 border-gray-200 bg-gray-50/50">
-          <p className="text-[10px] font-bold text-gray-600 uppercase mb-2">Réponses complémentaires</p>
+        <div className="border rounded-xl p-3 border-border bg-gray-50/50">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Réponses complémentaires</p>
           <div className="space-y-1.5">
             {customQuestions.map((q) => customAnswers[q.id] ? (
               <div key={q.id}>
-                <p className="text-[10px] text-gray-500">{q.label}</p>
-                <p className="text-xs text-gray-800">{customAnswers[q.id]}</p>
+                <p className="text-[10px] text-muted-foreground">{q.label}</p>
+                <p className="text-xs text-foreground">{customAnswers[q.id]}</p>
               </div>
             ) : null)}
           </div>
@@ -486,16 +486,16 @@ function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onS
 
       {/* Save notes button */}
       <button onClick={saveNotes} disabled={savingNotes}
-        className="w-full flex items-center justify-center gap-1.5 py-2 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs disabled:opacity-50">
+        className="w-full flex items-center justify-center gap-1.5 py-2 bg-muted text-foreground font-medium rounded-xl text-xs disabled:opacity-50">
         {savingNotes ? 'Sauvegarde...' : 'Sauvegarder les notes'}
       </button>
 
       {/* Action buttons */}
       <div className="flex gap-2">
-        <button onClick={onCopyLink} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs active:scale-[0.98]">
+        <button onClick={onCopyLink} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-muted text-foreground font-medium rounded-xl text-xs active:scale-[0.98]">
           <Copy className="h-3.5 w-3.5" /> Copier le lien
         </button>
-        <button onClick={onSendEmail} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-xs active:scale-[0.98]">
+        <button onClick={onSendEmail} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-muted text-foreground font-medium rounded-xl text-xs active:scale-[0.98]">
           <Mail className="h-3.5 w-3.5" /> Envoyer par email
         </button>
       </div>
@@ -599,13 +599,13 @@ function ObjectifsPanel({ member, userId }: { member: TeamMember; userId: string
     window.open(`mailto:${email}?subject=${subject}&body=${body}`);
   };
 
-  if (isLoading) return <div className="py-8 text-center text-gray-400 text-sm">Chargement...</div>;
+  if (isLoading) return <div className="py-8 text-center text-muted-foreground text-sm">Chargement...</div>;
 
   if (!objective) {
     return (
       <div className="py-8 text-center">
         <Target className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-        <p className="text-sm text-gray-500 mb-4">Aucun objectif défini pour {member.first_name}</p>
+        <p className="text-sm text-muted-foreground mb-4">Aucun objectif défini pour {member.first_name}</p>
         <button
           onClick={() => createObjective.mutate()}
           disabled={createObjective.isPending}
@@ -638,14 +638,14 @@ function ObjectifsPanel({ member, userId }: { member: TeamMember; userId: string
             />
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-gray-500">Ventes</label>
+                <label className="text-[10px] text-muted-foreground">Ventes</label>
                 <Input type="number" min="0" className="h-9"
                   value={(editForm as any)[`ventes_objectif_${key}`]}
                   onChange={(e) => setEditForm({ ...editForm, [`ventes_objectif_${key}`]: parseInt(e.target.value) || 0 })}
                 />
               </div>
               <div>
-                <label className="text-[10px] text-gray-500">Recrues</label>
+                <label className="text-[10px] text-muted-foreground">Recrues</label>
                 <Input type="number" min="0" className="h-9"
                   value={(editForm as any)[`recrues_objectif_${key}`]}
                   onChange={(e) => setEditForm({ ...editForm, [`recrues_objectif_${key}`]: parseInt(e.target.value) || 0 })}
@@ -670,7 +670,7 @@ function ObjectifsPanel({ member, userId }: { member: TeamMember; userId: string
             {saveObjective.isPending ? 'Enregistrement...' : 'Sauvegarder'}
           </button>
           <button type="button" onClick={() => setEditing(false)}
-            className="px-4 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl text-sm">
+            className="px-4 py-2.5 bg-muted text-foreground font-medium rounded-xl text-sm">
             Annuler
           </button>
         </div>
@@ -694,9 +694,9 @@ function ObjectifsPanel({ member, userId }: { member: TeamMember; userId: string
 /* ── Simple KPI card ── */
 function KpiCard({ value, label, color }: { value: number; label: string; color: string }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-center">
+    <div className="bg-card rounded-2xl shadow-sm border border-border p-4 text-center">
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      <p className="text-[10px] text-gray-400 uppercase font-semibold mt-0.5">{label}</p>
+      <p className="text-[10px] text-muted-foreground uppercase font-semibold mt-0.5">{label}</p>
     </div>
   );
 }
@@ -731,13 +731,13 @@ function InviteLinkDialog({ open, onOpenChange, inviteCode }: { open: boolean; o
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <p className="text-sm text-gray-500">Partagez ce lien pour inviter un nouveau partenaire à rejoindre votre réseau Hyla.</p>
+          <p className="text-sm text-muted-foreground">Partagez ce lien pour inviter un nouveau partenaire à rejoindre votre réseau Hyla.</p>
           <div className="flex gap-2">
-            <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2.5 text-xs text-gray-600 truncate border">
+            <div className="flex-1 bg-muted rounded-xl px-3 py-2.5 text-xs text-muted-foreground truncate border">
               {inviteUrl || 'Aucun code d\'invitation'}
             </div>
-            <button onClick={copyLink} disabled={!inviteCode} className="px-3 py-2.5 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50">
-              <Copy className="h-4 w-4 text-gray-600" />
+            <button onClick={copyLink} disabled={!inviteCode} className="px-3 py-2.5 bg-muted rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50">
+              <Copy className="h-4 w-4 text-muted-foreground" />
             </button>
           </div>
           <div className="flex gap-2">
@@ -799,28 +799,28 @@ function ManagerStatsPanel({ userId, memberName, open, onOpenChange }: { userId:
           </DialogTitle>
         </DialogHeader>
         {isLoading ? (
-          <div className="py-8 text-center text-gray-400 text-sm">Chargement...</div>
+          <div className="py-8 text-center text-muted-foreground text-sm">Chargement...</div>
         ) : stats ? (
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-blue-50 rounded-xl p-4 text-center">
               <ShoppingCart className="h-5 w-5 text-blue-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-gray-900">{stats.totalVentes}</p>
-              <p className="text-xs text-gray-500">Ventes</p>
+              <p className="text-2xl font-bold text-foreground">{stats.totalVentes}</p>
+              <p className="text-xs text-muted-foreground">Ventes</p>
             </div>
             <div className="bg-green-50 rounded-xl p-4 text-center">
               <DollarSign className="h-5 w-5 text-green-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-gray-900">{stats.totalCA.toLocaleString('fr-FR')} &euro;</p>
-              <p className="text-xs text-gray-500">CA total</p>
+              <p className="text-2xl font-bold text-foreground">{stats.totalCA.toLocaleString('fr-FR')} &euro;</p>
+              <p className="text-xs text-muted-foreground">CA total</p>
             </div>
             <div className="bg-amber-50 rounded-xl p-4 text-center">
               <DollarSign className="h-5 w-5 text-amber-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-gray-900">{stats.totalCommissions.toLocaleString('fr-FR')} &euro;</p>
-              <p className="text-xs text-gray-500">Commissions</p>
+              <p className="text-2xl font-bold text-foreground">{stats.totalCommissions.toLocaleString('fr-FR')} &euro;</p>
+              <p className="text-xs text-muted-foreground">Commissions</p>
             </div>
             <div className="bg-violet-50 rounded-xl p-4 text-center">
               <Users className="h-5 w-5 text-violet-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-gray-900">{stats.teamSize}</p>
-              <p className="text-xs text-gray-500">Equipe</p>
+              <p className="text-2xl font-bold text-foreground">{stats.teamSize}</p>
+              <p className="text-xs text-muted-foreground">Equipe</p>
             </div>
           </div>
         ) : null}
@@ -979,17 +979,17 @@ function FicheMembre({
         {/* Stats grid */}
         <div className="px-6 -mt-4">
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-white rounded-xl shadow-sm border p-3 text-center">
-              <p className="text-lg font-bold text-gray-900">{totalCommissions.toLocaleString('fr-FR')}€</p>
-              <p className="text-[10px] text-gray-400">Commissions</p>
+            <div className="bg-card rounded-xl shadow-sm border p-3 text-center">
+              <p className="text-lg font-bold text-foreground">{totalCommissions.toLocaleString('fr-FR')}€</p>
+              <p className="text-[10px] text-muted-foreground">Commissions</p>
             </div>
-            <div className="bg-white rounded-xl shadow-sm border p-3 text-center">
-              <p className="text-lg font-bold text-gray-900">{dealsSignes}</p>
-              <p className="text-[10px] text-gray-400">Ventes signées</p>
+            <div className="bg-card rounded-xl shadow-sm border p-3 text-center">
+              <p className="text-lg font-bold text-foreground">{dealsSignes}</p>
+              <p className="text-[10px] text-muted-foreground">Ventes signées</p>
             </div>
-            <div className="bg-white rounded-xl shadow-sm border p-3 text-center">
-              <p className="text-lg font-bold text-gray-900">{dealsEnCours}</p>
-              <p className="text-[10px] text-gray-400">En cours</p>
+            <div className="bg-card rounded-xl shadow-sm border p-3 text-center">
+              <p className="text-lg font-bold text-foreground">{dealsEnCours}</p>
+              <p className="text-[10px] text-muted-foreground">En cours</p>
             </div>
           </div>
         </div>
@@ -997,20 +997,20 @@ function FicheMembre({
         {/* Details */}
         <div className="px-6 py-4 space-y-3">
           <div className="space-y-2 text-sm">
-            {member.phone && <div className="flex justify-between"><span className="text-gray-400">Téléphone</span><span className="text-gray-900">{member.phone}</span></div>}
-            {member.email && <div className="flex justify-between"><span className="text-gray-400">Email</span><span className="text-gray-900 truncate ml-4">{member.email}</span></div>}
-            <div className="flex justify-between"><span className="text-gray-400">Depuis le</span><span className="text-gray-900">{joined}</span></div>
+            {member.phone && <div className="flex justify-between"><span className="text-muted-foreground">Téléphone</span><span className="text-foreground">{member.phone}</span></div>}
+            {member.email && <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span className="text-foreground truncate ml-4">{member.email}</span></div>}
+            <div className="flex justify-between"><span className="text-muted-foreground">Depuis le</span><span className="text-foreground">{joined}</span></div>
           </div>
 
           {/* Recent commissions */}
           {commissions.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Dernières commissions</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Dernières commissions</p>
               <div className="space-y-1 max-h-32 overflow-y-auto">
                 {commissions.slice(0, 5).map((c: any) => (
                   <div key={c.id} className="flex justify-between text-xs py-1 border-b border-gray-50">
-                    <span className="text-gray-500">{new Date(c.period + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
-                    <span className="font-semibold text-gray-900">{c.amount.toLocaleString('fr-FR')} €</span>
+                    <span className="text-muted-foreground">{new Date(c.period + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
+                    <span className="font-semibold text-foreground">{c.amount.toLocaleString('fr-FR')} €</span>
                   </div>
                 ))}
               </div>
@@ -1021,7 +1021,7 @@ function FicheMembre({
           <div className="flex gap-2 pt-2">
             <button
               onClick={onEdit}
-              className="flex-1 py-2.5 text-sm font-semibold bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
+              className="flex-1 py-2.5 text-sm font-semibold bg-muted text-foreground rounded-xl hover:bg-gray-200 transition-colors"
             >
               Modifier
             </button>
@@ -1095,12 +1095,12 @@ function OrgTreeNode({ node, isLast = false }: { node: OrgNode; isLast?: boolean
         </div>
         <span className="text-sm text-white font-medium truncate">{node.name}</span>
         <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
-          node.status === 'actif' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-gray-500/15 text-gray-400'
+          node.status === 'actif' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-gray-500/15 text-muted-foreground'
         }`}>
           {node.status === 'actif' ? 'Actif' : 'Inactif'}
         </span>
         {hasChildren && (
-          <button onClick={() => setExpanded(!expanded)} className="text-gray-500 hover:text-white ml-auto">
+          <button onClick={() => setExpanded(!expanded)} className="text-muted-foreground hover:text-white ml-auto">
             {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
           </button>
         )}
@@ -1125,11 +1125,11 @@ function DownlineSection({ currentUserId, members }: { currentUserId: string; me
   if (members.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
       <div className="flex items-center gap-2 mb-4">
         <Network className="h-4 w-4 text-violet-500" />
-        <h3 className="text-sm font-semibold text-gray-900">Organigramme</h3>
-        <span className="ml-auto text-xs text-gray-400">{members.length} membre{members.length > 1 ? 's' : ''}</span>
+        <h3 className="text-sm font-semibold text-foreground">Organigramme</h3>
+        <span className="ml-auto text-xs text-muted-foreground">{members.length} membre{members.length > 1 ? 's' : ''}</span>
       </div>
 
       {/* Moi */}
@@ -1137,7 +1137,7 @@ function DownlineSection({ currentUserId, members }: { currentUserId: string; me
         <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md mb-1">
           <Star className="h-6 w-6 text-white" />
         </div>
-        <p className="text-xs font-bold text-gray-900">Moi</p>
+        <p className="text-xs font-bold text-foreground">Moi</p>
         {orgTree.length > 0 && <div className="w-px h-5 bg-gray-200 mt-1.5" />}
       </div>
 
@@ -1156,9 +1156,9 @@ function DownlineSection({ currentUserId, members }: { currentUserId: string; me
                 <div className="h-10 w-10 rounded-xl bg-violet-100 flex items-center justify-center mb-1">
                   <span className="text-violet-700 font-bold text-[10px]">{node.initials}</span>
                 </div>
-                <p className="text-[11px] font-medium text-gray-800 text-center leading-tight">{node.name}</p>
+                <p className="text-[11px] font-medium text-foreground text-center leading-tight">{node.name}</p>
                 <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full mt-1 ${
-                  node.status === 'actif' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                  node.status === 'actif' ? 'bg-emerald-50 text-emerald-700' : 'bg-muted text-muted-foreground'
                 }`}>
                   {node.status === 'actif' ? 'Actif' : 'Inactif'}
                 </span>
@@ -1170,7 +1170,7 @@ function DownlineSection({ currentUserId, members }: { currentUserId: string; me
                         <div className="h-7 w-7 rounded-lg bg-blue-50 flex items-center justify-center mb-0.5">
                           <span className="text-blue-600 font-bold text-[8px]">{child.initials}</span>
                         </div>
-                        <p className="text-[9px] text-gray-500 text-center leading-tight">{child.name}</p>
+                        <p className="text-[9px] text-muted-foreground text-center leading-tight">{child.name}</p>
                       </div>
                     ))}
                   </div>
@@ -1226,7 +1226,7 @@ function SubTeamTree({
   if (isLoading) {
     return (
       <div className="pl-4 py-2">
-        <p className="text-[11px] text-gray-500 animate-pulse">Chargement de l'équipe...</p>
+        <p className="text-[11px] text-muted-foreground animate-pulse">Chargement de l'équipe...</p>
       </div>
     );
   }
@@ -1234,7 +1234,7 @@ function SubTeamTree({
   if (subMembers.length === 0) {
     return (
       <div className="pl-4 py-2">
-        <p className="text-[11px] text-gray-500 italic">Aucun membre dans cette équipe</p>
+        <p className="text-[11px] text-muted-foreground italic">Aucun membre dans cette équipe</p>
       </div>
     );
   }
@@ -1280,13 +1280,13 @@ function SubTeamTree({
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[10px] text-gray-500">
+                        <span className="text-[10px] text-muted-foreground">
                           {isManager ? 'Manager' : 'Conseillère'}
                         </span>
                         <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
                           sub.status === 'actif'
                             ? 'bg-emerald-500/15 text-emerald-400'
-                            : 'bg-white/5 text-gray-500'
+                            : 'bg-white/5 text-muted-foreground'
                         }`}>
                           {sub.status === 'actif' ? 'Actif' : 'Inactif'}
                         </span>
@@ -1525,7 +1525,7 @@ export default function NetworkPage() {
       <div className="space-y-4">
         {/* ── KPI cards ── */}
         <div className="grid grid-cols-2 gap-3">
-          <KpiCard value={members.length} label="Total" color="text-gray-900" />
+          <KpiCard value={members.length} label="Total" color="text-foreground" />
           <KpiCard value={actifs} label="Actifs" color="text-emerald-600" />
         </div>
 
@@ -1538,7 +1538,7 @@ export default function NetworkPage() {
             ? Math.round(((members.length - tier.min) / (nextTier.min - tier.min)) * 100)
             : 100;
           return (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
               <div className="flex items-center gap-3">
                 <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${tier.color} flex items-center justify-center shadow-md flex-shrink-0`}>
                   <TierIcon className="h-6 w-6 text-white" />
@@ -1547,16 +1547,16 @@ export default function NetworkPage() {
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-bold ${tier.text}`}>{tier.label}</span>
                     {nextTier && (
-                      <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                         <ChevronUp className="h-3 w-3" />
                         {nextTier.label} à {nextTier.min} partenaires
                       </span>
                     )}
                   </div>
-                  <div className="mt-1.5 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                  <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden">
                     <div className={`h-full rounded-full bg-gradient-to-r ${tier.color} transition-all duration-700`} style={{ width: `${progress}%` }} />
                   </div>
-                  <p className="text-[11px] text-gray-400 mt-1">
+                  <p className="text-[11px] text-muted-foreground mt-1">
                     {members.length} partenaire{members.length > 1 ? 's' : ''} • {tier.min >= 4
                       ? `${HYLA_NETWORK_COMMISSION.manager.recrue_directe}€/vente recrue • ${HYLA_NETWORK_COMMISSION.manager.reseau}€/vente réseau`
                       : `${HYLA_NETWORK_COMMISSION.conseillere.recrue_directe}€/vente recrue directe`}
@@ -1570,7 +1570,7 @@ export default function NetworkPage() {
         {/* ── Search + Toggle ── */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Rechercher un membre..."
               value={search}
@@ -1580,7 +1580,7 @@ export default function NetworkPage() {
           </div>
           <button
             onClick={() => setShowMemberList(!showMemberList)}
-            className="p-2.5 rounded-xl border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors"
+            className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-gray-600 hover:border-gray-300 transition-colors"
             title={showMemberList ? 'Masquer' : 'Afficher'}
           >
             {showMemberList ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -1596,7 +1596,7 @@ export default function NetworkPage() {
               return (
                 <div
                   key={member.id}
-                  className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:border-gray-200 transition-all"
+                  className="bg-card rounded-2xl shadow-sm border border-border p-4 hover:border-border transition-all"
                 >
                   {/* Header */}
                   <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleOpenEdit(member)}>
@@ -1607,20 +1607,20 @@ export default function NetworkPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{member.first_name} {member.last_name}</p>
+                        <p className="text-sm font-semibold text-foreground truncate">{member.first_name} {member.last_name}</p>
                         <TierIcon className={`h-3.5 w-3.5 flex-shrink-0 ${tier.text}`} />
                         {member.internal_id && (
-                          <span className="text-[9px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{member.internal_id}</span>
+                          <span className="text-[9px] font-mono bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{member.internal_id}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         {member.joined_at && (
-                          <span className="text-[10px] text-gray-400">
+                          <span className="text-[10px] text-muted-foreground">
                             Depuis {new Date(member.joined_at).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}
                           </span>
                         )}
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                          member.status === 'actif' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                          member.status === 'actif' ? 'bg-emerald-50 text-emerald-700' : 'bg-muted text-muted-foreground'
                         }`}>
                           {member.status === 'actif' ? 'Actif' : 'Inactif'}
                         </span>
@@ -1680,7 +1680,7 @@ export default function NetworkPage() {
                   {(member as any).linked_user_id && (
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleTeamExpand(member.id); }}
-                      className="w-full flex items-center justify-center gap-1.5 py-2 mt-1 rounded-xl text-[11px] font-semibold bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors active:scale-[0.98]"
+                      className="w-full flex items-center justify-center gap-1.5 py-2 mt-1 rounded-xl text-[11px] font-semibold bg-muted text-muted-foreground border border-border hover:bg-muted transition-colors active:scale-[0.98]"
                     >
                       {expandedTeamIds.has(member.id) ? (
                         <><ChevronDown className="h-3.5 w-3.5" /> Masquer l'équipe</>
@@ -1705,7 +1705,7 @@ export default function NetworkPage() {
             {filtered.length === 0 && (
               <div className="text-center py-16">
                 <Users className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-muted-foreground">
                   {isLoading ? 'Chargement...' : 'Aucun membre dans le réseau'}
                 </p>
               </div>

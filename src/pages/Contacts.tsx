@@ -316,7 +316,7 @@ export default function Contacts() {
         {/* Toolbar */}
         <div className="flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Rechercher un contact..."
               value={search}
@@ -335,23 +335,23 @@ export default function Contacts() {
               ))}
             </SelectContent>
           </Select>
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex gap-1 bg-muted rounded-lg p-1">
             <button
               onClick={() => setView('list')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'list' ? 'bg-white shadow-sm' : 'text-gray-500'}`}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'list' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
             >
               Liste
             </button>
             <button
               onClick={() => setView('pipeline')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'pipeline' ? 'bg-white shadow-sm' : 'text-gray-500'}`}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'pipeline' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
             >
               Pipeline
             </button>
             {view === 'pipeline' && (
               <button
                 onClick={() => { setEditStages(stages.map(s => ({...s}))); setShowStageManager(true); }}
-                className="px-2 py-1.5 text-gray-400 hover:text-gray-600"
+                className="px-2 py-1.5 text-muted-foreground hover:text-gray-600"
               >
                 <Settings className="h-4 w-4" />
               </button>
@@ -361,30 +361,30 @@ export default function Contacts() {
 
         {/* List view */}
         {view === 'list' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-muted border-b">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Nom</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 hidden md:table-cell">Contact</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Statut</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 hidden md:table-cell">Source</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 hidden md:table-cell">Créé le</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Nom</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Contact</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Source</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Créé le</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border">
                 {filtered.map((contact) => (
-                  <tr key={contact.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setEditingContact(contact)}>
+                  <tr key={contact.id} className="hover:bg-muted cursor-pointer" onClick={() => setEditingContact(contact)}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">{contact.first_name} {contact.last_name}</span>
+                        <span className="font-medium text-foreground">{contact.first_name} {contact.last_name}</span>
                         {networkContactIds.has(contact.id) && (
                           <Network className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
                         )}
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      <div className="flex items-center gap-3 text-gray-500">
+                      <div className="flex items-center gap-3 text-muted-foreground">
                         {contact.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{contact.phone}</span>}
                         {contact.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{contact.email}</span>}
                       </div>
@@ -394,15 +394,15 @@ export default function Contacts() {
                         {CONTACT_STATUS_LABELS[contact.status]}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{contact.source || '—'}</td>
-                    <td className="px-4 py-3 text-gray-400 hidden md:table-cell">
+                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{contact.source || '—'}</td>
+                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
                       {new Date(contact.created_at).toLocaleDateString('fr-FR')}
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
                       {isLoading ? 'Chargement...' : 'Aucun contact trouvé'}
                     </td>
                   </tr>
@@ -440,8 +440,8 @@ export default function Contacts() {
                 >
                   <div className="flex items-center gap-2 mb-3">
                     <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
-                    <span className="text-sm font-semibold text-gray-700">{stage.name}</span>
-                    <span className="text-xs text-gray-400 ml-auto">{stage.contacts.length}</span>
+                    <span className="text-sm font-semibold text-foreground">{stage.name}</span>
+                    <span className="text-xs text-muted-foreground ml-auto">{stage.contacts.length}</span>
                   </div>
                   <div className="space-y-2">
                     {stage.contacts.map((contact) => (
@@ -457,19 +457,19 @@ export default function Contacts() {
                           (e.currentTarget as HTMLElement).style.opacity = '1';
                         }}
                         onTouchStart={() => setDraggingContact(contact)}
-                        className="bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                        className="bg-card rounded-2xl border border-border p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                         onClick={() => {
                           if (!draggingContact) setEditingContact(contact);
                         }}
                       >
                         <div className="flex items-center gap-2">
                           <GripVertical className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />
-                          <p className="font-medium text-sm text-gray-900">{contact.first_name} {contact.last_name}</p>
+                          <p className="font-medium text-sm text-foreground">{contact.first_name} {contact.last_name}</p>
                           {networkContactIds.has(contact.id) && (
                             <Network className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
                           )}
                         </div>
-                        {contact.phone && <p className="text-xs text-gray-400 mt-1 ml-5">{contact.phone}</p>}
+                        {contact.phone && <p className="text-xs text-muted-foreground mt-1 ml-5">{contact.phone}</p>}
                         <div className="flex items-center gap-2 mt-2 ml-5">
                           <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium ${CONTACT_STATUS_COLORS[contact.status]}`}>
                             {CONTACT_STATUS_LABELS[contact.status]}
@@ -478,7 +478,7 @@ export default function Contacts() {
                       </div>
                     ))}
                     {stage.contacts.length === 0 && (
-                      <div className="bg-gray-50 rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400">
+                      <div className="bg-muted rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
                         Aucun contact
                       </div>
                     )}
@@ -489,10 +489,10 @@ export default function Contacts() {
 
             {/* Touch drag indicator */}
             {draggingContact && (
-              <div className="fixed bottom-20 left-4 right-4 bg-white rounded-2xl shadow-xl border p-3 z-50">
+              <div className="fixed bottom-20 left-4 right-4 bg-card rounded-2xl shadow-xl border p-3 z-50">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs text-gray-500 text-center flex-1">Déplacer {draggingContact.first_name} vers :</p>
-                  <button onClick={() => setDraggingContact(null)} className="text-xs text-gray-400 hover:text-gray-600 px-2">✕</button>
+                  <p className="text-xs text-muted-foreground text-center flex-1">Déplacer {draggingContact.first_name} vers :</p>
+                  <button onClick={() => setDraggingContact(null)} className="text-xs text-muted-foreground hover:text-gray-600 px-2">✕</button>
                 </div>
                 <div className="flex gap-2 overflow-x-auto">
                   {stages.map(s => (
@@ -540,7 +540,7 @@ export default function Contacts() {
           <DialogHeader><DialogTitle>Gérer les étapes du pipeline</DialogTitle></DialogHeader>
           <div className="space-y-2 max-h-[50vh] overflow-y-auto">
             {editStages.sort((a, b) => a.position - b.position).map((stage, idx) => (
-              <div key={stage.id || idx} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2">
+              <div key={stage.id || idx} className="flex items-center gap-2 bg-muted rounded-xl p-2">
                 <GripVertical className="h-4 w-4 text-gray-300 flex-shrink-0" />
                 <div
                   className="h-4 w-4 rounded-full flex-shrink-0 cursor-pointer"
@@ -574,7 +574,7 @@ export default function Contacts() {
           </div>
           <button
             onClick={() => setEditStages([...editStages, { name: '', color: '#3b82f6', position: editStages.length + 1 }])}
-            className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-blue-300"
+            className="w-full py-2 border-2 border-dashed border-border rounded-xl text-sm text-muted-foreground hover:border-blue-300"
           >
             + Ajouter une étape
           </button>

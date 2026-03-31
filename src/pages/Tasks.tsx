@@ -275,11 +275,11 @@ export default function Tasks() {
 
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+          <div className="flex gap-1 bg-muted rounded-lg p-1 w-fit">
             {[['active', 'À faire'], ['done', 'Terminées'], ['all', 'Toutes']].map(([key, label]) => (
-              <button key={key} onClick={() => { setFilter(key); setView('list'); }} className={`px-3 py-1.5 text-sm font-medium rounded-md ${filter === key && view === 'list' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>{label}</button>
+              <button key={key} onClick={() => { setFilter(key); setView('list'); }} className={`px-3 py-1.5 text-sm font-medium rounded-md ${filter === key && view === 'list' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>{label}</button>
             ))}
-            <button onClick={() => setView('kanban')} className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'kanban' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Kanban</button>
+            <button onClick={() => setView('kanban')} className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'kanban' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Kanban</button>
           </div>
         </div>
 
@@ -288,7 +288,7 @@ export default function Tasks() {
           {filtered.map((task: any) => (
             <div
               key={task.id}
-              className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer active:scale-[0.99]"
+              className="bg-card rounded-2xl shadow-sm border border-border p-4 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer active:scale-[0.99]"
               onClick={() => handleOpenEdit(task)}
             >
               <button
@@ -303,9 +303,9 @@ export default function Tasks() {
                 {task.status === 'terminee' && <Check className="h-3.5 w-3.5 text-white" />}
               </button>
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium ${task.status === 'terminee' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
+                <p className={`text-sm font-medium ${task.status === 'terminee' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{task.title}</p>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <span className="text-xs text-gray-400">{TASK_TYPE_LABELS_HYLA[task.type as keyof typeof TASK_TYPE_LABELS_HYLA]}</span>
+                  <span className="text-xs text-muted-foreground">{TASK_TYPE_LABELS_HYLA[task.type as keyof typeof TASK_TYPE_LABELS_HYLA]}</span>
                   {task.contacts && (
                     <span className="text-xs text-blue-500 flex items-center gap-1">
                       <User className="h-3 w-3" />
@@ -316,7 +316,7 @@ export default function Tasks() {
               </div>
               {task.due_date && (
                 <span className={`text-xs font-medium flex items-center gap-1 flex-shrink-0 ${
-                  new Date(task.due_date) < new Date() && task.status !== 'terminee' ? 'text-red-500' : 'text-gray-400'
+                  new Date(task.due_date) < new Date() && task.status !== 'terminee' ? 'text-red-500' : 'text-muted-foreground'
                 }`}>
                   <Clock className="h-3 w-3" />
                   {new Date(task.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
@@ -324,7 +324,7 @@ export default function Tasks() {
               )}
             </div>
           ))}
-          {filtered.length === 0 && <p className="text-center py-12 text-gray-400">Aucune tâche</p>}
+          {filtered.length === 0 && <p className="text-center py-12 text-muted-foreground">Aucune tâche</p>}
         </div>
         )}
 
@@ -356,8 +356,8 @@ export default function Tasks() {
                 >
                   <div className="flex items-center gap-2 mb-3">
                     <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: col.color }} />
-                    <span className="text-sm font-semibold text-gray-700">{col.label}</span>
-                    <span className="text-xs text-gray-400 ml-auto">{colTasks.length}</span>
+                    <span className="text-sm font-semibold text-foreground">{col.label}</span>
+                    <span className="text-xs text-muted-foreground ml-auto">{colTasks.length}</span>
                   </div>
                   <div className="space-y-2 min-h-[100px]">
                     {colTasks.map((task: any) => (
@@ -371,14 +371,14 @@ export default function Tasks() {
                         onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
                         onTouchStart={() => setDraggingTask(task)}
                         onClick={() => handleOpenEdit(task)}
-                        className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.98]"
+                        className="bg-card rounded-xl border border-border p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.98]"
                       >
                         <div className="flex items-start gap-2">
                           <GripVertical className="h-4 w-4 text-gray-300 mt-0.5 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium ${task.status === 'terminee' ? 'text-gray-400 line-through' : 'text-gray-900'} truncate`}>{task.title}</p>
+                            <p className={`text-sm font-medium ${task.status === 'terminee' ? 'text-muted-foreground line-through' : 'text-foreground'} truncate`}>{task.title}</p>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
                                 {TASK_TYPE_LABELS_HYLA[task.type as keyof typeof TASK_TYPE_LABELS_HYLA] || task.type}
                               </span>
                               {task.contacts && (
@@ -390,7 +390,7 @@ export default function Tasks() {
                             </div>
                             {task.due_date && (
                               <p className={`text-[10px] mt-1 flex items-center gap-1 ${
-                                new Date(task.due_date) < new Date() && task.status !== 'terminee' ? 'text-red-500 font-semibold' : 'text-gray-400'
+                                new Date(task.due_date) < new Date() && task.status !== 'terminee' ? 'text-red-500 font-semibold' : 'text-muted-foreground'
                               }`}>
                                 <Clock className="h-2.5 w-2.5" />
                                 {new Date(task.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
@@ -412,7 +412,7 @@ export default function Tasks() {
                       </div>
                     ))}
                     {colTasks.length === 0 && (
-                      <div className="bg-gray-50 rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400">
+                      <div className="bg-muted rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
                         Aucune tâche
                       </div>
                     )}
@@ -426,8 +426,8 @@ export default function Tasks() {
 
       {/* Touch drag bar for mobile */}
       {draggingTask && (
-        <div className="fixed bottom-20 left-4 right-4 bg-white rounded-2xl shadow-xl border p-3 z-50">
-          <p className="text-xs text-gray-500 mb-2 text-center">Déplacer « {draggingTask.title} » vers :</p>
+        <div className="fixed bottom-20 left-4 right-4 bg-card rounded-2xl shadow-xl border p-3 z-50">
+          <p className="text-xs text-muted-foreground mb-2 text-center">Déplacer « {draggingTask.title} » vers :</p>
           <div className="flex gap-2">
             {[
               { status: 'a_faire', label: 'À faire', color: '#3b82f6' },
@@ -450,7 +450,7 @@ export default function Tasks() {
               </button>
             ))}
           </div>
-          <button onClick={() => setDraggingTask(null)} className="w-full mt-2 text-xs text-gray-400 py-1">Annuler</button>
+          <button onClick={() => setDraggingTask(null)} className="w-full mt-2 text-xs text-muted-foreground py-1">Annuler</button>
         </div>
       )}
     </AppLayout>

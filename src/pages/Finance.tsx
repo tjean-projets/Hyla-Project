@@ -560,15 +560,15 @@ export default function Finance() {
     <AppLayout title="Finance">
       <div className="space-y-5">
         {/* ── Tabs ── */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+        <div className="flex gap-1 bg-muted p-1 rounded-xl">
           {TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === tab.id
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-gray-700'
               }`}
             >
               <tab.icon className="h-3.5 w-3.5" />
@@ -614,11 +614,11 @@ export default function Finance() {
                       <Input type="month" value={flow.period} onChange={(e) => setFlow({ ...flow, period: e.target.value })} className="h-11" />
                     </div>
                     <div
-                      className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+                      className="border-2 border-dashed border-border rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <FileSpreadsheet className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                      <p className="text-xs text-gray-500 mb-2">CSV, Excel ou template Excel</p>
+                      <p className="text-xs text-muted-foreground mb-2">CSV, Excel ou template Excel</p>
                       <p className="text-xs font-semibold text-blue-500">Cliquer pour choisir un fichier</p>
                       <input
                         ref={fileInputRef}
@@ -633,7 +633,7 @@ export default function Finance() {
 
                 {flow.step === 'mapping' && (
                   <div className="space-y-3">
-                    <p className="text-xs text-gray-500">{flow.rawData.length} lignes dans "{flow.fileName}"</p>
+                    <p className="text-xs text-muted-foreground">{flow.rawData.length} lignes dans "{flow.fileName}"</p>
                     <div className="space-y-2">
                       <div>
                         <Label className="text-xs">Colonne Nom *</Label>
@@ -670,10 +670,10 @@ export default function Finance() {
                         </Select>
                       </div>
                     </div>
-                    <div className="bg-gray-50 rounded-lg p-2.5 max-h-28 overflow-y-auto">
-                      <p className="text-[10px] font-semibold text-gray-400 mb-1.5">Aperçu</p>
+                    <div className="bg-muted rounded-lg p-2.5 max-h-28 overflow-y-auto">
+                      <p className="text-[10px] font-semibold text-muted-foreground mb-1.5">Aperçu</p>
                       {flow.rawData.slice(0, 3).map((row, i) => (
-                        <div key={i} className="text-xs text-gray-600 mb-0.5">
+                        <div key={i} className="text-xs text-muted-foreground mb-0.5">
                           <span className="font-medium">{[row[flow.mapping.firstname_col], row[flow.mapping.name_col]].filter(Boolean).join(' ') || '—'}</span>
                           {' → '}
                           <span className="text-green-700">{row[flow.mapping.amount_col] || '0'} €</span>
@@ -718,19 +718,19 @@ export default function Finance() {
                         }`}>
                           <div className="flex items-center justify-between">
                             <div className="min-w-0 flex-1">
-                              <span className="font-medium text-gray-800 truncate block">{r.row_name}</span>
+                              <span className="font-medium text-foreground truncate block">{r.row_name}</span>
                               {r.is_owner_row && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Moi</span>}
                               {r.matched_member && !r.is_owner_row && (
-                                <span className="text-[10px] text-gray-500">→ {r.matched_member.first_name} {r.matched_member.last_name} {r.matched_member.internal_id ? `(${r.matched_member.internal_id})` : ''}</span>
+                                <span className="text-[10px] text-muted-foreground">→ {r.matched_member.first_name} {r.matched_member.last_name} {r.matched_member.internal_id ? `(${r.matched_member.internal_id})` : ''}</span>
                               )}
                             </div>
-                            <span className="font-semibold text-gray-900 ml-2 whitespace-nowrap">{r.amount.toLocaleString('fr-FR')} €</span>
+                            <span className="font-semibold text-foreground ml-2 whitespace-nowrap">{r.amount.toLocaleString('fr-FR')} €</span>
                           </div>
                           {/* Manual matching dropdown for unmatched rows */}
                           {r.match_status === 'non_reconnu' && !r.is_owner_row && (
                             <div className="mt-1.5">
                               <select
-                                className="w-full text-[11px] border border-red-200 rounded-lg px-2 py-1.5 bg-white focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                                className="w-full text-[11px] border border-red-200 rounded-lg px-2 py-1.5 bg-card focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
                                 value=""
                                 onChange={(e) => {
                                   const val = e.target.value;
@@ -763,7 +763,7 @@ export default function Finance() {
                       <button
                         onClick={() => setFlow({ ...flow, step: 'mapping' })}
                         disabled={saveImport.isPending}
-                        className="flex-1 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl disabled:opacity-50"
+                        className="flex-1 py-3 bg-muted text-foreground font-semibold rounded-xl disabled:opacity-50"
                       >
                         Retour
                       </button>
@@ -781,24 +781,24 @@ export default function Finance() {
                 {flow.step === 'done' && (
                   <div className="text-center py-6">
                     <CheckCircle className="h-10 w-10 text-green-500 mx-auto mb-2" />
-                    <p className="text-base font-semibold text-gray-900">Import terminé</p>
-                    <p className="text-xs text-gray-500 mt-1">Les commissions ont été consolidées.</p>
-                    <button onClick={() => setShowImport(false)} className="mt-4 px-6 py-2 bg-gray-100 rounded-xl text-sm font-medium">Fermer</button>
+                    <p className="text-base font-semibold text-foreground">Import terminé</p>
+                    <p className="text-xs text-muted-foreground mt-1">Les commissions ont été consolidées.</p>
+                    <button onClick={() => setShowImport(false)} className="mt-4 px-6 py-2 bg-muted rounded-xl text-sm font-medium">Fermer</button>
                   </div>
                 )}
               </DialogContent>
             </Dialog>
 
             {/* Import history */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-900">Historique des imports</h3>
+            <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+              <div className="px-4 py-3 border-b border-border">
+                <h3 className="text-sm font-semibold text-foreground">Historique des imports</h3>
               </div>
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-border">
                 {imports.map((imp: any) => (
                   <div
                     key={imp.id}
-                    className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-muted transition-colors"
                     onClick={async () => {
                       setSelectedImport(imp);
                       const { data: rows } = await supabase
@@ -811,10 +811,10 @@ export default function Finance() {
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <FileSpreadsheet className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                        <span className="text-sm font-medium text-gray-900 truncate">{imp.file_name}</span>
+                        <FileSpreadsheet className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-medium text-foreground truncate">{imp.file_name}</span>
                       </div>
-                      <p className="text-[11px] text-gray-400 ml-5.5">
+                      <p className="text-[11px] text-muted-foreground ml-5.5">
                         {imp.period} • {new Date(imp.uploaded_at).toLocaleDateString('fr-FR')}
                         {imp.stats && ` • ${(imp.stats as any).matched_rows || 0} matchés / ${(imp.stats as any).total_rows || 0}`}
                       </p>
@@ -828,7 +828,7 @@ export default function Finance() {
                   </div>
                 ))}
                 {imports.length === 0 && (
-                  <div className="px-4 py-10 text-center text-sm text-gray-400">Aucun import</div>
+                  <div className="px-4 py-10 text-center text-sm text-muted-foreground">Aucun import</div>
                 )}
               </div>
             </div>
@@ -845,7 +845,7 @@ export default function Finance() {
                 <div className="space-y-3">
                   {/* Stats */}
                   <div className="flex gap-2 text-xs">
-                    <span className="px-2 py-1 bg-gray-100 rounded-lg">Période : {selectedImport?.period}</span>
+                    <span className="px-2 py-1 bg-muted rounded-lg">Période : {selectedImport?.period}</span>
                     <span className={`px-2 py-1 rounded-lg ${IMPORT_STATUS_COLORS[selectedImport?.status as keyof typeof IMPORT_STATUS_COLORS]}`}>
                       {IMPORT_STATUS_LABELS[selectedImport?.status as keyof typeof IMPORT_STATUS_LABELS]}
                     </span>
@@ -877,16 +877,16 @@ export default function Finance() {
                       }`}>
                         <div className="flex items-center justify-between">
                           <div className="min-w-0 flex-1">
-                            <span className="font-medium text-gray-800 block">{row.details || 'Sans nom'}</span>
+                            <span className="font-medium text-foreground block">{row.details || 'Sans nom'}</span>
                             {row.is_owner_row && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Moi</span>}
                           </div>
-                          <span className="font-semibold text-gray-900 ml-2">{(row.amount || 0).toLocaleString('fr-FR')} €</span>
+                          <span className="font-semibold text-foreground ml-2">{(row.amount || 0).toLocaleString('fr-FR')} €</span>
                         </div>
                         {/* Re-match dropdown for unmatched */}
                         {row.match_status === 'non_reconnu' && !row.is_owner_row && (
                           <div className="mt-1.5">
                             <select
-                              className="w-full text-[11px] border border-red-200 rounded-lg px-2 py-1.5 bg-white"
+                              className="w-full text-[11px] border border-red-200 rounded-lg px-2 py-1.5 bg-card"
                               value=""
                               onChange={async (e) => {
                                 const val = e.target.value;
@@ -920,7 +920,7 @@ export default function Finance() {
 
                   {/* Re-consolidate button */}
                   {importRows.some((r: any) => r.match_status === 'non_reconnu') && (
-                    <p className="text-[10px] text-gray-400 text-center">Corrigez les lignes non matchées puis re-consolidez</p>
+                    <p className="text-[10px] text-muted-foreground text-center">Corrigez les lignes non matchées puis re-consolidez</p>
                   )}
                   <button
                     onClick={async () => {
@@ -946,8 +946,8 @@ export default function Finance() {
         {activeTab === 'factures' && (
           <>
             {/* Period selector */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-              <Label className="text-xs text-gray-500 mb-1.5 block">Période de facturation</Label>
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Période de facturation</Label>
               <Input
                 type="month"
                 value={invoicePeriod}
@@ -973,16 +973,16 @@ export default function Finance() {
             </div>
 
             {/* Commission list for this period */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">Détail des commissions</h3>
-                <span className="text-xs text-gray-400">{invoiceCommissions.length} lignes</span>
+            <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+              <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-foreground">Détail des commissions</h3>
+                <span className="text-xs text-muted-foreground">{invoiceCommissions.length} lignes</span>
               </div>
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-border">
                 {invoiceCommissions.map((c: any) => (
                   <div key={c.id} className="px-4 py-3 flex items-center justify-between">
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-medium text-foreground truncate">
                         {c.type === 'directe' ? 'Vente directe' : `Réseau${c.team_members ? ` - ${c.team_members.first_name} ${c.team_members.last_name}` : ''}`}
                       </p>
                       <span className={`inline-flex mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
@@ -991,13 +991,13 @@ export default function Finance() {
                         {c.type === 'directe' ? 'Directe' : 'Réseau'}
                       </span>
                     </div>
-                    <span className="font-bold text-gray-900 ml-2">{c.amount.toLocaleString('fr-FR')} €</span>
+                    <span className="font-bold text-foreground ml-2">{c.amount.toLocaleString('fr-FR')} €</span>
                   </div>
                 ))}
                 {invoiceCommissions.length === 0 && (
                   <div className="px-4 py-10 text-center">
                     <Receipt className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                    <p className="text-sm text-gray-400">Aucune commission validée pour cette période</p>
+                    <p className="text-sm text-muted-foreground">Aucune commission validée pour cette période</p>
                   </div>
                 )}
               </div>

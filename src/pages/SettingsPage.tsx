@@ -54,18 +54,18 @@ function InviteLinkSection({ inviteCode, fullName }: { inviteCode?: string | nul
     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-5">
       <div className="flex items-center gap-2 mb-1">
         <Link2 className="h-4 w-4 text-blue-600" />
-        <h3 className="text-base font-semibold text-gray-900">Lien d'invitation</h3>
+        <h3 className="text-base font-semibold text-foreground">Lien d'invitation</h3>
       </div>
-      <p className="text-xs text-gray-500 mb-4">
+      <p className="text-xs text-muted-foreground mb-4">
         Partagez ce lien pour inviter un autre manager ou conseiller à créer son espace Hyla Assistant. Aucun lien de subordination n'est créé — la personne aura son propre espace indépendant.
       </p>
-      <div className="bg-white rounded-xl border border-blue-200 p-3 flex items-center gap-2">
+      <div className="bg-card rounded-xl border border-blue-200 p-3 flex items-center gap-2">
         <code className="flex-1 text-xs text-blue-700 truncate font-mono">{inviteLink}</code>
       </div>
       <div className="flex gap-2 mt-3">
         <button
           onClick={copyLink}
-          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white border border-blue-200 text-blue-700 font-semibold text-sm rounded-xl active:scale-[0.98] transition-transform"
+          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-card border border-blue-200 text-blue-700 font-semibold text-sm rounded-xl active:scale-[0.98] transition-transform"
         >
           {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
           {copied ? 'Copié !' : 'Copier le lien'}
@@ -125,16 +125,16 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
     <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100 p-5">
       <div className="flex items-center gap-2 mb-1">
         <Users className="h-4 w-4 text-green-600" />
-        <h3 className="text-base font-semibold text-gray-900">Page de contact</h3>
+        <h3 className="text-base font-semibold text-foreground">Page de contact</h3>
       </div>
-      <p className="text-xs text-gray-500 mb-4">
+      <p className="text-xs text-muted-foreground mb-4">
         Partagez ces liens sur vos réseaux sociaux. Les personnes intéressées rempliront un formulaire et seront ajoutées automatiquement à vos contacts.
       </p>
 
       {/* Bio link */}
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-semibold text-gray-700">Lien Bio (permanent)</span>
+          <span className="text-xs font-semibold text-foreground">Lien Bio (permanent)</span>
           {leadCounts && leadCounts.bio > 0 && (
             <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
               {leadCounts.bio} lead{leadCounts.bio > 1 ? 's' : ''}
@@ -142,7 +142,7 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
           )}
         </div>
         <div className="flex gap-2">
-          <code className="flex-1 bg-white rounded-lg border border-green-200 px-3 py-2 text-[11px] text-green-700 truncate font-mono">
+          <code className="flex-1 bg-card rounded-lg border border-green-200 px-3 py-2 text-[11px] text-green-700 truncate font-mono">
             {bioLink}
           </code>
           <button
@@ -157,7 +157,7 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
       {/* Story link */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-semibold text-gray-700">Lien Story (tracking)</span>
+          <span className="text-xs font-semibold text-foreground">Lien Story (tracking)</span>
           {leadCounts && leadCounts.story > 0 && (
             <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
               {leadCounts.story} lead{leadCounts.story > 1 ? 's' : ''}
@@ -165,7 +165,7 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
           )}
         </div>
         <div className="flex gap-2">
-          <code className="flex-1 bg-white rounded-lg border border-purple-200 px-3 py-2 text-[11px] text-purple-700 truncate font-mono">
+          <code className="flex-1 bg-card rounded-lg border border-purple-200 px-3 py-2 text-[11px] text-purple-700 truncate font-mono">
             {storyLink}
           </code>
           <button
@@ -280,15 +280,15 @@ export default function SettingsPage() {
     <AppLayout title="Paramètres">
       <div className="max-w-2xl space-y-8">
         {/* Profile */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Mon profil</h3>
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <h3 className="text-base font-semibold text-foreground mb-4">Mon profil</h3>
           <div className="space-y-4">
             {/* ID Hyla Assistant */}
             {profile?.invite_code && (
               <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-3">
                 <Fingerprint className="h-5 w-5 text-blue-600 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-medium text-gray-500 uppercase">Mon ID Hyla Assistant</p>
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase">Mon ID Hyla Assistant</p>
                   <p className="text-sm font-bold text-blue-700 font-mono">{profile.invite_code.toUpperCase()}</p>
                 </div>
                 <button
@@ -309,7 +309,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <Label className="text-xs">Email actuel</Label>
-              <Input value={user?.email || ''} disabled className="bg-gray-50 h-11 text-gray-500" />
+              <Input value={user?.email || ''} disabled className="bg-muted h-11 text-muted-foreground" />
             </div>
             <div>
               <Label className="text-xs">Changer d'email</Label>
@@ -335,12 +335,12 @@ export default function SettingsPage() {
                     }
                   }}
                   disabled={emailSaving || !newEmail || newEmail === user?.email}
-                  className="px-4 h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-sm rounded-xl disabled:opacity-30 transition-colors whitespace-nowrap"
+                  className="px-4 h-11 bg-muted hover:bg-gray-200 text-foreground font-semibold text-sm rounded-xl disabled:opacity-30 transition-colors whitespace-nowrap"
                 >
                   {emailSaving ? '...' : 'Modifier'}
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 mt-1">Un email de confirmation sera envoyé aux deux adresses.</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Un email de confirmation sera envoyé aux deux adresses.</p>
             </div>
             <div>
               <Label className="text-xs">Téléphone</Label>
@@ -358,18 +358,18 @@ export default function SettingsPage() {
         </div>
 
         {/* Theme Toggle */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Apparence</h3>
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <h3 className="text-base font-semibold text-foreground mb-4">Apparence</h3>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-900">Mode sombre</p>
-              <p className="text-xs text-gray-500">Basculer entre le thème clair et sombre</p>
+              <p className="text-sm font-medium text-foreground">Mode sombre</p>
+              <p className="text-xs text-muted-foreground">Basculer entre le thème clair et sombre</p>
             </div>
             <button
               onClick={() => themeCtx?.toggleTheme()}
               className={`relative w-12 h-7 rounded-full transition-colors ${themeCtx?.isDark ? 'bg-[#3b82f6]' : 'bg-gray-300'}`}
             >
-              <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${themeCtx?.isDark ? 'translate-x-5' : ''}`} />
+              <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-card shadow transition-transform ${themeCtx?.isDark ? 'translate-x-5' : ''}`} />
             </button>
           </div>
         </div>
@@ -380,18 +380,18 @@ export default function SettingsPage() {
         <ContactLinksSection inviteCode={profile?.invite_code} userId={user?.id} />
 
         {/* Form Builder */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
           <div className="flex items-center gap-2 mb-1">
             <FileText className="h-4 w-4 text-blue-600" />
-            <h3 className="text-base font-semibold text-gray-900">Formulaire objectifs</h3>
+            <h3 className="text-base font-semibold text-foreground">Formulaire objectifs</h3>
           </div>
-          <p className="text-xs text-gray-500 mb-4">
+          <p className="text-xs text-muted-foreground mb-4">
             Configurez les questions envoyées à vos partenaires réseau. Elles apparaîtront dans le formulaire en plus des objectifs standard.
           </p>
 
           <div className="space-y-3 mb-4">
             {questions.map((q, index) => (
-              <div key={q.id} className="bg-gray-50 rounded-xl p-3 space-y-2">
+              <div key={q.id} className="bg-muted rounded-xl p-3 space-y-2">
                 <div className="flex items-start gap-2">
                   <GripVertical className="h-4 w-4 text-gray-300 mt-2.5 flex-shrink-0" />
                   <div className="flex-1 space-y-2">
@@ -413,7 +413,7 @@ export default function SettingsPage() {
                           <SelectItem value="select">Choix unique</SelectItem>
                         </SelectContent>
                       </Select>
-                      <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                      <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
                         <input
                           type="checkbox"
                           checked={q.required}
@@ -439,7 +439,7 @@ export default function SettingsPage() {
               </div>
             ))}
             {questions.length === 0 && (
-              <div className="text-center py-6 text-sm text-gray-400">
+              <div className="text-center py-6 text-sm text-muted-foreground">
                 Aucune question personnalisée. Le formulaire standard sera envoyé.
               </div>
             )}
@@ -447,7 +447,7 @@ export default function SettingsPage() {
 
           <button
             onClick={addQuestion}
-            className="w-full flex items-center justify-center gap-1.5 py-2.5 border-2 border-dashed border-gray-200 text-gray-500 font-medium rounded-xl text-xs hover:border-blue-300 hover:text-blue-600 transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 border-2 border-dashed border-border text-muted-foreground font-medium rounded-xl text-xs hover:border-blue-300 hover:text-blue-600 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
             Ajouter une question
@@ -464,18 +464,18 @@ export default function SettingsPage() {
         </div>
 
         {/* Mobile Nav Customization */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
           <div className="flex items-center gap-2 mb-1">
             <Smartphone className="h-4 w-4 text-blue-600" />
-            <h3 className="text-base font-semibold text-gray-900">Barre de navigation</h3>
+            <h3 className="text-base font-semibold text-foreground">Barre de navigation</h3>
           </div>
-          <p className="text-xs text-gray-500 mb-4">
+          <p className="text-xs text-muted-foreground mb-4">
             Choisis 5 onglets et leur ordre pour la barre du bas sur mobile.
           </p>
 
           {/* Selected tabs (drag to reorder) */}
           <div className="space-y-1.5 mb-4">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase">Onglets actifs (maintiens et glisse)</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase">Onglets actifs (maintiens et glisse)</p>
             {selectedTabs.map((path, index) => {
               const tab = ALL_MOBILE_TABS.find(t => t.to === path);
               if (!tab) return null;
@@ -556,7 +556,7 @@ export default function SettingsPage() {
           {/* Available tabs to add */}
           {selectedTabs.length < 5 && (
             <div className="space-y-1.5 mb-4">
-              <p className="text-[10px] font-semibold text-gray-400 uppercase">Disponibles</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase">Disponibles</p>
               {ALL_MOBILE_TABS.filter(t => !selectedTabs.includes(t.to)).map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -567,11 +567,11 @@ export default function SettingsPage() {
                         setSelectedTabs([...selectedTabs, tab.to]);
                       }
                     }}
-                    className="flex items-center gap-2 w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 hover:bg-gray-100 transition-colors"
+                    className="flex items-center gap-2 w-full bg-muted border border-border rounded-xl px-3 py-2.5 hover:bg-muted transition-colors"
                   >
-                    <Plus className="h-3.5 w-3.5 text-gray-400" />
-                    <Icon className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm font-medium text-gray-700">{tab.label}</span>
+                    <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">{tab.label}</span>
                   </button>
                 );
               })}
@@ -594,12 +594,12 @@ export default function SettingsPage() {
           )}
         </div>
         {/* Purge Data */}
-        <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-5">
+        <div className="bg-card rounded-2xl shadow-sm border border-red-100 p-5">
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle className="h-4 w-4 text-red-500" />
             <h3 className="text-base font-semibold text-red-600">Zone dangereuse</h3>
           </div>
-          <p className="text-xs text-gray-500 mb-4">
+          <p className="text-xs text-muted-foreground mb-4">
             Supprimez toutes vos données (contacts, ventes, tâches, commissions, réseau, leads). Votre compte sera conservé.
           </p>
           {!showPurge ? (
@@ -626,7 +626,7 @@ export default function SettingsPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => { setShowPurge(false); setPurgeConfirm(''); }}
-                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm"
+                  className="flex-1 py-2.5 bg-muted text-foreground font-semibold rounded-xl text-sm"
                 >
                   Annuler
                 </button>

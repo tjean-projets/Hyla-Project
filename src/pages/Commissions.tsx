@@ -196,7 +196,7 @@ export default function Commissions() {
       <div className="space-y-4">
         {/* ── Filtres ── */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <span className="text-sm font-semibold text-gray-900">
+          <span className="text-sm font-semibold text-foreground">
             {selectedMonth === 'all' ? `Année ${selectedYear}` : `${MONTHS_FR[parseInt(selectedMonth) - 1]} ${selectedYear}`}
           </span>
           <div className="flex gap-2">
@@ -221,11 +221,11 @@ export default function Commissions() {
         </div>
 
         {/* ── View toggle ── */}
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+        <div className="flex gap-1 bg-muted rounded-xl p-1">
           <button
             onClick={() => setView('perso')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-              view === 'perso' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              view === 'perso' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-gray-700'
             }`}
           >
             <DollarSign className="h-4 w-4" /> Mes commissions
@@ -233,7 +233,7 @@ export default function Commissions() {
           <button
             onClick={() => setView('equipe')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-              view === 'equipe' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              view === 'equipe' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-gray-700'
             }`}
           >
             <Users className="h-4 w-4" /> Mon équipe
@@ -254,7 +254,7 @@ export default function Commissions() {
 
             <button
               onClick={() => { setExportMembers(new Set(teamMembers.map((m: any) => m.id))); setShowExportDialog(true); }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-card border border-border rounded-xl text-sm text-muted-foreground hover:bg-muted transition-colors"
             >
               <FileText className="h-4 w-4" /> Exporter en PDF
             </button>
@@ -265,40 +265,40 @@ export default function Commissions() {
                 const maxVal = teamSummary[0]?.total || 1;
                 const pct = Math.round((m.total / maxVal) * 100);
                 return (
-                  <div key={m.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="flex items-center gap-3 p-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExpandedMemberId(isExpanded ? null : m.id)}>
+                  <div key={m.id} className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+                    <div className="flex items-center gap-3 p-4 cursor-pointer hover:bg-muted transition-colors" onClick={() => setExpandedMemberId(isExpanded ? null : m.id)}>
                       <div className="h-10 w-10 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
                         <span className="text-violet-700 font-bold text-xs">{m.first_name.charAt(0)}{m.last_name.charAt(0)}</span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{m.first_name} {m.last_name}</p>
-                          <p className="text-sm font-bold text-gray-900 ml-2">{m.total.toLocaleString('fr-FR')} €</p>
+                          <p className="text-sm font-semibold text-foreground truncate">{m.first_name} {m.last_name}</p>
+                          <p className="text-sm font-bold text-foreground ml-2">{m.total.toLocaleString('fr-FR')} €</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                             <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all duration-500" style={{ width: `${pct}%` }} />
                           </div>
-                          <span className="text-[10px] text-gray-400 whitespace-nowrap">{m.commissions.length} commission{m.commissions.length > 1 ? 's' : ''}</span>
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">{m.commissions.length} commission{m.commissions.length > 1 ? 's' : ''}</span>
                         </div>
                       </div>
-                      {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />}
+                      {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
                     </div>
                     {isExpanded && (
-                      <div className="px-4 pb-4 border-t border-gray-100 pt-3">
+                      <div className="px-4 pb-4 border-t border-border pt-3">
                         {m.commissions.length > 0 ? (
                           <table className="w-full text-xs">
-                            <thead><tr className="text-gray-400"><th className="text-left pb-2">Période</th><th className="text-right pb-2">Montant</th></tr></thead>
-                            <tbody className="divide-y divide-gray-50">
+                            <thead><tr className="text-muted-foreground"><th className="text-left pb-2">Période</th><th className="text-right pb-2">Montant</th></tr></thead>
+                            <tbody className="divide-y divide-border">
                               {m.commissions.map((c: any) => (
                                 <tr key={c.id}>
-                                  <td className="py-1.5 text-gray-500">{new Date(c.period + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</td>
-                                  <td className="py-1.5 text-right font-semibold text-gray-900">{c.amount.toLocaleString('fr-FR')} €</td>
+                                  <td className="py-1.5 text-muted-foreground">{new Date(c.period + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</td>
+                                  <td className="py-1.5 text-right font-semibold text-foreground">{c.amount.toLocaleString('fr-FR')} €</td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
-                        ) : <p className="text-xs text-gray-400 text-center">Aucune commission cette année</p>}
+                        ) : <p className="text-xs text-muted-foreground text-center">Aucune commission cette année</p>}
                       </div>
                     )}
                   </div>
@@ -307,7 +307,7 @@ export default function Commissions() {
               {teamSummary.length === 0 && (
                 <div className="text-center py-12">
                   <Users className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-400">Aucun membre dans le réseau</p>
+                  <p className="text-sm text-muted-foreground">Aucun membre dans le réseau</p>
                 </div>
               )}
             </div>
@@ -320,14 +320,14 @@ export default function Commissions() {
             <p className="text-[10px] uppercase font-semibold opacity-80">Total commissions</p>
             <p className="text-2xl font-bold mt-1">{total.toLocaleString('fr-FR')} €</p>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
             <div className="flex justify-between">
               <div>
-                <p className="text-[10px] text-gray-400 uppercase font-semibold">Directes</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Directes</p>
                 <p className="text-lg font-bold text-blue-600 mt-1">{totalDirecte.toLocaleString('fr-FR')} €</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] text-gray-400 uppercase font-semibold">Réseau</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold">Réseau</p>
                 <p className="text-lg font-bold text-amber-600 mt-1">{totalReseau.toLocaleString('fr-FR')} €</p>
               </div>
             </div>
@@ -335,8 +335,8 @@ export default function Commissions() {
         </div>
 
         {/* ── Graphique ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Évolution mensuelle</h3>
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Évolution mensuelle</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={months}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -354,22 +354,22 @@ export default function Commissions() {
 
         {/* ── Déclaration micro-entreprise ── */}
         {total > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
             <div className="flex items-center gap-2 mb-3">
               <FileText className="h-4 w-4 text-orange-500" />
-              <h3 className="text-sm font-semibold text-gray-900">Déclaration micro-entreprise</h3>
-              <span className="ml-auto text-[10px] text-gray-400">
+              <h3 className="text-sm font-semibold text-foreground">Déclaration micro-entreprise</h3>
+              <span className="ml-auto text-[10px] text-muted-foreground">
                 {selectedMonth === 'all' ? selectedYear : `${MONTHS_FR[parseInt(selectedMonth) - 1]} ${selectedYear}`}
               </span>
             </div>
-            <p className="text-xs text-gray-400 mb-3">Montants à reporter dans votre déclaration URSSAF / impots.gouv.fr</p>
+            <p className="text-xs text-muted-foreground mb-3">Montants à reporter dans votre déclaration URSSAF / impots.gouv.fr</p>
             <div className="space-y-2">
-              <div className="rounded-xl p-3 border border-gray-100 bg-gray-50">
+              <div className="rounded-xl p-3 border border-border bg-muted">
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-xs text-gray-500">Case 1 — Ventes de marchandises (BIC)</span>
-                  <span className="text-xs text-gray-400">Non applicable</span>
+                  <span className="text-xs text-muted-foreground">Case 1 — Ventes de marchandises (BIC)</span>
+                  <span className="text-xs text-muted-foreground">Non applicable</span>
                 </div>
-                <p className="text-lg font-bold text-gray-400">0 €</p>
+                <p className="text-lg font-bold text-muted-foreground">0 €</p>
               </div>
               <div className="rounded-xl p-3 border border-orange-200 bg-orange-50">
                 <div className="flex items-center justify-between mb-0.5">
@@ -382,18 +382,18 @@ export default function Commissions() {
                   <span>Réseau : {totalReseau.toLocaleString('fr-FR')} €</span>
                 </div>
               </div>
-              <div className="rounded-xl p-3 border border-gray-100 bg-gray-50">
+              <div className="rounded-xl p-3 border border-border bg-muted">
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-xs text-gray-500">Case 3 — Autres prestations de services (BNC)</span>
-                  <span className="text-xs text-gray-400">Non applicable</span>
+                  <span className="text-xs text-muted-foreground">Case 3 — Autres prestations de services (BNC)</span>
+                  <span className="text-xs text-muted-foreground">Non applicable</span>
                 </div>
-                <p className="text-lg font-bold text-gray-400">0 €</p>
+                <p className="text-lg font-bold text-muted-foreground">0 €</p>
               </div>
             </div>
-            <p className="text-[10px] text-gray-400 mt-3">
+            <p className="text-[10px] text-muted-foreground mt-3">
               Les commissions Hyla (directes + réseau) sont des prestations de services commerciales (BIC). Taux de cotisations URSSAF : 21,1% du CA déclaré.
             </p>
-            <button onClick={exportComptableCSV} className="w-full mt-3 py-2 flex items-center justify-center gap-2 text-xs font-semibold border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+            <button onClick={exportComptableCSV} className="w-full mt-3 py-2 flex items-center justify-center gap-2 text-xs font-semibold border border-border rounded-xl text-muted-foreground hover:bg-muted transition-colors">
               <Download className="h-3.5 w-3.5" /> Exporter le récap comptable (CSV)
             </button>
           </div>
@@ -401,10 +401,10 @@ export default function Commissions() {
 
         {/* ── Top contributeurs ── */}
         {memberList.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
             <div className="flex items-center gap-2 mb-4">
               <Trophy className="h-4 w-4 text-yellow-500" />
-              <h3 className="text-sm font-semibold text-gray-900">Top contributeurs réseau</h3>
+              <h3 className="text-sm font-semibold text-foreground">Top contributeurs réseau</h3>
             </div>
             <div className="space-y-3">
               {memberList.slice(0, 10).map((m: any, i: number) => {
@@ -413,16 +413,16 @@ export default function Commissions() {
                 return (
                   <div key={i} className="flex items-center gap-3">
                     <span className={`text-sm font-bold w-6 text-center flex-shrink-0 ${
-                      i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-amber-600' : 'text-gray-400'
+                      i === 0 ? 'text-yellow-500' : i === 1 ? 'text-muted-foreground' : i === 2 ? 'text-amber-600' : 'text-muted-foreground'
                     }`}>
                       {i < 3 ? <Star className="h-4 w-4 fill-current inline" /> : i + 1}
                     </span>
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-gray-800">{m.name}</span>
-                        <span className="text-sm font-bold text-gray-900">{m.total.toLocaleString('fr-FR')} €</span>
+                        <span className="text-sm font-medium text-foreground">{m.name}</span>
+                        <span className="text-sm font-bold text-foreground">{m.total.toLocaleString('fr-FR')} €</span>
                       </div>
-                      <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                         <div className="h-full rounded-full bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] transition-all duration-700" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
@@ -434,21 +434,21 @@ export default function Commissions() {
         )}
 
         {/* ── Tableau détail ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <thead className="bg-muted border-b border-border">
               <tr>
-                <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Période</th>
-                <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Type</th>
-                <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500 hidden md:table-cell">Membre</th>
-                <th className="text-right px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Montant</th>
-                <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Statut</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Période</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Type</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Membre</th>
+                <th className="text-right px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Montant</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Statut</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-border">
               {filteredCommissions.slice(0, 50).map((c: any) => (
-                <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-gray-600">{c.period}</td>
+                <tr key={c.id} className="hover:bg-muted transition-colors">
+                  <td className="px-4 py-3 text-muted-foreground">{c.period}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold ${
                       c.type === 'directe' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
@@ -456,15 +456,15 @@ export default function Commissions() {
                       {COMMISSION_TYPE_LABELS[c.type as keyof typeof COMMISSION_TYPE_LABELS]}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-500 hidden md:table-cell">
+                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
                     {c.team_members ? `${c.team_members.first_name} ${c.team_members.last_name}` : 'Moi'}
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-gray-900">{c.amount.toLocaleString('fr-FR')} €</td>
+                  <td className="px-4 py-3 text-right font-bold text-foreground">{c.amount.toLocaleString('fr-FR')} €</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold ${
                       c.status === 'validee' ? 'bg-emerald-50 text-emerald-700'
                       : c.status === 'en_attente' ? 'bg-amber-50 text-amber-700'
-                      : 'bg-gray-100 text-gray-500'
+                      : 'bg-muted text-muted-foreground'
                     }`}>
                       {c.status === 'validee' ? 'Validée' : c.status === 'en_attente' ? 'En attente' : c.status}
                     </span>
@@ -472,7 +472,7 @@ export default function Commissions() {
                 </tr>
               ))}
               {filteredCommissions.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-16 text-center text-gray-400">
+                <tr><td colSpan={5} className="px-4 py-16 text-center text-muted-foreground">
                   <DollarSign className="h-8 w-8 mx-auto mb-2 text-gray-300" />Aucune commission
                 </td></tr>
               )}
@@ -495,18 +495,18 @@ export default function Commissions() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">De</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">De</label>
                 <input type="month" value={exportFrom} onChange={e => setExportFrom(e.target.value)} className="w-full border rounded-xl px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">À</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">À</label>
                 <input type="month" value={exportTo} onChange={e => setExportTo(e.target.value)} className="w-full border rounded-xl px-3 py-2 text-sm" />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-gray-500">Membres à inclure</label>
+                <label className="text-xs font-medium text-muted-foreground">Membres à inclure</label>
                 <button
                   onClick={() => {
                     if (exportMembers.size === teamMembers.length) setExportMembers(new Set());
@@ -519,7 +519,7 @@ export default function Commissions() {
               </div>
               <div className="max-h-48 overflow-y-auto space-y-1 border rounded-xl p-2">
                 {teamMembers.map((m: any) => (
-                  <label key={m.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <label key={m.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted cursor-pointer">
                     <input
                       type="checkbox"
                       checked={exportMembers.has(m.id)}
