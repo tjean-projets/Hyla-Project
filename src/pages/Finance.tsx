@@ -590,13 +590,22 @@ export default function Finance() {
                       ))}
                     </div>
 
-                    <button
-                      onClick={() => saveImport.mutate()}
-                      disabled={saveImport.isPending}
-                      className="w-full py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
-                    >
-                      {saveImport.isPending ? 'Traitement...' : 'Valider et consolider'}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setFlow({ ...flow, step: 'mapping' })}
+                        disabled={saveImport.isPending}
+                        className="flex-1 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl disabled:opacity-50"
+                      >
+                        Retour
+                      </button>
+                      <button
+                        onClick={() => saveImport.mutate()}
+                        disabled={saveImport.isPending}
+                        className="flex-[2] py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
+                      >
+                        {saveImport.isPending ? 'Traitement...' : 'Valider et consolider'}
+                      </button>
+                    </div>
                   </div>
                 )}
 
