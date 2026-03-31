@@ -342,21 +342,58 @@ export default function Finance() {
 
       await supabase.rpc('consolidate_import_commissions', { p_import_id: importRecord.id });
 
-      // Also create commissions in linked users' spaces (cascade MLM tree)
-      const linkedCommissions = matchResults
-        .filter(r => r.matched_member?._owner_user_id && r.matched_member._owner_user_id !== user.id)
-        .map(r => ({
-          user_id: r.matched_member._owner_user_id,
-          type: 'directe' as const,
-          amount: r.amount,
-          period: flow.period,
-          status: 'validee' as const,
-          team_member_id: r.matched_member.id,
-          notes: `Import par ${profile?.full_name || 'manager'} - ${r.row_name}`,
-        }));
+      // ── Cascade MLM: create commissions in linked members' own spaces ──
+      // For each matched member WITH a linked_user_id (= they have their own Hyla account),
+      // create a "directe" commission in their personal space so they can see their own earnings.
+      const cascadeCommissions: any[] = [];
 
-      if (linkedCommissions.length > 0) {
-        await supabase.from('commissions').insert(linkedCommissions);
+      for (const r of matchResults) {
+        if (!r.matched_member || r.is_owner_row || r.match_status === 'non_reconnu') continue;
+
+        const member = r.matched_member;
+        const linkedUserId = member.linked_user_id;
+
+        // Only cascade if this member has a real Hyla account
+        if (linkedUserId && linkedUserId !== user.id) {
+          cascadeCommissions.push({
+            user_id: linkedUserId,
+            type: 'directe',
+            amount: r.amount,
+            period: flow.period,
+            status: 'validee',
+            source: 'import',
+            team_member_id: null, // It's THEIR OWN commission, not from a sub-member
+            notes: `Import réseau par ${profile?.full_name || 'manager'}`,
+          });
+        }
+
+        // If the member is also a manager with their own sub-team,
+        // cascade network commissions to them for their sub-members' sales
+        if (linkedUserId && member._depth === 1) {
+          // Find sub-members (depth 2+) that belong to this linked member
+          const subMemberResults = matchResults.filter(
+            sr => sr.matched_member?._owner_user_id === linkedUserId
+              && sr.matched_member?.id !== member.id
+              && !sr.is_owner_row
+              && sr.match_status !== 'non_reconnu'
+          );
+          for (const sr of subMemberResults) {
+            cascadeCommissions.push({
+              user_id: linkedUserId,
+              type: 'reseau',
+              amount: sr.amount,
+              period: flow.period,
+              status: 'validee',
+              source: 'import',
+              team_member_id: sr.matched_member.id,
+              notes: `Commission réseau via ${sr.row_name}`,
+            });
+          }
+        }
+      }
+
+      if (cascadeCommissions.length > 0) {
+        await supabase.from('commissions').insert(cascadeCommissions);
       }
     },
     onSuccess: async () => {
