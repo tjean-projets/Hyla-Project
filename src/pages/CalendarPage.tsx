@@ -136,6 +136,25 @@ export default function CalendarPage() {
     },
   });
 
+  const updateAptStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase.from('appointments').update({ status }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appointments'] }),
+  });
+
+  const deleteApt = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('appointments').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({ title: 'RDV supprimé' });
+    },
+  });
+
   function openNewForm() {
     if (calView === 'grid' && selectedDay) {
       const now = new Date();
@@ -395,6 +414,31 @@ export default function CalendarPage() {
                           {apt.notes && (
                             <p className="text-xs text-muted-foreground mt-1 italic line-clamp-2">{apt.notes}</p>
                           )}
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            {apt.status !== 'realise' && (
+                              <button onClick={() => updateAptStatus.mutate({ id: apt.id, status: 'realise' })}
+                                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                                ✓ Réalisé
+                              </button>
+                            )}
+                            {apt.status !== 'annule' && (
+                              <button onClick={() => updateAptStatus.mutate({ id: apt.id, status: 'annule' })}
+                                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+                                ✕ Annulé
+                              </button>
+                            )}
+                            {apt.status !== 'reporte' && (
+                              <button onClick={() => updateAptStatus.mutate({ id: apt.id, status: 'reporte' })}
+                                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors">
+                                ↩ Reporté
+                              </button>
+                            )}
+                            <button
+                              onClick={() => { if (window.confirm('Supprimer ce RDV ?')) deleteApt.mutate(apt.id); }}
+                              className="ml-auto text-[10px] font-semibold px-2 py-1 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
+                              Supprimer
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );

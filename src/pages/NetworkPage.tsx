@@ -1439,6 +1439,29 @@ export default function NetworkPage() {
     enabled: !!effectiveId,
   });
 
+  // Deals des membres réseau ce mois (ventes réseau)
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const { data: reseauDeals = [] } = useQuery({
+    queryKey: ['reseau-deals-month', effectiveId, currentMonth],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      // Get all team_member user IDs
+      const memberUserIds = members
+        .filter((m: any) => m.supabase_user_id)
+        .map((m: any) => m.supabase_user_id);
+      if (memberUserIds.length === 0) return [];
+      const { data } = await supabase
+        .from('deals')
+        .select('id, amount, status, user_id, signed_at')
+        .in('user_id', memberUserIds)
+        .eq('status', 'signee')
+        .gte('signed_at', `${currentMonth}-01`);
+      return data || [];
+    },
+    enabled: !!effectiveId && members.length > 0,
+    staleTime: 60000,
+  });
+
   const filtered = members.filter(m =>
     !search || `${m.first_name} ${m.last_name} ${m.internal_id || ''}`.toLowerCase().includes(search.toLowerCase())
   );
@@ -1562,6 +1585,50 @@ export default function NetworkPage() {
                       : `${HYLA_NETWORK_COMMISSION.conseillere.recrue_directe}€/vente recrue directe`}
                   </p>
                 </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── Mini dashboard réseau ── */}
+        {members.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Total membres</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{members.length}</p>
+              <p className="text-[10px] text-muted-foreground">{members.filter((m: any) => m.status === 'actif').length} actifs</p>
+            </div>
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Managers</p>
+              <p className="text-2xl font-bold text-amber-500 mt-1">{members.filter((m: any) => m.level >= 2).length}</p>
+              <p className="text-[10px] text-muted-foreground">{members.filter((m: any) => m.level === 1).length} conseillères</p>
+            </div>
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Ventes réseau / mois</p>
+              <p className="text-2xl font-bold text-emerald-600 mt-1">{reseauDeals.length}</p>
+              <p className="text-[10px] text-muted-foreground">{new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</p>
+            </div>
+            <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl p-4 text-white">
+              <p className="text-[10px] font-semibold uppercase opacity-80">Comm. réseau / mois</p>
+              <p className="text-2xl font-bold mt-1">{(reseauDeals.length * 30).toLocaleString('fr-FR')} €</p>
+              <p className="text-[10px] opacity-70">~30€/vente réseau</p>
+            </div>
+          </div>
+        )}
+
+        {reseauDeals.length > 0 && (() => {
+          // Count deals per user_id
+          const byUser: Record<string, number> = {};
+          reseauDeals.forEach((d: any) => { byUser[d.user_id] = (byUser[d.user_id] || 0) + 1; });
+          const topUserId = Object.entries(byUser).sort((a, b) => b[1] - a[1])[0]?.[0];
+          const topMember = members.find((m: any) => m.supabase_user_id === topUserId);
+          if (!topMember) return null;
+          return (
+            <div className="flex items-center gap-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl px-4 py-3 mb-2">
+              <Trophy className="h-5 w-5 text-amber-500 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-foreground">Top performer ce mois</p>
+                <p className="text-sm text-amber-700 dark:text-amber-300 font-semibold">{(topMember as any).first_name} {(topMember as any).last_name} — {byUser[topUserId]} vente{byUser[topUserId] > 1 ? 's' : ''}</p>
               </div>
             </div>
           );

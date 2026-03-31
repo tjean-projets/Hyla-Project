@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Timer, Trophy } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, isSuperAdmin, HYLA_CHALLENGES } from '@/lib/supabase';
@@ -316,6 +316,191 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
   );
 }
 
+/* ── Global Search ── */
+
+function GlobalSearch({ isDark }: { isDark: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const navigate = useNavigate();
+  const effectiveId = useEffectiveUserId();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  const { data: contacts = [] } = useQuery({
+    queryKey: ['search-contacts', effectiveId, query],
+    queryFn: async () => {
+      if (!effectiveId || query.length < 2) return [];
+      const { data } = await supabase.from('contacts')
+        .select('id, first_name, last_name, phone, status')
+        .eq('user_id', effectiveId)
+        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone.ilike.%${query}%`)
+        .limit(5);
+      return data || [];
+    },
+    enabled: open && query.length >= 2,
+  });
+
+  const { data: deals = [] } = useQuery({
+    queryKey: ['search-deals', effectiveId, query],
+    queryFn: async () => {
+      if (!effectiveId || query.length < 2) return [];
+      const { data } = await supabase.from('deals')
+        .select('id, product, amount, status, contacts(first_name, last_name)')
+        .eq('user_id', effectiveId)
+        .or(`product.ilike.%${query}%,notes.ilike.%${query}%`)
+        .limit(5);
+      return data || [];
+    },
+    enabled: open && query.length >= 2,
+  });
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['search-tasks', effectiveId, query],
+    queryFn: async () => {
+      if (!effectiveId || query.length < 2) return [];
+      const { data } = await supabase.from('tasks')
+        .select('id, title, status, due_date')
+        .eq('user_id', effectiveId)
+        .ilike('title', `%${query}%`)
+        .limit(5);
+      return data || [];
+    },
+    enabled: open && query.length >= 2,
+  });
+
+  const { data: members = [] } = useQuery({
+    queryKey: ['search-members', effectiveId, query],
+    queryFn: async () => {
+      if (!effectiveId || query.length < 2) return [];
+      const { data } = await supabase.from('team_members')
+        .select('id, first_name, last_name, status, level')
+        .eq('user_id', effectiveId)
+        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%`)
+        .limit(5);
+      return data || [];
+    },
+    enabled: open && query.length >= 2,
+  });
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="p-2 rounded-xl transition-colors hover:bg-muted text-muted-foreground"
+        title="Recherche globale (⌘K)"
+      >
+        <Search className="h-5 w-5" />
+      </button>
+
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQuery(''); }}>
+        <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+            <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Rechercher contacts, ventes, tâches..."
+              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+            />
+            {query && (
+              <button onClick={() => setQuery('')} className="text-muted-foreground hover:text-foreground text-xs">✕</button>
+            )}
+          </div>
+
+          <div className="max-h-[60vh] overflow-y-auto p-2">
+            {query.length < 2 ? (
+              <p className="text-center text-xs text-muted-foreground py-8">Tape au moins 2 caractères...</p>
+            ) : (contacts.length + deals.length + tasks.length + members.length === 0) ? (
+              <p className="text-center text-xs text-muted-foreground py-8">Aucun résultat pour &quot;{query}&quot;</p>
+            ) : (
+              <div className="space-y-4">
+                {contacts.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-1">Contacts</p>
+                    {(contacts as any[]).map((c: any) => (
+                      <button key={c.id} onClick={() => { navigate('/contacts'); setOpen(false); setQuery(''); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors text-left">
+                        <div className="h-7 w-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                          {c.first_name[0]}{c.last_name[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">{c.first_name} {c.last_name}</p>
+                          {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {deals.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-1">Ventes</p>
+                    {(deals as any[]).map((d: any) => (
+                      <button key={d.id} onClick={() => { navigate('/deals'); setOpen(false); setQuery(''); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors text-left">
+                        <div className="h-7 w-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                          <ShoppingBag className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{d.product || 'Vente'}</p>
+                          <p className="text-xs text-muted-foreground">{(d.amount || 0).toLocaleString('fr-FR')} € · {d.contacts ? `${(d.contacts as any).first_name} ${(d.contacts as any).last_name}` : ''}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {tasks.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-1">Tâches</p>
+                    {(tasks as any[]).map((t: any) => (
+                      <button key={t.id} onClick={() => { navigate('/tasks'); setOpen(false); setQuery(''); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors text-left">
+                        <div className="h-7 w-7 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center flex-shrink-0">
+                          <CheckSquare className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{t.title}</p>
+                          {t.due_date && <p className="text-xs text-muted-foreground">Échéance {new Date(t.due_date).toLocaleDateString('fr-FR')}</p>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {members.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-1">Réseau</p>
+                    {(members as any[]).map((m: any) => (
+                      <button key={m.id} onClick={() => { navigate('/network'); setOpen(false); setQuery(''); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors text-left">
+                        <div className="h-7 w-7 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                          <Network className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">{m.first_name} {m.last_name}</p>
+                          <p className="text-xs text-muted-foreground">{m.status === 'actif' ? 'Actif' : 'Inactif'}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function ChallengeBanner({ isDark }: { isDark: boolean }) {
   const { user } = useAuth();
   const effectiveId = useEffectiveUserId();
@@ -570,6 +755,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
           </div>
           <div className="flex items-center gap-1">
             {actions && <div className="flex items-center gap-2">{actions}</div>}
+            <GlobalSearch isDark={isDark} />
             <NotificationCenter user={user} profile={profile} isDark={isDark} />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -619,6 +805,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
         <h1 className={cn('text-xl font-bold text-foreground')}>{title}</h1>
         <div className="flex items-center gap-4">
           {actions}
+          <GlobalSearch isDark={isDark} />
           <NotificationCenter user={user} profile={profile} isDark={isDark} />
           <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6] flex items-center justify-center text-white text-sm font-bold cursor-pointer">
             {(profile?.full_name || 'U').charAt(0).toUpperCase()}

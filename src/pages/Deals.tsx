@@ -15,6 +15,14 @@ import type { Tables } from '@/integrations/supabase/types';
 
 type Deal = Tables<'deals'>;
 
+const KANBAN_COLS = [
+  { status: 'en_cours',   label: 'En cours',   bg: 'bg-blue-50 dark:bg-blue-950/30',    text: 'text-blue-700 dark:text-blue-300' },
+  { status: 'en_attente', label: 'En attente', bg: 'bg-amber-50 dark:bg-amber-950/30',  text: 'text-amber-700 dark:text-amber-300' },
+  { status: 'signee',     label: 'Signée',      bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-700 dark:text-emerald-300' },
+  { status: 'livree',     label: 'Livrée',      bg: 'bg-teal-50 dark:bg-teal-950/30',   text: 'text-teal-700 dark:text-teal-300' },
+  { status: 'annulee',    label: 'Annulée',     bg: 'bg-red-50 dark:bg-red-950/30',     text: 'text-red-700 dark:text-red-300' },
+];
+
 function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
   onSuccess: () => void;
   contacts: Tables<'contacts'>[];
@@ -239,6 +247,7 @@ export default function Deals() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingDeal, setEditingDeal] = useState<any | null>(null);
+  const [view, setView] = useState<'list' | 'kanban'>('list');
 
   const { data: deals = [], isLoading } = useQuery({
     queryKey: ['deals', effectiveId],
@@ -453,54 +462,115 @@ export default function Deals() {
               ))}
             </SelectContent>
           </Select>
+          <div className="flex gap-1 bg-muted rounded-lg p-1">
+            <button onClick={() => setView('list')} className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'list' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}>Liste</button>
+            <button onClick={() => setView('kanban')} className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'kanban' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}>Kanban</button>
+          </div>
         </div>
 
         {/* Table */}
-        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted border-b">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Cliente</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Produit</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Montant</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Vendu par</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filtered.map((deal: any) => (
-                <tr key={deal.id} className="hover:bg-muted cursor-pointer" onClick={() => setEditingDeal(deal)}>
-                  <td className="px-4 py-3 font-medium text-foreground">
-                    {deal.contacts ? `${deal.contacts.first_name} ${deal.contacts.last_name}` : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{deal.product || '—'}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-foreground">{deal.amount.toLocaleString('fr-FR')} €</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${DEAL_STATUS_COLORS[deal.status as keyof typeof DEAL_STATUS_COLORS]}`}>
-                      {DEAL_STATUS_LABELS[deal.status as keyof typeof DEAL_STATUS_LABELS]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 hidden md:table-cell">
-                    {deal.team_members ? (
-                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                        {deal.team_members.first_name} {deal.team_members.last_name}
-                      </span>
-                    ) : (
-                      <span className="text-gray-300 text-xs">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-                    {new Date(deal.created_at).toLocaleDateString('fr-FR')}
-                  </td>
+        {view === 'list' && (
+          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-muted border-b">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Cliente</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Produit</th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Montant</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Vendu par</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Date</th>
                 </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">{isLoading ? 'Chargement...' : 'Aucune vente'}</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map((deal: any) => (
+                  <tr key={deal.id} className="hover:bg-muted cursor-pointer" onClick={() => setEditingDeal(deal)}>
+                    <td className="px-4 py-3 font-medium text-foreground">
+                      {deal.contacts ? `${deal.contacts.first_name} ${deal.contacts.last_name}` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{deal.product || '—'}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-foreground">{deal.amount.toLocaleString('fr-FR')} €</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${DEAL_STATUS_COLORS[deal.status as keyof typeof DEAL_STATUS_COLORS]}`}>
+                        {DEAL_STATUS_LABELS[deal.status as keyof typeof DEAL_STATUS_LABELS]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      {deal.team_members ? (
+                        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                          {deal.team_members.first_name} {deal.team_members.last_name}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
+                      {new Date(deal.created_at).toLocaleDateString('fr-FR')}
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">{isLoading ? 'Chargement...' : 'Aucune vente'}</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Kanban */}
+        {view === 'kanban' && (
+          <div className="flex gap-3 overflow-x-auto pb-4">
+            {KANBAN_COLS.map(col => {
+              const colDeals = filtered.filter((d: any) => d.status === col.status);
+              return (
+                <div key={col.status}
+                  className="min-w-[220px] flex-shrink-0"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    const dealId = e.dataTransfer.getData('dealId');
+                    if (dealId) {
+                      await supabase.from('deals').update({ status: col.status }).eq('id', dealId);
+                      queryClient.invalidateQueries({ queryKey: ['deals'] });
+                    }
+                  }}
+                >
+                  <div className={`flex items-center gap-2 mb-2 px-3 py-2 rounded-xl ${col.bg}`}>
+                    <span className={`text-xs font-bold ${col.text}`}>{col.label}</span>
+                    <span className={`ml-auto text-xs font-semibold ${col.text} opacity-70`}>{colDeals.length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {colDeals.map((deal: any) => (
+                      <div key={deal.id}
+                        draggable
+                        onDragStart={(e) => { e.dataTransfer.setData('dealId', deal.id); (e.currentTarget as HTMLElement).style.opacity = '0.5'; }}
+                        onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
+                        onClick={() => setEditingDeal(deal)}
+                        className="bg-card rounded-xl border border-border p-3 cursor-pointer hover:shadow-md transition-shadow"
+                      >
+                        <p className="text-sm font-semibold text-foreground truncate">
+                          {deal.contacts ? `${deal.contacts.first_name} ${deal.contacts.last_name}` : 'Sans contact'}
+                        </p>
+                        {deal.product && <p className="text-xs text-muted-foreground mt-0.5 truncate">{deal.product}</p>}
+                        <p className="text-sm font-bold text-[#3b82f6] mt-1">{(deal.amount || 0).toLocaleString('fr-FR')} €</p>
+                        {deal.signed_at && (
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            Signé le {new Date(deal.signed_at).toLocaleDateString('fr-FR')}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                    {colDeals.length === 0 && (
+                      <div className="border-2 border-dashed border-border rounded-xl p-4 text-center text-xs text-muted-foreground">
+                        Aucune vente
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </AppLayout>
   );

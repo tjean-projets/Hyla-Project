@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, CONTACT_STATUS_LABELS, CONTACT_STATUS_COLORS, PRIORITY_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Network, Trash2, Settings, Download, CalendarPlus } from 'lucide-react';
+import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Network, Trash2, Settings, Download, CalendarPlus, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +36,9 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
   const [showRdvForm, setShowRdvForm] = useState(false);
   const [rdvForm, setRdvForm] = useState({ title: '', type: 'rdv', date: '', duration: '60', location: '' });
 
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [taskForm, setTaskForm] = useState({ title: '', type: 'relance', due_date: '', notes: '' });
+
   const createRdv = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
@@ -55,6 +58,29 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
       toast({ title: 'RDV créé', description: `RDV planifié avec ${initialData?.first_name}` });
       setShowRdvForm(false);
       setRdvForm({ title: '', type: 'rdv', date: '', duration: '60', location: '' });
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  const createTask = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('Non connecté');
+      const { error } = await supabase.from('tasks').insert({
+        user_id: user.id,
+        contact_id: initialData!.id,
+        title: taskForm.title,
+        type: taskForm.type as any,
+        due_date: taskForm.due_date || null,
+        notes: taskForm.notes || null,
+        status: 'a_faire',
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast({ title: 'Tâche créée', description: `Tâche liée à ${initialData?.first_name}` });
+      setShowTaskForm(false);
+      setTaskForm({ title: '', type: 'relance', due_date: '', notes: '' });
     },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
@@ -221,6 +247,50 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
             className="w-full py-2.5 bg-violet-500 hover:bg-violet-600 text-white font-semibold rounded-xl text-sm disabled:opacity-40"
           >
             {createRdv.isPending ? 'Création...' : 'Créer le RDV'}
+          </button>
+        </div>
+      )}
+      {isEdit && !showTaskForm && (
+        <button type="button" onClick={() => setShowTaskForm(true)}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl">
+          <ClipboardList className="h-4 w-4" />
+          Créer une tâche
+        </button>
+      )}
+      {isEdit && showTaskForm && (
+        <div className="bg-muted rounded-2xl p-4 space-y-3 border border-border">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-foreground">Nouvelle tâche — {initialData?.first_name}</p>
+            <button type="button" onClick={() => setShowTaskForm(false)} className="text-muted-foreground hover:text-foreground text-xs">Annuler</button>
+          </div>
+          <div>
+            <Label className="text-xs">Titre *</Label>
+            <Input className="h-10" value={taskForm.title} onChange={(e) => setTaskForm({...taskForm, title: e.target.value})} placeholder="Relancer, envoyer devis..." />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">Type</Label>
+              <Select value={taskForm.type} onValueChange={(v) => setTaskForm({...taskForm, type: v})}>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="relance">Relance</SelectItem>
+                  <SelectItem value="rdv">Rendez-vous</SelectItem>
+                  <SelectItem value="demo">Démonstration</SelectItem>
+                  <SelectItem value="suivi">Suivi</SelectItem>
+                  <SelectItem value="autre">Autre</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Échéance</Label>
+              <Input className="h-10" type="date" value={taskForm.due_date} onChange={(e) => setTaskForm({...taskForm, due_date: e.target.value})} />
+            </div>
+          </div>
+          <button type="button"
+            disabled={!taskForm.title || createTask.isPending}
+            onClick={() => createTask.mutate()}
+            className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl text-sm disabled:opacity-40">
+            {createTask.isPending ? 'Création...' : 'Créer la tâche'}
           </button>
         </div>
       )}
