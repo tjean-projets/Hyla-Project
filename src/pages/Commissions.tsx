@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
-import { supabase, COMMISSION_TYPE_LABELS } from '@/lib/supabase';
+import { supabase, COMMISSION_TYPE_LABELS, getHylaCommission } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Zap, Trophy, Star, ArrowUp, DollarSign, Users, ChevronDown, ChevronRight, FileText, Download, Check } from 'lucide-react';
+import { TrendingUp, Zap, Trophy, Star, ArrowUp, DollarSign, Users, ChevronDown, ChevronRight, FileText, Download, Check, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -47,6 +47,22 @@ export default function Commissions() {
     queryFn: async () => {
       if (!effectiveId) return [];
       const { data } = await supabase.from('team_members').select('id, first_name, last_name, status, level, email').eq('user_id', effectiveId);
+      return data || [];
+    },
+    enabled: !!effectiveId,
+  });
+
+  // ── Pending commission estimates ──
+  const { data: pending = [] } = useQuery({
+    queryKey: ['commissions-pending', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase
+        .from('pending_commission_estimates')
+        .select('*')
+        .eq('user_id', effectiveId)
+        .order('created_at', { ascending: false })
+        .limit(20);
       return data || [];
     },
     enabled: !!effectiveId,
@@ -434,6 +450,54 @@ export default function Commissions() {
                       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                         <div className="h-full rounded-full bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] transition-all duration-700" style={{ width: `${pct}%` }} />
                       </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Commissions en cours (estimées) ── */}
+        {pending.length > 0 && (
+          <div className="bg-amber-50/50 dark:bg-amber-950/10 rounded-2xl border border-amber-200 dark:border-amber-800 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-amber-200 dark:border-amber-800">
+              <Clock className="h-4 w-4 text-amber-600" />
+              <h3 className="text-sm font-semibold text-foreground">En cours · estimées</h3>
+              <span className="ml-1 inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 text-[10px] font-bold">
+                {pending.length}
+              </span>
+            </div>
+            <div className="divide-y divide-amber-200 dark:divide-amber-800">
+              {pending.map((p: any) => {
+                const estimated = getHylaCommission(1);
+                return (
+                  <div key={p.deal_id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-foreground truncate">
+                          {p.product || 'Deal en cours'}
+                        </span>
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                          p.status === 'en_cours' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {p.status === 'en_cours' ? 'En cours' : 'En attente'}
+                        </span>
+                        {p.seller_first_name && (
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-100 text-violet-700">
+                            Via {p.seller_first_name}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {new Date(p.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-bold text-foreground">
+                        {estimated.toLocaleString('fr-FR')} €
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">Estimé</p>
                     </div>
                   </div>
                 );
