@@ -38,6 +38,7 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
 
   const [form, setForm] = useState({
     contact_id: '', amount: '', product: '', deal_type: '', status: 'en_cours' as Deal['status'], notes: '', sold_by: '',
+    loss_reason: '', loss_reason_category: '',
   });
 
   useEffect(() => {
@@ -50,6 +51,8 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
         status: initialData.status || 'en_cours',
         notes: initialData.notes || '',
         sold_by: initialData.sold_by || '',
+        loss_reason: initialData.loss_reason || '',
+        loss_reason_category: initialData.loss_reason_category || '',
       });
     }
   }, [initialData]);
@@ -70,6 +73,8 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           status: form.status,
           notes: form.notes || null,
           sold_by: form.sold_by || null,
+          loss_reason: form.status === 'annulee' ? (form.loss_reason || null) : null,
+          loss_reason_category: form.status === 'annulee' ? (form.loss_reason_category || null) : null,
         };
         if (form.status === 'signee' && !initialData.signed_at) {
           updateData.signed_at = new Date().toISOString();
@@ -87,6 +92,8 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           notes: form.notes || null,
           sold_by: form.sold_by || null,
           signed_at: form.status === 'signee' ? new Date().toISOString() : null,
+          loss_reason: form.status === 'annulee' ? (form.loss_reason || null) : null,
+          loss_reason_category: form.status === 'annulee' ? (form.loss_reason_category || null) : null,
         }).select('id').single();
         if (error) throw error;
         dealId = newDeal?.id;
@@ -202,6 +209,28 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
         <Label>Notes</Label>
         <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
       </div>
+      {(form.status === 'annulee') && (
+        <div className="space-y-2 p-3 bg-red-50 dark:bg-red-950/20 rounded-xl border border-red-200 dark:border-red-800">
+          <Label className="text-red-700 dark:text-red-400">Raison de l'annulation</Label>
+          <Select value={form.loss_reason_category} onValueChange={(v) => setForm({...form, loss_reason_category: v})}>
+            <SelectTrigger><SelectValue placeholder="Catégorie..." /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="prix">💰 Prix trop élevé</SelectItem>
+              <SelectItem value="concurrent">🏢 Parti à la concurrence</SelectItem>
+              <SelectItem value="pas_interesse">❌ Pas intéressé</SelectItem>
+              <SelectItem value="pas_de_reponse">📵 Plus de réponse</SelectItem>
+              <SelectItem value="besoin_reflechi">🤔 Besoin de réflexion</SelectItem>
+              <SelectItem value="autre">💬 Autre</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            placeholder="Détails (optionnel)..."
+            value={form.loss_reason}
+            onChange={(e) => setForm({...form, loss_reason: e.target.value})}
+            className="text-sm"
+          />
+        </div>
+      )}
       {form.status === 'signee' && parseFloat(form.amount) > 0 && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2">
           <span className="text-emerald-600 text-xs font-medium">Commission auto :</span>

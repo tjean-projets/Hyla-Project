@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, ArrowUp, ArrowDown, Trophy } from 'lucide-react';
+import { BarChart3, ArrowUp, ArrowDown, Trophy, XCircle } from 'lucide-react';
 import { SkeletonKPI, SkeletonChart } from '@/components/ui/skeleton-card';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -46,6 +46,21 @@ export default function StatsPage() {
     queryFn: async () => {
       if (!effectiveId) return [];
       const { data } = await supabase.from('contacts').select('id, status, created_at').eq('user_id', effectiveId);
+      return data || [];
+    },
+    enabled: !!effectiveId,
+  });
+
+  const { data: lostDeals = [] } = useQuery({
+    queryKey: ['lost-deals', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase
+        .from('deals')
+        .select('loss_reason_category, loss_reason, amount, created_at')
+        .eq('user_id', effectiveId)
+        .eq('status', 'annulee')
+        .not('loss_reason_category', 'is', null);
       return data || [];
     },
     enabled: !!effectiveId,
@@ -99,6 +114,25 @@ export default function StatsPage() {
   const totalContacts = contacts.length;
   const recrues = contacts.filter((c: any) => c.status === 'recrue' || c.status === 'partenaire').length;
   const conversionRate = totalContacts > 0 ? Math.round((recrues / totalContacts) * 100) : 0;
+
+  const lossReasonLabels: Record<string, string> = {
+    prix: '💰 Prix trop élevé',
+    concurrent: '🏢 Concurrence',
+    pas_interesse: '❌ Pas intéressé',
+    pas_de_reponse: '📵 Plus de réponse',
+    besoin_reflechi: '🤔 En réflexion',
+    autre: '💬 Autre',
+  };
+
+  const lossByReason = lostDeals.reduce((acc: Record<string, number>, d: any) => {
+    const cat = d.loss_reason_category || 'autre';
+    acc[cat] = (acc[cat] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const lossStats = Object.entries(lossByReason)
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, count]) => ({ label: lossReasonLabels[key] || key, count, pct: Math.round((count / lostDeals.length) * 100) }));
 
   return (
     <AppLayout title="Statistiques">
@@ -262,6 +296,30 @@ export default function StatsPage() {
             </div>
           </div>
         )}
+        {/* ── Raisons d'annulation ── */}
+        {lostDeals.length > 0 && (
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <XCircle className="h-5 w-5 text-red-500" />
+              <h3 className="text-sm font-bold text-foreground">Raisons d'annulation</h3>
+            </div>
+            <p className="text-[10px] text-muted-foreground mb-4">{lostDeals.length} vente{lostDeals.length > 1 ? 's' : ''} annulée{lostDeals.length > 1 ? 's' : ''} avec raison renseignée</p>
+            <div className="space-y-3">
+              {lossStats.map((stat, i) => (
+                <div key={i} className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-foreground font-medium">{stat.label}</span>
+                    <span className="text-muted-foreground font-semibold">{stat.count} ({stat.pct}%)</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div style={{ width: `${stat.pct}%` }} className="h-2 bg-red-400 rounded-full transition-all duration-700" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
     </AppLayout>
   );
