@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useThemeSafe } from '@/hooks/useTheme';
 
 interface FormQuestion {
   id: string;
@@ -183,6 +184,7 @@ export default function SettingsPage() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const themeCtx = useThemeSafe();
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -351,6 +353,23 @@ export default function SettingsPage() {
             >
               <Save className="h-4 w-4" />
               Sauvegarder
+            </button>
+          </div>
+        </div>
+
+        {/* Theme Toggle */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">Apparence</h3>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Mode sombre</p>
+              <p className="text-xs text-gray-500">Basculer entre le thème clair et sombre</p>
+            </div>
+            <button
+              onClick={() => themeCtx?.toggleTheme()}
+              className={`relative w-12 h-7 rounded-full transition-colors ${themeCtx?.isDark ? 'bg-[#3b82f6]' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${themeCtx?.isDark ? 'translate-x-5' : ''}`} />
             </button>
           </div>
         </div>

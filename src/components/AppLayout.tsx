@@ -26,6 +26,7 @@ import { supabase, isSuperAdmin, HYLA_CHALLENGES } from '@/lib/supabase';
 import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { useImpersonationSafe } from '@/hooks/useImpersonation';
 import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
+import { useThemeSafe } from '@/hooks/useTheme';
 import {
   Dialog,
   DialogContent,
@@ -403,7 +404,9 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
   });
   const isManager = isAdmin || profile?.role === 'manager' || profile?.role === 'admin' || (teamCount != null && teamCount > 0);
 
-  const isDark = variant === 'dark';
+  // Use global theme — variant prop is now ignored, kept for backwards compat
+  const themeCtx = useThemeSafe();
+  const isDark = themeCtx?.isDark ?? (variant === 'dark');
   const impersonation = useImpersonationSafe();
   const isImpersonating = impersonation?.isImpersonating ?? false;
 
