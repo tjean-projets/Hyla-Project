@@ -47,6 +47,9 @@ function DealForm({ onSuccess, contacts, initialData, onDelete }: {
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
 
+      const wasSignedBefore = isEdit && initialData.signed_at;
+      let dealId = isEdit ? initialData.id : null;
+
       if (isEdit) {
         const updateData: any = {
           contact_id: form.contact_id || null,
@@ -56,14 +59,13 @@ function DealForm({ onSuccess, contacts, initialData, onDelete }: {
           status: form.status,
           notes: form.notes || null,
         };
-        // Set signed_at if status changed to 'signee' and it wasn't already set
         if (form.status === 'signee' && !initialData.signed_at) {
           updateData.signed_at = new Date().toISOString();
         }
         const { error } = await supabase.from('deals').update(updateData).eq('id', initialData.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('deals').insert({
+        const { data: newDeal, error } = await supabase.from('deals').insert({
           user_id: user.id,
           contact_id: form.contact_id || null,
           amount: parseFloat(form.amount) || 0,
@@ -72,8 +74,30 @@ function DealForm({ onSuccess, contacts, initialData, onDelete }: {
           status: form.status,
           notes: form.notes || null,
           signed_at: form.status === 'signee' ? new Date().toISOString() : null,
-        });
+        }).select('id').single();
         if (error) throw error;
+        dealId = newDeal?.id;
+      }
+
+      // Auto-create commission when deal becomes "signée"
+      if (form.status === 'signee' && !wasSignedBefore && dealId) {
+        const amount = parseFloat(form.amount) || 0;
+        const period = new Date().toISOString().slice(0, 7); // YYYY-MM
+        // Check if commission already exists for this deal
+        const { data: existing } = await supabase
+          .from('commissions').select('id').eq('deal_id', dealId).maybeSingle();
+        if (!existing) {
+          await supabase.from('commissions').insert({
+            user_id: user.id,
+            period,
+            type: 'directe',
+            amount,
+            source: 'vente',
+            deal_id: dealId,
+            status: 'validee',
+            notes: form.product ? `Vente ${form.product}` : null,
+          });
+        }
       }
     },
     onSuccess: () => {

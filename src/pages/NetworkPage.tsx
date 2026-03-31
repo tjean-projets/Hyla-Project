@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useImpersonation } from '@/hooks/useImpersonation';
+import { useNavigate } from 'react-router-dom';
 import type { Tables } from '@/integrations/supabase/types';
 
 type TeamMember = Tables<'team_members'>;
@@ -1253,6 +1255,8 @@ function SubMemberEditConfirmDialog({
 export default function NetworkPage() {
   const { user, profile } = useAuth();
   const effectiveId = useEffectiveUserId();
+  const { startImpersonation } = useImpersonation();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
@@ -1529,10 +1533,17 @@ export default function NetworkPage() {
                     Objectifs
                   </button>
                   {(member as any).linked_user_id ? (
-                    <span className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                      <CheckCircle className="h-3.5 w-3.5" />
-                      Connecté
-                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startImpersonation((member as any).linked_user_id, `${member.first_name} ${member.last_name}`, 'individual');
+                        navigate('/');
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25 active:scale-[0.97] transition-colors"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      Voir son espace
+                    </button>
                   ) : (
                     <button
                       onClick={(e) => { e.stopPropagation(); setAssistantMember(member); }}

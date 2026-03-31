@@ -100,8 +100,12 @@ export default function OnboardingGuide() {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) {
+    // Show only if never completed (localStorage + sessionStorage guard)
+    const done = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY);
+    if (!done) {
       setOpen(true);
+      // Mark as seen for this session even if user doesn't finish
+      sessionStorage.setItem(STORAGE_KEY, 'true');
     }
   }, []);
 

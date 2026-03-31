@@ -102,12 +102,25 @@ export default function InscriptionPage() {
       return;
     }
 
-    // Link the new user to the team member
+    // Link the new user to the team member + set sponsor on profile
     if (authData.user) {
       await supabase
         .from('team_members')
         .update({ linked_user_id: authData.user.id })
         .eq('id', memberId);
+
+      // Set sponsor_user_id on the new user's profile for MLM cascade
+      const { data: tm } = await supabase
+        .from('team_members')
+        .select('user_id')
+        .eq('id', memberId)
+        .single();
+      if (tm?.user_id) {
+        await supabase
+          .from('profiles')
+          .update({ sponsor_user_id: tm.user_id } as any)
+          .eq('id', authData.user.id);
+      }
     }
 
     setSubmitting(false);
