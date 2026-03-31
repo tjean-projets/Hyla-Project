@@ -426,9 +426,11 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
         {/* Logo */}
         <div className="px-5 py-6">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-[#3b82f6] flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <span className="text-white font-bold text-sm">H</span>
-            </div>
+            <img
+              src="/Logo%20Hyla%20Assistant.jpeg"
+              alt="Hyla"
+              className="h-9 w-9 rounded-xl object-cover shadow-lg shadow-blue-500/20"
+            />
             <span className="text-[17px] font-bold text-white tracking-tight">Hyla</span>
           </div>
         </div>
@@ -517,9 +519,11 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
       )}>
         <div className="flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-xl bg-[#3b82f6] flex items-center justify-center">
-              <span className="text-white font-bold text-xs">H</span>
-            </div>
+            <img
+              src="/Logo%20Hyla%20Assistant.jpeg"
+              alt="Hyla"
+              className="h-8 w-8 rounded-xl object-cover shadow-md shadow-blue-500/20"
+            />
             <h1 className={cn('text-sm font-semibold', isDark ? 'text-white' : 'text-gray-900')}>{title}</h1>
           </div>
           <div className="flex items-center gap-1">
