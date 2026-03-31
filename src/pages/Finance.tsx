@@ -274,18 +274,36 @@ export default function Finance() {
       const isOwner = ownerName ? matchScore(ownerName, rowName) >= 80 : false;
 
       let bestMatch: { member: any; confidence: number } | null = null;
-      for (const member of allTreeMembers) {
-        const fullName = `${member.first_name} ${member.last_name}`;
-        const names = [fullName, ...(member.matching_names || [])];
-        for (const name of names) {
-          const score = matchScore(name, rowName);
-          if (score > (bestMatch?.confidence || 0)) {
-            bestMatch = { member, confidence: score };
+
+      // 1. Check saved name associations first
+      const savedAssocs = ((settings?.column_mappings as any)?.name_associations || {}) as Record<string, string>;
+      const normalizedRowName = normalizeStr(rowName);
+      if (savedAssocs[normalizedRowName]) {
+        const assocMember = allTreeMembers.find((m: any) => m.id === savedAssocs[normalizedRowName]);
+        if (assocMember) bestMatch = { member: assocMember, confidence: 100 };
+      }
+
+      // 2. Match by ID Hyla (highest priority)
+      if (!bestMatch) {
+        for (const member of allTreeMembers) {
+          if (rowId && member.internal_id && normalizeStr(rowId) === normalizeStr(member.internal_id)) {
+            bestMatch = { member, confidence: 100 };
+            break;
           }
         }
-        if (rowId && member.internal_id && normalizeStr(rowId) === normalizeStr(member.internal_id)) {
-          bestMatch = { member, confidence: 100 };
-          break;
+      }
+
+      // 3. Fuzzy name matching
+      if (!bestMatch) {
+        for (const member of allTreeMembers) {
+          const fullName = `${member.first_name} ${member.last_name}`;
+          const names = [fullName, ...(member.matching_names || [])];
+          for (const name of names) {
+            const score = matchScore(name, rowName);
+            if (score > (bestMatch?.confidence || 0)) {
+              bestMatch = { member, confidence: score };
+            }
+          }
         }
       }
 
@@ -401,16 +419,26 @@ export default function Finance() {
       queryClient.invalidateQueries({ queryKey: ['commissions'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
 
-      // Save mapping profile for future auto-mapping
+      // Save mapping profile + name associations for future auto-mapping
       if (user) {
         const columnsKey = [...flow.columns].sort().join(',');
         const existingProfiles = ((settings?.column_mappings as any)?.profiles || []) as any[];
+        const existingAssocs = ((settings?.column_mappings as any)?.name_associations || {}) as Record<string, string>;
         const newProfile = { columns_key: columnsKey, mapping: flow.mapping, last_used: new Date().toISOString().split('T')[0] };
         const updatedProfiles = existingProfiles.filter((p: any) => p.columns_key !== columnsKey);
         updatedProfiles.push(newProfile);
+
+        // Save manual name→member associations for future matching
+        const updatedAssocs = { ...existingAssocs };
+        for (const r of matchResults) {
+          if (r.matched_member && !r.is_owner_row && r.match_status === 'manuel') {
+            updatedAssocs[normalizeStr(r.row_name)] = r.matched_member.id;
+          }
+        }
+
         await supabase.from('user_settings').upsert({
           user_id: user.id,
-          column_mappings: { profiles: updatedProfiles } as any,
+          column_mappings: { profiles: updatedProfiles, name_associations: updatedAssocs } as any,
         }, { onConflict: 'user_id' });
         queryClient.invalidateQueries({ queryKey: ['user-settings'] });
       }
@@ -680,20 +708,51 @@ export default function Finance() {
                       </div>
                     </div>
 
-                    <div className="max-h-48 overflow-y-auto space-y-1">
+                    <div className="max-h-60 overflow-y-auto space-y-1">
                       {matchResults.map((r, i) => (
-                        <div key={i} className={`flex items-center justify-between p-2.5 rounded-lg text-xs ${
+                        <div key={i} className={`p-2.5 rounded-lg text-xs ${
                           r.match_status === 'auto' ? 'bg-green-50' :
                           r.match_status === 'manuel' ? 'bg-amber-50' : 'bg-red-50'
                         }`}>
-                          <div className="min-w-0 flex-1">
-                            <span className="font-medium text-gray-800 truncate block">{r.row_name}</span>
-                            {r.is_owner_row && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Moi</span>}
-                            {r.matched_member && !r.is_owner_row && (
-                              <span className="text-[10px] text-gray-500">→ {r.matched_member.first_name} {r.matched_member.last_name}</span>
-                            )}
+                          <div className="flex items-center justify-between">
+                            <div className="min-w-0 flex-1">
+                              <span className="font-medium text-gray-800 truncate block">{r.row_name}</span>
+                              {r.is_owner_row && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Moi</span>}
+                              {r.matched_member && !r.is_owner_row && (
+                                <span className="text-[10px] text-gray-500">→ {r.matched_member.first_name} {r.matched_member.last_name} {r.matched_member.internal_id ? `(${r.matched_member.internal_id})` : ''}</span>
+                              )}
+                            </div>
+                            <span className="font-semibold text-gray-900 ml-2 whitespace-nowrap">{r.amount.toLocaleString('fr-FR')} €</span>
                           </div>
-                          <span className="font-semibold text-gray-900 ml-2 whitespace-nowrap">{r.amount.toLocaleString('fr-FR')} €</span>
+                          {/* Manual matching dropdown for unmatched rows */}
+                          {r.match_status === 'non_reconnu' && !r.is_owner_row && (
+                            <div className="mt-1.5">
+                              <select
+                                className="w-full text-[11px] border border-red-200 rounded-lg px-2 py-1.5 bg-white focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                                value=""
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (!val) return;
+                                  const updated = [...matchResults];
+                                  if (val === '__owner__') {
+                                    updated[i] = { ...r, is_owner_row: true, match_status: 'auto' as const, match_confidence: 100 };
+                                  } else {
+                                    const member = allTreeMembers.find((m: any) => m.id === val);
+                                    if (member) {
+                                      updated[i] = { ...r, matched_member: member, match_confidence: 100, match_status: 'manuel' as const };
+                                    }
+                                  }
+                                  setMatchResults(updated);
+                                }}
+                              >
+                                <option value="">Associer à un membre...</option>
+                                <option value="__owner__">C'est moi</option>
+                                {allTreeMembers.map((m: any) => (
+                                  <option key={m.id} value={m.id}>{m.first_name} {m.last_name} {m.internal_id ? `(${m.internal_id})` : ''}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
