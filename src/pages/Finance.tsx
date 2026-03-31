@@ -6,7 +6,7 @@ import { supabase, IMPORT_STATUS_LABELS, IMPORT_STATUS_COLORS } from '@/lib/supa
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Upload, FileSpreadsheet, CheckCircle, AlertTriangle, XCircle,
-  FileText, Receipt,
+  FileText, Receipt, ChevronRight, RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,6 +77,8 @@ export default function Finance() {
     fileName: '',
   });
   const [matchResults, setMatchResults] = useState<any[]>([]);
+  const [selectedImport, setSelectedImport] = useState<any>(null);
+  const [importRows, setImportRows] = useState<any[]>([]);
 
   // ── User settings (saved column mappings) ──
   const { data: settings } = useQuery({
@@ -794,7 +796,19 @@ export default function Finance() {
               </div>
               <div className="divide-y divide-gray-100">
                 {imports.map((imp: any) => (
-                  <div key={imp.id} className="px-4 py-3 flex items-center justify-between">
+                  <div
+                    key={imp.id}
+                    className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={async () => {
+                      setSelectedImport(imp);
+                      const { data: rows } = await supabase
+                        .from('commission_import_rows')
+                        .select('*')
+                        .eq('import_id', imp.id)
+                        .order('created_at');
+                      setImportRows(rows || []);
+                    }}
+                  >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-0.5">
                         <FileSpreadsheet className="h-3.5 w-3.5 text-gray-400 shrink-0" />
@@ -802,11 +816,15 @@ export default function Finance() {
                       </div>
                       <p className="text-[11px] text-gray-400 ml-5.5">
                         {imp.period} • {new Date(imp.uploaded_at).toLocaleDateString('fr-FR')}
+                        {imp.stats && ` • ${(imp.stats as any).matched_rows || 0} matchés / ${(imp.stats as any).total_rows || 0}`}
                       </p>
                     </div>
-                    <span className={`shrink-0 ml-2 inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${IMPORT_STATUS_COLORS[imp.status as keyof typeof IMPORT_STATUS_COLORS]}`}>
-                      {IMPORT_STATUS_LABELS[imp.status as keyof typeof IMPORT_STATUS_LABELS]}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${IMPORT_STATUS_COLORS[imp.status as keyof typeof IMPORT_STATUS_COLORS]}`}>
+                        {IMPORT_STATUS_LABELS[imp.status as keyof typeof IMPORT_STATUS_LABELS]}
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-gray-300" />
+                    </div>
                   </div>
                 ))}
                 {imports.length === 0 && (
@@ -814,6 +832,113 @@ export default function Finance() {
                 )}
               </div>
             </div>
+
+            {/* ── Import Detail Dialog ── */}
+            <Dialog open={!!selectedImport} onOpenChange={(v) => { if (!v) { setSelectedImport(null); setImportRows([]); } }}>
+              <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-base">
+                    <FileSpreadsheet className="h-5 w-5 text-[#3b82f6]" />
+                    {selectedImport?.file_name}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  {/* Stats */}
+                  <div className="flex gap-2 text-xs">
+                    <span className="px-2 py-1 bg-gray-100 rounded-lg">Période : {selectedImport?.period}</span>
+                    <span className={`px-2 py-1 rounded-lg ${IMPORT_STATUS_COLORS[selectedImport?.status as keyof typeof IMPORT_STATUS_COLORS]}`}>
+                      {IMPORT_STATUS_LABELS[selectedImport?.status as keyof typeof IMPORT_STATUS_LABELS]}
+                    </span>
+                  </div>
+
+                  {selectedImport?.stats && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-green-50 rounded-xl p-2.5 text-center">
+                        <p className="text-sm font-bold text-green-700">{(selectedImport.stats as any).matched_rows || 0}</p>
+                        <p className="text-[10px] text-green-600">Matchés</p>
+                      </div>
+                      <div className="bg-red-50 rounded-xl p-2.5 text-center">
+                        <p className="text-sm font-bold text-red-600">{(selectedImport.stats as any).unmatched_rows || 0}</p>
+                        <p className="text-[10px] text-red-500">Non matchés</p>
+                      </div>
+                      <div className="bg-blue-50 rounded-xl p-2.5 text-center">
+                        <p className="text-sm font-bold text-blue-700">{((selectedImport.stats as any).total_amount || 0).toLocaleString('fr-FR')}€</p>
+                        <p className="text-[10px] text-blue-600">Total</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Rows */}
+                  <div className="space-y-1 max-h-60 overflow-y-auto">
+                    {importRows.map((row: any, i: number) => (
+                      <div key={row.id} className={`p-2.5 rounded-lg text-xs ${
+                        row.match_status === 'auto' ? 'bg-green-50' :
+                        row.match_status === 'manuel' ? 'bg-amber-50' : 'bg-red-50'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <div className="min-w-0 flex-1">
+                            <span className="font-medium text-gray-800 block">{row.details || 'Sans nom'}</span>
+                            {row.is_owner_row && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Moi</span>}
+                          </div>
+                          <span className="font-semibold text-gray-900 ml-2">{(row.amount || 0).toLocaleString('fr-FR')} €</span>
+                        </div>
+                        {/* Re-match dropdown for unmatched */}
+                        {row.match_status === 'non_reconnu' && !row.is_owner_row && (
+                          <div className="mt-1.5">
+                            <select
+                              className="w-full text-[11px] border border-red-200 rounded-lg px-2 py-1.5 bg-white"
+                              value=""
+                              onChange={async (e) => {
+                                const val = e.target.value;
+                                if (!val) return;
+                                if (val === '__owner__') {
+                                  await supabase.from('commission_import_rows').update({
+                                    is_owner_row: true, match_status: 'auto', match_confidence: 100,
+                                  }).eq('id', row.id);
+                                } else {
+                                  await supabase.from('commission_import_rows').update({
+                                    matched_member_id: val, match_status: 'manuel', match_confidence: 100,
+                                  }).eq('id', row.id);
+                                }
+                                // Refresh rows
+                                const { data: rows } = await supabase
+                                  .from('commission_import_rows').select('*').eq('import_id', selectedImport.id).order('created_at');
+                                setImportRows(rows || []);
+                              }}
+                            >
+                              <option value="">Associer à un membre...</option>
+                              <option value="__owner__">C'est moi</option>
+                              {allTreeMembers.map((m: any) => (
+                                <option key={m.id} value={m.id}>{m.first_name} {m.last_name} {m.internal_id ? `(${m.internal_id})` : ''}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Re-consolidate button */}
+                  {importRows.some((r: any) => r.match_status === 'non_reconnu') && (
+                    <p className="text-[10px] text-gray-400 text-center">Corrigez les lignes non matchées puis re-consolidez</p>
+                  )}
+                  <button
+                    onClick={async () => {
+                      await supabase.rpc('consolidate_import_commissions', { p_import_id: selectedImport.id });
+                      queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
+                      queryClient.invalidateQueries({ queryKey: ['commissions'] });
+                      queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
+                      toast({ title: 'Commissions re-consolidées' });
+                      setSelectedImport(null);
+                      setImportRows([]);
+                    }}
+                    className="w-full py-2.5 bg-[#3b82f6] text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" /> Re-consolider les commissions
+                  </button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </>
         )}
 
