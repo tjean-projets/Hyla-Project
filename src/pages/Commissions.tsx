@@ -13,8 +13,11 @@ export default function Commissions() {
   const effectiveId = useEffectiveUserId();
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState('all');
   const [view, setView] = useState<'perso' | 'equipe'>('perso');
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
+
+  const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
   const { data: commissions = [] } = useQuery({
     queryKey: ['commissions', effectiveId, selectedYear],
@@ -43,22 +46,24 @@ export default function Commissions() {
     enabled: !!effectiveId,
   });
 
+  // Filter by month if selected
+  const filteredCommissions = selectedMonth === 'all'
+    ? commissions
+    : commissions.filter((c: any) => c.period === `${selectedYear}-${selectedMonth}`);
+
   // Commissions réseau groupées par membre et par mois
-  const teamCommissions = commissions.filter((c: any) => c.type === 'reseau' && c.status === 'validee' && c.team_member_id);
+  const teamCommissions = filteredCommissions.filter((c: any) => c.type === 'reseau' && c.status === 'validee' && c.team_member_id);
 
   const teamSummary = teamMembers.map((m: any) => {
     const memberComms = teamCommissions.filter((c: any) => c.team_member_id === m.id);
-    const totalYear = memberComms.reduce((s: number, c: any) => s + c.amount, 0);
-    const currentMonth = `${selectedYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const totalMonth = memberComms.filter((c: any) => c.period === currentMonth).reduce((s: number, c: any) => s + c.amount, 0);
-    return { ...m, totalYear, totalMonth, commissions: memberComms };
-  }).sort((a: any, b: any) => b.totalYear - a.totalYear);
+    const total = memberComms.reduce((s: number, c: any) => s + c.amount, 0);
+    return { ...m, total, commissions: memberComms };
+  }).sort((a: any, b: any) => b.total - a.total);
 
-  const teamTotalYear = teamSummary.reduce((s: number, m: any) => s + m.totalYear, 0);
-  const teamTotalMonth = teamSummary.reduce((s: number, m: any) => s + m.totalMonth, 0);
+  const teamTotal = teamSummary.reduce((s: number, m: any) => s + m.total, 0);
 
-  const totalDirecte = commissions.filter((c: any) => c.type === 'directe' && c.status === 'validee').reduce((s: number, c: any) => s + c.amount, 0);
-  const totalReseau = commissions.filter((c: any) => c.type === 'reseau' && c.status === 'validee').reduce((s: number, c: any) => s + c.amount, 0);
+  const totalDirecte = filteredCommissions.filter((c: any) => c.type === 'directe' && c.status === 'validee').reduce((s: number, c: any) => s + c.amount, 0);
+  const totalReseau = filteredCommissions.filter((c: any) => c.type === 'reseau' && c.status === 'validee').reduce((s: number, c: any) => s + c.amount, 0);
   const total = totalDirecte + totalReseau;
 
   const months = Array.from({ length: 12 }, (_, i) => {
@@ -77,7 +82,7 @@ export default function Commissions() {
     };
   });
 
-  const byMember = commissions
+  const byMember = filteredCommissions
     .filter((c: any) => c.type === 'reseau' && c.status === 'validee' && c.team_members)
     .reduce((acc: Record<string, { name: string; total: number }>, c: any) => {
       const key = c.team_member_id;
@@ -92,21 +97,36 @@ export default function Commissions() {
     <AppLayout title="Commissions" variant="dark">
       <div className="space-y-6">
         {/* ── Year selector ── */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-[#3b82f6]" />
-            <span className="text-sm font-bold text-white">Année {selectedYear}</span>
+            <span className="text-sm font-bold text-white">
+              {selectedMonth === 'all' ? `Année ${selectedYear}` : `${MONTHS_FR[parseInt(selectedMonth) - 1]} ${selectedYear}`}
+            </span>
           </div>
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[120px] bg-white/[0.06] border-white/10 text-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2].map(y => (
-                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[130px] bg-white/[0.06] border-white/10 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les mois</SelectItem>
+                {MONTHS_FR.map((m, i) => (
+                  <SelectItem key={i} value={String(i + 1).padStart(2, '0')}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[100px] bg-white/[0.06] border-white/10 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2].map(y => (
+                  <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* ── View toggle: Perso / Équipe ── */}
@@ -133,23 +153,20 @@ export default function Commissions() {
         {view === 'equipe' ? (
           <div className="space-y-4">
             {/* Team KPIs */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-gradient-to-br from-violet-500/15 to-indigo-500/10 backdrop-blur-xl rounded-2xl border border-violet-500/20 p-4 text-center">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Réseau {selectedYear}</p>
-                <p className="text-2xl font-bold text-white">{teamTotalYear.toLocaleString('fr-FR')} <span className="text-sm text-gray-400">€</span></p>
-              </div>
-              <div className="bg-gradient-to-br from-emerald-500/15 to-green-500/10 backdrop-blur-xl rounded-2xl border border-emerald-500/20 p-4 text-center">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Ce mois</p>
-                <p className="text-2xl font-bold text-white">{teamTotalMonth.toLocaleString('fr-FR')} <span className="text-sm text-gray-400">€</span></p>
-              </div>
+            <div className="bg-gradient-to-br from-violet-500/15 to-indigo-500/10 backdrop-blur-xl rounded-2xl border border-violet-500/20 p-5 text-center">
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                Total réseau {selectedMonth === 'all' ? selectedYear : `${MONTHS_FR[parseInt(selectedMonth) - 1]} ${selectedYear}`}
+              </p>
+              <p className="text-3xl font-bold text-white">{teamTotal.toLocaleString('fr-FR')} <span className="text-lg text-gray-400">€</span></p>
+              <p className="text-xs text-gray-500 mt-1">{teamSummary.filter((m: any) => m.total > 0).length} membre{teamSummary.filter((m: any) => m.total > 0).length > 1 ? 's' : ''} actif{teamSummary.filter((m: any) => m.total > 0).length > 1 ? 's' : ''}</p>
             </div>
 
             {/* Members list */}
             <div className="space-y-2">
               {teamSummary.map((m: any) => {
                 const isExpanded = expandedMemberId === m.id;
-                const maxVal = teamSummary[0]?.totalYear || 1;
-                const pct = Math.round((m.totalYear / maxVal) * 100);
+                const maxVal = teamSummary[0]?.total || 1;
+                const pct = Math.round((m.total / maxVal) * 100);
                 return (
                   <div key={m.id} className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
                     <div
@@ -162,13 +179,13 @@ export default function Commissions() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <p className="text-sm font-semibold text-white truncate">{m.first_name} {m.last_name}</p>
-                          <p className="text-sm font-bold text-white ml-2">{m.totalYear.toLocaleString('fr-FR')} €</p>
+                          <p className="text-sm font-bold text-white ml-2">{m.total.toLocaleString('fr-FR')} €</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
                             <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all duration-500" style={{ width: `${pct}%` }} />
                           </div>
-                          <span className="text-[10px] text-gray-500 whitespace-nowrap">{m.totalMonth.toLocaleString('fr-FR')} € ce mois</span>
+                          <span className="text-[10px] text-gray-500 whitespace-nowrap">{m.commissions.length} commission{m.commissions.length > 1 ? 's' : ''}</span>
                         </div>
                       </div>
                       {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-gray-500 flex-shrink-0" />}
@@ -307,7 +324,7 @@ export default function Commissions() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {commissions.slice(0, 50).map((c: any) => (
+              {filteredCommissions.slice(0, 50).map((c: any) => (
                 <tr key={c.id} className="hover:bg-white/[0.03] transition-colors">
                   <td className="px-5 py-3.5 text-gray-300">{c.period}</td>
                   <td className="px-5 py-3.5">
@@ -336,7 +353,7 @@ export default function Commissions() {
                   </td>
                 </tr>
               ))}
-              {commissions.length === 0 && (
+              {filteredCommissions.length === 0 && (
                 <tr><td colSpan={5} className="px-5 py-16 text-center text-gray-600">
                   <DollarSign className="h-8 w-8 mx-auto mb-2 text-gray-700" />
                   Aucune commission
