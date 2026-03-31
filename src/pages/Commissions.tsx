@@ -155,6 +155,42 @@ export default function Commissions() {
     printWindow.print();
   };
 
+  // ── Export comptable CSV ──
+  const exportComptableCSV = () => {
+    const comms = filteredCommissions.filter((c: any) => c.status === 'validee');
+    if (comms.length === 0) return;
+
+    const periodLabel = selectedMonth === 'all' ? selectedYear : `${MONTHS_FR[parseInt(selectedMonth) - 1]} ${selectedYear}`;
+    const rows = comms.map((c: any) => ({
+      date: c.period + '-01',
+      libelle: c.type === 'directe'
+        ? `Commission directe${c.notes ? ' - ' + c.notes : ''}`
+        : `Commission réseau${c.team_members ? ' - ' + c.team_members.first_name + ' ' + c.team_members.last_name : ''}`,
+      montant_ht: c.amount,
+      tva: 0,
+      montant_ttc: c.amount,
+      type: c.type === 'directe' ? 'Directe' : 'Réseau',
+    }));
+
+    const totalHT = rows.reduce((s, r) => s + r.montant_ht, 0);
+
+    // Generate CSV
+    const header = 'Date;Libellé;Montant HT;TVA;Montant TTC;Type\n';
+    const csvRows = rows.map(r =>
+      `${r.date};${r.libelle};${r.montant_ht.toFixed(2)};${r.tva.toFixed(2)};${r.montant_ttc.toFixed(2)};${r.type}`
+    ).join('\n');
+    const footer = `\n;TOTAL;${totalHT.toFixed(2)};0.00;${totalHT.toFixed(2)};`;
+
+    const csv = header + csvRows + footer;
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `commissions_comptable_${periodLabel.replace(/ /g, '_')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <AppLayout title="Commissions" variant="dark">
       <div className="space-y-6">
@@ -391,6 +427,12 @@ export default function Commissions() {
               Les commissions Hyla (directes + réseau) sont des prestations de services commerciales (BIC).
               Taux de cotisations URSSAF : 21,1% du CA déclaré.
             </p>
+            <button
+              onClick={exportComptableCSV}
+              className="w-full mt-3 py-2 flex items-center justify-center gap-2 text-xs font-semibold bg-white/[0.06] border border-white/10 rounded-xl text-gray-400 hover:text-white hover:border-white/20 transition-all"
+            >
+              <Download className="h-3.5 w-3.5" /> Exporter le récap comptable (CSV)
+            </button>
           </div>
         )}
 
