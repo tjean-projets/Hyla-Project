@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 import { Timer, Trophy } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, isSuperAdmin, HYLA_CHALLENGES } from '@/lib/supabase';
 import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { useImpersonationSafe } from '@/hooks/useImpersonation';
@@ -59,6 +59,7 @@ function NotifItem({ color, title, subtitle, meta, action, actionLabel }: {
 function NotificationCenter({ user, profile, isDark }: { user: any; profile: any; isDark: boolean }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const effectiveId = useEffectiveUserId();
 
   // Query new leads
@@ -119,7 +120,25 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
     enabled: !!effectiveId,
   });
 
-  const totalCount = newLeads.length + overdueTasks.length + todayTasks.length;
+  // Query Hyla notifications from DB
+  const { data: hylaNotifs = [] } = useQuery({
+    queryKey: ['notif-hyla', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', effectiveId)
+        .eq('is_read', false)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      return data || [];
+    },
+    enabled: !!effectiveId,
+    refetchInterval: 15000,
+  });
+
+  const totalCount = newLeads.length + overdueTasks.length + todayTasks.length + hylaNotifs.length;
 
   function timeAgo(date: string) {
     const diff = Date.now() - new Date(date).getTime();
@@ -159,6 +178,23 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
       subtitle: t.contacts ? `${t.contacts.first_name} ${t.contacts.last_name}` : '',
       meta: 'Aujourd\'hui' + (t.due_date ? ' \u2022 ' + new Date(t.due_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''),
       action: () => { setOpen(false); navigate('/tasks'); },
+      actionLabel: 'Voir',
+    })),
+    ...hylaNotifs.map((n: any) => ({
+      id: 'hyla-' + n.id,
+      type: 'hyla' as const,
+      color: n.type === 'success' ? 'bg-emerald-500' : n.type === 'warning' ? 'bg-amber-500' : n.type === 'error' ? 'bg-red-500' : 'bg-blue-500',
+      title: n.title,
+      subtitle: n.message,
+      meta: timeAgo(n.created_at),
+      action: () => {
+        // Mark as read
+        supabase.from('notifications').update({ is_read: true }).eq('id', n.id).then(() => {
+          queryClient.invalidateQueries({ queryKey: ['notif-hyla'] });
+        });
+        setOpen(false);
+        if (n.link) navigate(n.link);
+      },
       actionLabel: 'Voir',
     })),
   ];
