@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
+import { SkeletonTable } from '@/components/ui/skeleton-card';
 
 type Contact = Tables<'contacts'>;
 
@@ -555,7 +556,8 @@ export default function Contacts() {
         </div>
 
         {/* List view */}
-        {view === 'list' && (
+        {view === 'list' && isLoading && <SkeletonTable rows={6} />}
+        {view === 'list' && !isLoading && (
           <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted border-b">
@@ -598,7 +600,7 @@ export default function Contacts() {
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                      {isLoading ? 'Chargement...' : 'Aucun contact trouvé'}
+                      Aucun contact trouvé
                     </td>
                   </tr>
                 )}

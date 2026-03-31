@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
+import { SkeletonTable, SkeletonRow } from '@/components/ui/skeleton-card';
 
 type Deal = Tables<'deals'>;
 
@@ -469,7 +470,8 @@ export default function Deals() {
         </div>
 
         {/* Table */}
-        {view === 'list' && (
+        {view === 'list' && isLoading && <SkeletonTable rows={4} />}
+        {view === 'list' && !isLoading && (
           <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted border-b">
@@ -510,7 +512,7 @@ export default function Deals() {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">{isLoading ? 'Chargement...' : 'Aucune vente'}</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">Aucune vente</td></tr>
                 )}
               </tbody>
             </table>
@@ -518,7 +520,18 @@ export default function Deals() {
         )}
 
         {/* Kanban */}
-        {view === 'kanban' && (
+        {view === 'kanban' && isLoading && (
+          <div className="flex gap-3 overflow-x-auto pb-4">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="min-w-[220px] flex-shrink-0 space-y-2">
+                <div className="h-8 rounded-xl bg-muted animate-pulse" />
+                <SkeletonRow />
+                <SkeletonRow />
+              </div>
+            ))}
+          </div>
+        )}
+        {view === 'kanban' && !isLoading && (
           <div className="flex gap-3 overflow-x-auto pb-4">
             {KANBAN_COLS.map(col => {
               const colDeals = filtered.filter((d: any) => d.status === col.status);

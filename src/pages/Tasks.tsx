@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { SkeletonTable } from '@/components/ui/skeleton-card';
 
 interface TaskFormData {
   title: string;
@@ -189,7 +190,7 @@ export default function Tasks() {
   const [view, setView] = useState<'list' | 'kanban'>('list');
   const [draggingTask, setDraggingTask] = useState<any>(null);
 
-  const { data: tasks = [] } = useQuery({
+  const { data: tasks = [], isLoading: tasksLoading } = useQuery({
     queryKey: ['tasks', effectiveId],
     queryFn: async () => {
       if (!effectiveId) return [];
@@ -283,7 +284,8 @@ export default function Tasks() {
           </div>
         </div>
 
-        {view === 'list' && (
+        {view === 'list' && tasksLoading && <SkeletonTable rows={5} />}
+        {view === 'list' && !tasksLoading && (
         <div className="space-y-2">
           {filtered.map((task: any) => (
             <div

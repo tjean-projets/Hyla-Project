@@ -8,6 +8,7 @@ import { TrendingUp, Zap, Trophy, Star, ArrowUp, DollarSign, Users, ChevronDown,
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { SkeletonTable, SkeletonKPI } from '@/components/ui/skeleton-card';
 
 export default function Commissions() {
   const { user } = useAuth();
@@ -24,7 +25,7 @@ export default function Commissions() {
 
   const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
-  const { data: commissions = [] } = useQuery({
+  const { data: commissions = [], isLoading: commissionsLoading } = useQuery({
     queryKey: ['commissions', effectiveId, selectedYear],
     queryFn: async () => {
       if (!effectiveId) return [];
@@ -311,6 +312,14 @@ export default function Commissions() {
                 </div>
               )}
             </div>
+          </div>
+        ) : commissionsLoading ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <SkeletonKPI />
+              <SkeletonKPI />
+            </div>
+            <SkeletonTable rows={5} />
           </div>
         ) : (
         <>

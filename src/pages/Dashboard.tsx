@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useState } from 'react';
 import OnboardingGuide from '@/components/OnboardingGuide';
 import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
+import { SkeletonKPI, SkeletonTable } from '@/components/ui/skeleton-card';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -24,7 +25,7 @@ export default function Dashboard() {
   const { profile } = useEffectiveProfile();
   const [showChallenge, setShowChallenge] = useState<'countdown' | 'rookie' | null>(null);
 
-  const { data: kpis } = useQuery({
+  const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ['dashboard-kpis', effectiveId],
     queryFn: async () => {
       if (!effectiveId) return null;
@@ -68,7 +69,7 @@ export default function Dashboard() {
     enabled: !!effectiveId,
   });
 
-  const { data: upcomingTasks } = useQuery({
+  const { data: upcomingTasks, isLoading: tasksLoading } = useQuery({
     queryKey: ['upcoming-tasks', effectiveId],
     queryFn: async () => {
       if (!effectiveId) return [];
@@ -279,6 +280,14 @@ export default function Dashboard() {
         </Dialog>
 
         {/* ── KPIs essentiels (4 cards) ── */}
+        {kpisLoading ? (
+          <div className="grid grid-cols-2 gap-3">
+            <SkeletonKPI />
+            <SkeletonKPI />
+            <SkeletonKPI />
+            <SkeletonKPI />
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
             <div className="flex items-center justify-between mb-1">
@@ -318,6 +327,7 @@ export default function Dashboard() {
             <p className="text-xl font-bold text-foreground">{k.equipe_active || 0}</p>
           </div>
         </div>
+        )}
 
         {/* ── Barème rapide ── */}
         <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
@@ -359,6 +369,9 @@ export default function Dashboard() {
         </div>
 
         {/* ── Prochaines tâches ── */}
+        {tasksLoading ? (
+          <SkeletonTable rows={4} />
+        ) : (
         <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <h3 className="text-xs font-bold text-foreground">Prochaines tâches</h3>
@@ -388,6 +401,7 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+        )}
       </div>
 
       <OnboardingGuide />
