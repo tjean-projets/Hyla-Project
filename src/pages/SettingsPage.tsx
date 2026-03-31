@@ -3,7 +3,7 @@ import { AppLayout, ALL_MOBILE_TABS } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint, Eye } from 'lucide-react';
+import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint, Eye, Target } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -200,6 +200,9 @@ export default function SettingsPage() {
   const [purgeConfirm, setPurgeConfirm] = useState('');
   const [purging, setPurging] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+  const [monthlySalesTarget, setMonthlySalesTarget] = useState('');
+  const [monthlyCaTarget, setMonthlyCaTarget] = useState('');
+  const [savingObjectives, setSavingObjectives] = useState(false);
 
   // Mobile nav customization
   const getInitialTabs = () => {
@@ -241,6 +244,27 @@ export default function SettingsPage() {
       setQuestions(formConfig.questions as unknown as FormQuestion[]);
     }
   }, [formConfig]);
+
+  const { data: userSettings } = useQuery({
+    queryKey: ['user-settings', effectiveUserId],
+    queryFn: async () => {
+      if (!effectiveUserId) return null;
+      const { data } = await supabase
+        .from('user_settings')
+        .select('monthly_sales_target, monthly_ca_target')
+        .eq('user_id', effectiveUserId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!effectiveUserId,
+  });
+
+  useEffect(() => {
+    if (userSettings) {
+      setMonthlySalesTarget(String((userSettings as any).monthly_sales_target ?? ''));
+      setMonthlyCaTarget(String((userSettings as any).monthly_ca_target ?? ''));
+    }
+  }, [userSettings]);
 
   const saveProfile = useMutation({
     mutationFn: async () => {
@@ -299,6 +323,26 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['profile-date'] });
       queryClient.invalidateQueries({ queryKey: ['profile-date-dash'] });
       toast({ title: 'Date sauvegardée', description: 'Tes challenges sont recalculés à partir de cette date.' });
+    }
+  };
+
+  const saveObjectives = async () => {
+    if (!user) return;
+    setSavingObjectives(true);
+    const { error } = await supabase
+      .from('user_settings')
+      .upsert({
+        user_id: user.id,
+        monthly_sales_target: parseInt(monthlySalesTarget) || 0,
+        monthly_ca_target: parseInt(monthlyCaTarget) || 0,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+    setSavingObjectives(false);
+    if (error) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['user-settings'] });
+      toast({ title: 'Objectifs sauvegardés', description: 'Ils apparaîtront sur ton Dashboard.' });
     }
   };
 
@@ -439,6 +483,51 @@ export default function SettingsPage() {
               >
                 <Save className="h-4 w-4" />
                 {savingChallengeDate ? 'Enregistrement...' : 'Sauvegarder'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Mes objectifs personnels */}
+        {!isImpersonating && (
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Target className="h-4 w-4 text-blue-600" />
+              <h3 className="text-base font-semibold text-foreground">Mes objectifs personnels</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Définis tes objectifs mensuels. Ils apparaîtront sur ton Dashboard comme barre de progression.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Objectif ventes / mois</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={monthlySalesTarget}
+                  onChange={(e) => setMonthlySalesTarget(e.target.value)}
+                  placeholder="Ex : 4"
+                  className="h-11"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Objectif CA / mois (€)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={monthlyCaTarget}
+                  onChange={(e) => setMonthlyCaTarget(e.target.value)}
+                  placeholder="Ex : 3000"
+                  className="h-11"
+                />
+              </div>
+              <button
+                onClick={saveObjectives}
+                disabled={savingObjectives}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
+              >
+                <Save className="h-4 w-4" />
+                {savingObjectives ? 'Enregistrement...' : 'Sauvegarder'}
               </button>
             </div>
           </div>

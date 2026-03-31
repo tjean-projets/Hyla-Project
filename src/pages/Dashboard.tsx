@@ -69,6 +69,37 @@ export default function Dashboard() {
     enabled: !!effectiveId,
   });
 
+  // Objectifs du mois — définis par le manager (member_objectives) ou personnels (user_settings)
+  const { data: myObjectives } = useQuery({
+    queryKey: ['my-objectives', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return null;
+      const { data } = await supabase
+        .from('member_objectives')
+        .select('*')
+        .eq('user_id', effectiveId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!effectiveId,
+  });
+
+  const { data: userSettings } = useQuery({
+    queryKey: ['user-settings', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return null;
+      const { data } = await supabase
+        .from('user_settings')
+        .select('monthly_sales_target, monthly_ca_target')
+        .eq('user_id', effectiveId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!effectiveId,
+  });
+
   const { data: upcomingTasks, isLoading: tasksLoading } = useQuery({
     queryKey: ['upcoming-tasks', effectiveId],
     queryFn: async () => {
@@ -129,6 +160,30 @@ export default function Dashboard() {
       Ventes: ventesduMois,
     };
   });
+
+  // Objectifs personnels — fallback sur user_settings si pas de member_objectives
+  const salesTarget = (myObjectives as any)?.ventes_objectif_mois ?? (userSettings as any)?.monthly_sales_target ?? 0;
+  const caTarget = (userSettings as any)?.monthly_ca_target ?? 0;
+  const hasObjectives = salesTarget > 0 || caTarget > 0;
+
+  // Progression ventes du mois en cours
+  const currentMonthSales = (() => {
+    const n = new Date();
+    return deals.filter((d: any) => {
+      if (!d.signed_at) return false;
+      const sd = new Date(d.signed_at);
+      return sd.getMonth() === n.getMonth() && sd.getFullYear() === n.getFullYear();
+    }).length;
+  })();
+  const currentMonthCA = k.ca_mois || 0;
+
+  const salesPct = salesTarget > 0 ? Math.min(100, Math.round((currentMonthSales / salesTarget) * 100)) : 0;
+  const caPct = caTarget > 0 ? Math.min(100, Math.round((currentMonthCA / caTarget) * 100)) : 0;
+
+  const objectifBarColor = (pct: number) =>
+    pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-blue-500' : 'bg-amber-500';
+  const objectifTextColor = (pct: number) =>
+    pct >= 100 ? 'text-emerald-600' : pct >= 50 ? 'text-blue-600' : 'text-amber-600';
 
   const firstName = profile?.full_name?.split(' ')[0] || 'Partenaire';
 
@@ -327,6 +382,52 @@ export default function Dashboard() {
             <p className="text-xl font-bold text-foreground">{k.equipe_active || 0}</p>
           </div>
         </div>
+        )}
+
+        {/* ── Objectifs du mois ── */}
+        {hasObjectives && (
+          <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-foreground">Mes objectifs du mois</p>
+              <Target className="h-3.5 w-3.5 text-muted-foreground" />
+            </div>
+            <div className="space-y-3">
+              {salesTarget > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] text-muted-foreground">Ventes</span>
+                    <span className={`text-[11px] font-bold ${objectifTextColor(salesPct)}`}>
+                      {currentMonthSales}/{salesTarget}
+                      {salesPct >= 100 && ' ✓'}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${objectifBarColor(salesPct)}`}
+                      style={{ width: `${salesPct}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              {caTarget > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] text-muted-foreground">CA</span>
+                    <span className={`text-[11px] font-bold ${objectifTextColor(caPct)}`}>
+                      {currentMonthCA.toLocaleString('fr-FR')} / {caTarget.toLocaleString('fr-FR')} €
+                      {caPct >= 100 && ' ✓'}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${objectifBarColor(caPct)}`}
+                      style={{ width: `${caPct}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {/* ── Barème rapide ── */}
