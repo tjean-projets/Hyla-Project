@@ -691,25 +691,12 @@ function ObjectifsPanel({ member, userId }: { member: TeamMember; userId: string
   );
 }
 
-/* ── Progress bar (mockup 3 style) ── */
-function ProgressRing({ value, max, label, color, isDark = true }: { value: number; max: number; label: string; color: string; isDark?: boolean }) {
-  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-  const trackColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+/* ── Simple KPI card ── */
+function KpiCard({ value, label, color }: { value: number; label: string; color: string }) {
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative h-20 w-20">
-        <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90">
-          <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            fill="none" stroke={trackColor} strokeWidth="3" />
-          <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            fill="none" stroke={color} strokeWidth="3" strokeDasharray={`${pct}, 100`}
-            strokeLinecap="round" className="transition-all duration-700" />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className={cn('text-lg font-bold', isDark ? 'text-white' : 'text-gray-900')}>{value}</span>
-        </div>
-      </div>
-      <span className={cn('text-[11px] font-medium uppercase tracking-wider', isDark ? 'text-gray-400' : 'text-gray-500')}>{label}</span>
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-center">
+      <p className={`text-2xl font-bold ${color}`}>{value}</p>
+      <p className="text-[10px] text-gray-400 uppercase font-semibold mt-0.5">{label}</p>
     </div>
   );
 }
@@ -1131,80 +1118,59 @@ function OrgTreeNode({ node, isLast = false }: { node: OrgNode; isLast?: boolean
   );
 }
 
-/* ── Mon Reseau Hyla Section ── */
-function DownlineSection({ currentUserId, members, isDark = true }: { currentUserId: string; members: TeamMember[]; isDark?: boolean }) {
+/* ── Organigramme simple ── */
+function DownlineSection({ currentUserId, members }: { currentUserId: string; members: TeamMember[] }) {
   const orgTree = buildOrgTree(members);
-  const card = isDark
-    ? 'bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border-white/10'
-    : 'bg-white border-gray-100 shadow-sm';
-  const lineColor = isDark ? 'bg-white/15' : 'bg-gray-200';
 
-  if (members.length === 0) {
-    return (
-      <div className={cn('rounded-2xl border p-6', card)}>
-        <div className="flex items-center gap-2 mb-3">
-          <Network className="h-5 w-5 text-violet-400" />
-          <h3 className={cn('text-sm font-bold', isDark ? 'text-white' : 'text-gray-900')}>Mon Reseau Hyla</h3>
-        </div>
-        <div className="text-center py-8">
-          <Users className={cn('h-10 w-10 mx-auto mb-3', isDark ? 'text-gray-600' : 'text-gray-300')} />
-          <p className={cn('text-sm', isDark ? 'text-gray-500' : 'text-gray-400')}>Aucun membre dans votre reseau</p>
-          <p className={cn('text-xs mt-1', isDark ? 'text-gray-600' : 'text-gray-300')}>Ajoutez des membres pour voir l'organigramme</p>
-        </div>
-      </div>
-    );
-  }
+  if (members.length === 0) return null;
 
   return (
-    <div className={cn('rounded-2xl border p-6', card)}>
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
       <div className="flex items-center gap-2 mb-4">
-        <Network className="h-5 w-5 text-violet-400" />
-        <h3 className={cn('text-sm font-bold', isDark ? 'text-white' : 'text-gray-900')}>Mon Reseau Hyla</h3>
-        <span className="ml-auto text-xs text-gray-500">{members.length} membre{members.length > 1 ? 's' : ''}</span>
+        <Network className="h-4 w-4 text-violet-500" />
+        <h3 className="text-sm font-semibold text-gray-900">Organigramme</h3>
+        <span className="ml-auto text-xs text-gray-400">{members.length} membre{members.length > 1 ? 's' : ''}</span>
       </div>
 
-      {/* Root: current user (centered) */}
-      <div className="flex flex-col items-center mb-4">
-        <div className="flex flex-col items-center">
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500/40 to-orange-500/40 flex items-center justify-center ring-2 ring-amber-500/30 mb-1">
-            <Star className="h-7 w-7 text-amber-300" />
-          </div>
-          <p className={cn('text-sm font-bold', isDark ? 'text-white' : 'text-gray-900')}>Moi</p>
-          <p className="text-[10px] text-gray-500">Manager</p>
+      {/* Moi */}
+      <div className="flex flex-col items-center mb-3">
+        <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md mb-1">
+          <Star className="h-6 w-6 text-white" />
         </div>
-        {orgTree.length > 0 && <div className={cn('w-px h-6 mt-2', lineColor)} />}
+        <p className="text-xs font-bold text-gray-900">Moi</p>
+        {orgTree.length > 0 && <div className="w-px h-5 bg-gray-200 mt-1.5" />}
       </div>
 
-      {/* Members: horizontal row */}
+      {/* Membres */}
       {orgTree.length > 0 && (
         <>
-          <div className="flex justify-center mb-0">
-            <div className={cn('h-px', lineColor, orgTree.length === 1 ? 'w-0' : 'w-full max-w-[80%]')} />
-          </div>
-          <div className="flex flex-wrap justify-center gap-3 mt-0">
+          {orgTree.length > 1 && (
+            <div className="flex justify-center">
+              <div className="h-px bg-gray-200 w-full max-w-[80%]" />
+            </div>
+          )}
+          <div className="flex flex-wrap justify-center gap-4 mt-0">
             {orgTree.map((node) => (
               <div key={node.id} className="flex flex-col items-center w-20">
-                <div className={cn('w-px h-4 mb-1', lineColor)} />
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500/30 to-indigo-500/30 flex items-center justify-center mb-1">
-                  <span className={cn('font-bold text-[10px]', isDark ? 'text-white' : 'text-violet-700')}>{node.initials}</span>
+                <div className="w-px h-4 bg-gray-200 mb-1.5" />
+                <div className="h-10 w-10 rounded-xl bg-violet-100 flex items-center justify-center mb-1">
+                  <span className="text-violet-700 font-bold text-[10px]">{node.initials}</span>
                 </div>
-                <p className={cn('text-[11px] font-medium text-center leading-tight', isDark ? 'text-white' : 'text-gray-800')}>{node.name}</p>
-                <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded mt-1 ${
-                  node.status === 'actif'
-                    ? isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
-                    : isDark ? 'bg-gray-500/15 text-gray-400' : 'bg-gray-100 text-gray-500'
+                <p className="text-[11px] font-medium text-gray-800 text-center leading-tight">{node.name}</p>
+                <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full mt-1 ${
+                  node.status === 'actif' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
                 }`}>
                   {node.status === 'actif' ? 'Actif' : 'Inactif'}
                 </span>
                 {node.children.length > 0 && (
                   <div className="mt-2 space-y-1">
-                    <div className={cn('w-px h-3 mx-auto', lineColor)} />
+                    <div className="w-px h-3 bg-gray-200 mx-auto" />
                     {node.children.map((child) => (
                       <div key={child.id} className="flex flex-col items-center">
-                        <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center mb-0.5">
-                          <span className={cn('font-bold text-[8px]', isDark ? 'text-white' : 'text-blue-700')}>{child.initials}</span>
+                        <div className="h-7 w-7 rounded-lg bg-blue-50 flex items-center justify-center mb-0.5">
+                          <span className="text-blue-600 font-bold text-[8px]">{child.initials}</span>
                         </div>
-                        <p className={cn('text-[9px] text-center leading-tight', isDark ? 'text-gray-400' : 'text-gray-600')}>{child.name}</p>
+                        <p className="text-[9px] text-gray-500 text-center leading-tight">{child.name}</p>
                       </div>
                     ))}
                   </div>
@@ -1409,17 +1375,6 @@ export default function NetworkPage() {
   const effectiveId = useEffectiveUserId();
   const { startImpersonation } = useImpersonation();
   const navigate = useNavigate();
-  const themeCtx = useThemeSafe();
-  const isDark = themeCtx?.isDark ?? true;
-
-  // Helper classes based on theme
-  const card = isDark
-    ? 'bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl border-white/10'
-    : 'bg-white border-gray-100 shadow-sm';
-  const cardHover = isDark ? 'hover:border-white/20' : 'hover:border-gray-200 hover:shadow-md';
-  const titleCls = isDark ? 'text-white' : 'text-gray-900';
-  const subtitleCls = isDark ? 'text-gray-400' : 'text-gray-500';
-  const mutedCls = isDark ? 'text-gray-500' : 'text-gray-400';
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
@@ -1506,19 +1461,18 @@ export default function NetworkPage() {
   return (
     <AppLayout
       title="Mon Réseau"
-      variant="dark"
       actions={
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowInviteDialog(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white font-semibold rounded-xl active:bg-violet-700"
+            className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white font-semibold rounded-xl text-sm hover:bg-violet-700"
           >
             <Share2 className="h-4 w-4" />
             Inviter
           </button>
           <button
             onClick={() => { setEditingMember(null); setShowForm(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-[#3b82f6] text-white font-semibold rounded-xl active:bg-[#3b82f6]/80"
+            className="flex items-center gap-2 px-4 py-2 bg-[#3b82f6] text-white font-semibold rounded-xl text-sm hover:bg-[#2563eb]"
           >
             <UserPlus className="h-4 w-4" />
             Ajouter
@@ -1568,22 +1522,14 @@ export default function NetworkPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="space-y-6">
-        {/* ── Hero stats ── */}
-        <div className={cn('rounded-2xl border p-6', card)}>
-          <div className="flex items-center gap-2 mb-6">
-            <Zap className="h-5 w-5 text-[#3b82f6]" />
-            <h3 className={cn('text-sm font-bold', titleCls)}>Performance réseau</h3>
-          </div>
-          <div className="flex justify-around">
-            <ProgressRing value={members.length} max={Math.max(20, members.length)} label="Total" color="#3b82f6" isDark={isDark} />
-            <ProgressRing value={actifs} max={Math.max(members.length, 1)} label="Actifs" color="#22c55e" isDark={isDark} />
-            <ProgressRing value={inactifs} max={Math.max(members.length, 1)} label="Inactifs" color="#ef4444" isDark={isDark} />
-            <ProgressRing value={maxLevel} max={5} label="Niveaux" color="#a855f7" isDark={isDark} />
-          </div>
+      <div className="space-y-4">
+        {/* ── KPI cards ── */}
+        <div className="grid grid-cols-2 gap-3">
+          <KpiCard value={members.length} label="Total" color="text-gray-900" />
+          <KpiCard value={actifs} label="Actifs" color="text-emerald-600" />
         </div>
 
-        {/* ── Tier badge Hyla ── */}
+        {/* ── Tier badge ── */}
         {(() => {
           const tier = getTier(members.length);
           const TierIcon = tier.icon;
@@ -1592,32 +1538,28 @@ export default function NetworkPage() {
             ? Math.round(((members.length - tier.min) / (nextTier.min - tier.min)) * 100)
             : 100;
           return (
-            <div className={cn('rounded-2xl border p-5', card)}>
-              <div className="flex items-center gap-4">
-                <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${tier.color} flex items-center justify-center shadow-lg`}>
-                  <TierIcon className="h-7 w-7 text-white" />
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+              <div className="flex items-center gap-3">
+                <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${tier.color} flex items-center justify-center shadow-md flex-shrink-0`}>
+                  <TierIcon className="h-6 w-6 text-white" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className={`text-base font-bold ${tier.text}`}>{tier.label}</span>
+                    <span className={`text-sm font-bold ${tier.text}`}>{tier.label}</span>
                     {nextTier && (
-                      <span className={cn('text-[10px] flex items-center gap-0.5', mutedCls)}>
+                      <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
                         <ChevronUp className="h-3 w-3" />
                         {nextTier.label} à {nextTier.min} partenaires
                       </span>
                     )}
                   </div>
-                  <div className={cn('mt-2 h-2 rounded-full overflow-hidden', isDark ? 'bg-white/10' : 'bg-gray-100')}>
-                    <div
-                      className={`h-full rounded-full bg-gradient-to-r ${tier.color} transition-all duration-700`}
-                      style={{ width: `${progress}%` }}
-                    />
+                  <div className="mt-1.5 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                    <div className={`h-full rounded-full bg-gradient-to-r ${tier.color} transition-all duration-700`} style={{ width: `${progress}%` }} />
                   </div>
-                  <p className={cn('text-[11px] mt-1', mutedCls)}>
+                  <p className="text-[11px] text-gray-400 mt-1">
                     {members.length} partenaire{members.length > 1 ? 's' : ''} • {tier.min >= 4
                       ? `${HYLA_NETWORK_COMMISSION.manager.recrue_directe}€/vente recrue • ${HYLA_NETWORK_COMMISSION.manager.reseau}€/vente réseau`
-                      : `${HYLA_NETWORK_COMMISSION.conseillere.recrue_directe}€/vente recrue directe`
-                    }
+                      : `${HYLA_NETWORK_COMMISSION.conseillere.recrue_directe}€/vente recrue directe`}
                   </p>
                 </div>
               </div>
@@ -1628,193 +1570,151 @@ export default function NetworkPage() {
         {/* ── Search + Toggle ── */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className={cn('absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4', subtitleCls)} />
-            <input
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
               placeholder="Rechercher un membre..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={cn(
-                'w-full rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-all border',
-                isDark
-                  ? 'bg-white/[0.06] border-white/10 text-white placeholder-gray-500'
-                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
-              )}
+              className="pl-10"
             />
           </div>
           <button
             onClick={() => setShowMemberList(!showMemberList)}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm transition-all border',
-              isDark
-                ? 'bg-white/[0.06] border-white/10 text-gray-400 hover:text-white hover:border-white/20'
-                : 'bg-gray-50 border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-300'
-            )}
-            title={showMemberList ? 'Masquer la liste' : 'Afficher la liste'}
+            className="p-2.5 rounded-xl border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors"
+            title={showMemberList ? 'Masquer' : 'Afficher'}
           >
             {showMemberList ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
 
-        {/* ── Member cards ── */}
-        {showMemberList ? (<div className="space-y-3">
-          {filtered.map((member, index) => {
-            const tier = getTier(member.level);
-            const TierIcon = tier.icon;
-            return (
-              <div
-                key={member.id}
-                className={cn('rounded-2xl border p-4 transition-all', card, cardHover)}
-              >
-                {/* Top row: avatar + name + status */}
-                <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleOpenEdit(member)}>
-                  <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${tier.color} flex items-center justify-center shadow-lg flex-shrink-0`}>
-                    <span className="text-white font-bold text-sm">
-                      {member.first_name.charAt(0)}{member.last_name.charAt(0)}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className={cn('text-sm font-semibold truncate', titleCls)}>{member.first_name} {member.last_name}</p>
-                      <TierIcon className={`h-3.5 w-3.5 flex-shrink-0 ${tier.text}`} />
-                      {member.internal_id && (
-                        <span className={cn('text-[9px] font-mono px-1.5 py-0.5 rounded border', isDark ? 'bg-white/[0.08] text-gray-400 border-white/10' : 'bg-gray-100 text-gray-500 border-gray-200')}>{member.internal_id}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {member.joined_at && (
-                        <span className={cn('text-[10px]', mutedCls)}>
-                          Depuis {new Date(member.joined_at).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}
-                        </span>
-                      )}
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
-                        member.status === 'actif'
-                          ? isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
-                          : isDark ? 'bg-white/5 text-gray-500' : 'bg-gray-100 text-gray-500'
-                      }`}>
-                        {member.status === 'actif' ? 'Actif' : 'Inactif'}
+        {/* ── Member list ── */}
+        {showMemberList && (
+          <div className="space-y-2">
+            {filtered.map((member) => {
+              const tier = getTier(member.level);
+              const TierIcon = tier.icon;
+              return (
+                <div
+                  key={member.id}
+                  className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:border-gray-200 transition-all"
+                >
+                  {/* Header */}
+                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleOpenEdit(member)}>
+                    <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${tier.color} flex items-center justify-center flex-shrink-0`}>
+                      <span className="text-white font-bold text-sm">
+                        {member.first_name.charAt(0)}{member.last_name.charAt(0)}
                       </span>
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{member.first_name} {member.last_name}</p>
+                        <TierIcon className={`h-3.5 w-3.5 flex-shrink-0 ${tier.text}`} />
+                        {member.internal_id && (
+                          <span className="text-[9px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{member.internal_id}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {member.joined_at && (
+                          <span className="text-[10px] text-gray-400">
+                            Depuis {new Date(member.joined_at).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}
+                          </span>
+                        )}
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          member.status === 'actif' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {member.status === 'actif' ? 'Actif' : 'Inactif'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {/* Bottom row: action buttons */}
-                <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setObjectifsMember(member); }}
-                    className={cn(
-                      'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold border active:scale-[0.97]',
-                      isDark
-                        ? 'bg-blue-500/15 text-blue-400 border-blue-500/20'
-                        : 'bg-blue-50 text-blue-600 border-blue-100'
-                    )}
-                  >
-                    <Target className="h-3.5 w-3.5" />
-                    Objectifs
-                  </button>
-                  {(member as any).linked_user_id ? (
+                  {/* Action buttons */}
+                  <div className="flex gap-2 mt-3">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startImpersonation((member as any).linked_user_id, `${member.first_name} ${member.last_name}`, 'individual');
-                        navigate('/');
-                      }}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold border active:scale-[0.97] transition-colors',
-                        isDark
-                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/25'
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100'
-                      )}
+                      onClick={(e) => { e.stopPropagation(); setObjectifsMember(member); }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 active:scale-[0.97] transition-colors"
                     >
-                      <Eye className="h-3.5 w-3.5" />
-                      Voir son espace
+                      <Target className="h-3.5 w-3.5" />
+                      Objectifs
                     </button>
-                  ) : (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setAssistantMember(member); }}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold border active:scale-[0.97]',
-                        isDark
-                          ? 'bg-violet-500/15 text-violet-400 border-violet-500/20'
-                          : 'bg-violet-50 text-violet-600 border-violet-100'
-                      )}
-                    >
+                    {(member as any).linked_user_id ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startImpersonation((member as any).linked_user_id, `${member.first_name} ${member.last_name}`, 'individual');
+                          navigate('/');
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 active:scale-[0.97] transition-colors"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Voir son espace
+                      </button>
+                    ) : (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setAssistantMember(member); }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-violet-50 text-violet-600 border border-violet-100 hover:bg-violet-100 active:scale-[0.97] transition-colors"
+                      >
                       <Sparkles className="h-3.5 w-3.5" />
                       Hyla Assistant
                     </button>
                   )}
                 </div>
 
-                {/* Promote to Manager button */}
-                {(member as any).linked_user_id && (member as any).role !== 'manager' && (member as any).role !== 'admin' && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setPromoteMember(member); }}
-                    className={cn(
-                      'w-full flex items-center justify-center gap-1.5 py-2 mt-2 rounded-xl text-[11px] font-semibold border transition-colors active:scale-[0.98]',
-                      isDark
-                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/15 hover:bg-amber-500/20'
-                        : 'bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100'
-                    )}
-                  >
-                    <Crown className="h-3.5 w-3.5" />
-                    Passer Manager
-                  </button>
-                )}
-                {(member as any).linked_user_id && ((member as any).role === 'manager' || (member as any).role === 'admin') && (
-                  <span className="w-full flex items-center justify-center gap-1.5 py-1.5 mt-2 text-[10px] font-semibold text-amber-500">
-                    <Crown className="h-3 w-3" />
-                    Manager
-                  </span>
-                )}
+                {/* Promote to Manager */}
+                  {(member as any).linked_user_id && (member as any).role !== 'manager' && (member as any).role !== 'admin' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setPromoteMember(member); }}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 mt-2 rounded-xl text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 transition-colors active:scale-[0.98]"
+                    >
+                      <Crown className="h-3.5 w-3.5" />
+                      Passer Manager
+                    </button>
+                  )}
+                  {(member as any).linked_user_id && ((member as any).role === 'manager' || (member as any).role === 'admin') && (
+                    <span className="w-full flex items-center justify-center gap-1.5 py-1.5 mt-2 text-[10px] font-semibold text-amber-600">
+                      <Crown className="h-3 w-3" /> Manager
+                    </span>
+                  )}
 
-                {/* Expand sub-team button */}
-                {(member as any).linked_user_id && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleTeamExpand(member.id); }}
-                    className={cn(
-                      'w-full flex items-center justify-center gap-1.5 py-2 mt-1 rounded-xl text-[11px] font-semibold border transition-colors active:scale-[0.98]',
-                      isDark
-                        ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/15 hover:bg-indigo-500/20'
-                        : 'bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-100'
-                    )}
-                  >
-                    {expandedTeamIds.has(member.id) ? (
-                      <>
-                        <ChevronDown className="h-3.5 w-3.5" />
-                        Masquer l'équipe
-                      </>
-                    ) : (
-                      <>
-                        <ChevronRight className="h-3.5 w-3.5" />
-                        Voir l'équipe
-                      </>
-                    )}
-                  </button>
-                )}
+                  {/* Expand sub-team */}
+                  {(member as any).linked_user_id && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleTeamExpand(member.id); }}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 mt-1 rounded-xl text-[11px] font-semibold bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors active:scale-[0.98]"
+                    >
+                      {expandedTeamIds.has(member.id) ? (
+                        <><ChevronDown className="h-3.5 w-3.5" /> Masquer l'équipe</>
+                      ) : (
+                        <><ChevronRight className="h-3.5 w-3.5" /> Voir l'équipe</>
+                      )}
+                    </button>
+                  )}
 
-                {/* Sub-team tree (cascade) */}
-                {(member as any).linked_user_id && expandedTeamIds.has(member.id) && (
-                  <SubTeamTree
-                    userId={(member as any).linked_user_id}
-                    parentMemberName={`${member.first_name} ${member.last_name}`}
-                    depth={1}
-                    onEditSubMember={handleSubMemberEdit}
-                  />
-                )}
+                  {/* Sub-team */}
+                  {(member as any).linked_user_id && expandedTeamIds.has(member.id) && (
+                    <SubTeamTree
+                      userId={(member as any).linked_user_id}
+                      parentMemberName={`${member.first_name} ${member.last_name}`}
+                      depth={1}
+                      onEditSubMember={handleSubMemberEdit}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="text-center py-16">
+                <Users className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-400">
+                  {isLoading ? 'Chargement...' : 'Aucun membre dans le réseau'}
+                </p>
               </div>
-            );
-          })}
-          {filtered.length === 0 && (
-            <div className="text-center py-16">
-              <Users className={cn('h-10 w-10 mx-auto mb-3', isDark ? 'text-gray-600' : 'text-gray-300')} />
-              <p className={cn('text-sm', mutedCls)}>
-                {isLoading ? 'Chargement...' : 'Aucun membre dans le réseau'}
-              </p>
-            </div>
-          )}
-        </div>) : null}
+            )}
+          </div>
+        )}
 
-        {/* ── Mon Réseau Hyla (downline) ── */}
-        {effectiveId && <DownlineSection currentUserId={effectiveId} members={members} isDark={isDark} />}
+        {/* ── Organigramme ── */}
+        {effectiveId && <DownlineSection currentUserId={effectiveId} members={members} />}
       </div>
 
       {/* Sub-member edit confirmation dialog */}
