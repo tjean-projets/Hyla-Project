@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, MapPin, Clock, CalendarCheck, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -136,6 +136,19 @@ export default function CalendarPage() {
     },
   });
 
+  function openNewForm() {
+    if (calView === 'grid' && selectedDay) {
+      const now = new Date();
+      const pre = new Date(selectedDay.getFullYear(), selectedDay.getMonth(), selectedDay.getDate(), now.getHours(), now.getMinutes());
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const dateStr = `${pre.getFullYear()}-${pad(pre.getMonth()+1)}-${pad(pre.getDate())}T${pad(pre.getHours())}:${pad(pre.getMinutes())}`;
+      setForm(f => ({ ...f, date: dateStr }));
+    } else {
+      setForm({ title: '', type: 'rdv', date: '', duration: '60', location: '', notes: '' });
+    }
+    setShowForm(true);
+  }
+
   // ── Stats ──
   const todayStr    = new Date().toISOString().slice(0, 10);
   const todayCount  = appointments.filter((a: any) => a.date?.slice(0, 10) === todayStr).length;
@@ -180,12 +193,11 @@ export default function CalendarPage() {
     <AppLayout
       title="Calendrier"
       actions={
-        <Dialog open={showForm} onOpenChange={setShowForm}>
-          <DialogTrigger asChild>
-            <Button className="bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white">
-              <Plus className="h-4 w-4 mr-2" />Nouveau
-            </Button>
-          </DialogTrigger>
+        <>
+          <Button onClick={openNewForm} className="bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white">
+            <Plus className="h-4 w-4 mr-2" />Nouveau
+          </Button>
+          <Dialog open={showForm} onOpenChange={setShowForm}>
           <DialogContent>
             <DialogHeader><DialogTitle>Nouveau rendez-vous</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); createApt.mutate(); }} className="space-y-4">
@@ -211,6 +223,7 @@ export default function CalendarPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </>
       }
     >
       <div className="space-y-5">

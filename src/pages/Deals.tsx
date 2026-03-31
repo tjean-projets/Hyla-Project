@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS, HYLA_PRODUCTS, HYLA_COMMISSION_SCALE, getHylaCommission } from '@/lib/supabase';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Clock, TrendingUp } from 'lucide-react';
+import { Plus, Search, Clock, TrendingUp, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -212,6 +212,24 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
   );
 }
 
+function exportToCSV(rows: Record<string, any>[], filename: string) {
+  if (rows.length === 0) return;
+  const headers = Object.keys(rows[0]);
+  const csv = [
+    headers.join(';'),
+    ...rows.map(row => headers.map(h => {
+      const val = row[h] ?? '';
+      const str = String(val).replace(/"/g, '""');
+      return str.includes(';') || str.includes('"') || str.includes('\n') ? `"${str}"` : str;
+    }).join(';'))
+  ].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function Deals() {
   const { user } = useAuth();
   const effectiveId = useEffectiveUserId();
@@ -290,18 +308,39 @@ export default function Deals() {
     <AppLayout
       title="Ventes"
       actions={
-        <Dialog open={showForm} onOpenChange={setShowForm}>
-          <DialogTrigger asChild>
-            <button className="inline-flex items-center px-4 py-2 bg-[#3b82f6] text-white font-semibold rounded-xl hover:bg-[#3b82f6]/90 text-sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Nouvelle vente
-            </button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Nouvelle vente</DialogTitle></DialogHeader>
-            <DealForm onSuccess={() => setShowForm(false)} contacts={contacts} teamMembers={teamMembers} />
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportToCSV(
+              filtered.map((deal: any) => ({
+                Contact: deal.contacts ? `${deal.contacts.first_name} ${deal.contacts.last_name}` : '',
+                Produit: deal.product || '',
+                Montant: deal.amount || 0,
+                Statut: DEAL_STATUS_LABELS[deal.status as keyof typeof DEAL_STATUS_LABELS] || deal.status,
+                'Vendu par': deal.sold_by || '',
+                Notes: deal.notes || '',
+                'Créé le': new Date(deal.created_at).toLocaleDateString('fr-FR'),
+                'Signé le': deal.signed_at ? new Date(deal.signed_at).toLocaleDateString('fr-FR') : '',
+              })),
+              `ventes-${new Date().toISOString().slice(0,10)}.csv`
+            )}
+            className="flex items-center gap-2 px-4 py-2 bg-muted text-foreground font-semibold rounded-xl border border-border hover:bg-muted/80 active:scale-[0.98] transition-all"
+          >
+            <Download className="h-4 w-4" />
+            Exporter
+          </button>
+          <Dialog open={showForm} onOpenChange={setShowForm}>
+            <DialogTrigger asChild>
+              <button className="inline-flex items-center px-4 py-2 bg-[#3b82f6] text-white font-semibold rounded-xl hover:bg-[#3b82f6]/90 text-sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Nouvelle vente
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader><DialogTitle>Nouvelle vente</DialogTitle></DialogHeader>
+              <DealForm onSuccess={() => setShowForm(false)} contacts={contacts} teamMembers={teamMembers} />
+            </DialogContent>
+          </Dialog>
+        </div>
       }
     >
       {/* Edit dialog */}

@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, CONTACT_STATUS_LABELS, CONTACT_STATUS_COLORS, PRIORITY_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Network, Trash2, Settings } from 'lucide-react';
+import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Network, Trash2, Settings, Download, CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,32 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
 
   // Check if this contact is already in the network
   const isInNetwork = isEdit && teamMembers?.some(m => m.contact_id === initialData?.id);
+
+  const [showRdvForm, setShowRdvForm] = useState(false);
+  const [rdvForm, setRdvForm] = useState({ title: '', type: 'rdv', date: '', duration: '60', location: '' });
+
+  const createRdv = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('Non connecté');
+      const { error } = await supabase.from('appointments').insert({
+        user_id: user.id,
+        contact_id: initialData!.id,
+        title: rdvForm.title,
+        type: rdvForm.type as any,
+        date: rdvForm.date,
+        duration: parseInt(rdvForm.duration) || 60,
+        location: rdvForm.location || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({ title: 'RDV créé', description: `RDV planifié avec ${initialData?.first_name}` });
+      setShowRdvForm(false);
+      setRdvForm({ title: '', type: 'rdv', date: '', duration: '60', location: '' });
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
 
   const [form, setForm] = useState({
     first_name: initialData?.first_name || '',
@@ -140,6 +166,64 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
       >
         {mutation.isPending ? (isEdit ? 'Enregistrement...' : 'Création...') : (isEdit ? 'Enregistrer les modifications' : 'Créer le contact')}
       </button>
+      {isEdit && !showRdvForm && (
+        <button
+          type="button"
+          onClick={() => setShowRdvForm(true)}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-violet-500 hover:bg-violet-600 text-white font-semibold rounded-xl"
+        >
+          <CalendarPlus className="h-4 w-4" />
+          Planifier un RDV
+        </button>
+      )}
+      {isEdit && showRdvForm && (
+        <div className="bg-muted rounded-2xl p-4 space-y-3 border border-border">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-foreground">Nouveau RDV avec {initialData?.first_name}</p>
+            <button type="button" onClick={() => setShowRdvForm(false)} className="text-muted-foreground hover:text-foreground text-xs">Annuler</button>
+          </div>
+          <div>
+            <Label className="text-xs">Titre *</Label>
+            <Input className="h-10" value={rdvForm.title} onChange={(e) => setRdvForm({...rdvForm, title: e.target.value})} placeholder={`RDV ${initialData?.first_name}`} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">Type</Label>
+              <Select value={rdvForm.type} onValueChange={(v) => setRdvForm({...rdvForm, type: v})}>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rdv">Rendez-vous</SelectItem>
+                  <SelectItem value="demo">Démonstration</SelectItem>
+                  <SelectItem value="relance">Relance</SelectItem>
+                  <SelectItem value="formation">Formation</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Date *</Label>
+              <Input className="h-10" type="datetime-local" value={rdvForm.date} onChange={(e) => setRdvForm({...rdvForm, date: e.target.value})} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">Durée (min)</Label>
+              <Input className="h-10" type="number" value={rdvForm.duration} onChange={(e) => setRdvForm({...rdvForm, duration: e.target.value})} />
+            </div>
+            <div>
+              <Label className="text-xs">Lieu</Label>
+              <Input className="h-10" value={rdvForm.location} onChange={(e) => setRdvForm({...rdvForm, location: e.target.value})} />
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={!rdvForm.title || !rdvForm.date || createRdv.isPending}
+            onClick={() => createRdv.mutate()}
+            className="w-full py-2.5 bg-violet-500 hover:bg-violet-600 text-white font-semibold rounded-xl text-sm disabled:opacity-40"
+          >
+            {createRdv.isPending ? 'Création...' : 'Créer le RDV'}
+          </button>
+        </div>
+      )}
       {isEdit && !isInNetwork && onAddToNetwork && (
         <button
           type="button"
@@ -169,6 +253,24 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
       )}
     </form>
   );
+}
+
+function exportToCSV(rows: Record<string, any>[], filename: string) {
+  if (rows.length === 0) return;
+  const headers = Object.keys(rows[0]);
+  const csv = [
+    headers.join(';'),
+    ...rows.map(row => headers.map(h => {
+      const val = row[h] ?? '';
+      const str = String(val).replace(/"/g, '""');
+      return str.includes(';') || str.includes('"') || str.includes('\n') ? `"${str}"` : str;
+    }).join(';'))
+  ].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function Contacts() {
@@ -297,13 +399,34 @@ export default function Contacts() {
     <AppLayout
       title="Contacts"
       actions={
-        <button
-          onClick={() => { setEditingContact(null); setShowForm(true); }}
-          className="flex items-center gap-2 px-4 py-2 bg-[#3b82f6] text-white font-semibold rounded-xl active:bg-[#3b82f6]/80"
-        >
-          <Plus className="h-4 w-4" />
-          Nouveau contact
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportToCSV(
+              filtered.map(c => ({
+                Prénom: c.first_name,
+                Nom: c.last_name,
+                Téléphone: c.phone || '',
+                Email: c.email || '',
+                Statut: CONTACT_STATUS_LABELS[c.status] || c.status,
+                Source: c.source || '',
+                Notes: c.notes || '',
+                'Créé le': new Date(c.created_at).toLocaleDateString('fr-FR'),
+              })),
+              `contacts-${new Date().toISOString().slice(0,10)}.csv`
+            )}
+            className="flex items-center gap-2 px-4 py-2 bg-muted text-foreground font-semibold rounded-xl border border-border hover:bg-muted/80 active:scale-[0.98] transition-all"
+          >
+            <Download className="h-4 w-4" />
+            Exporter
+          </button>
+          <button
+            onClick={() => { setEditingContact(null); setShowForm(true); }}
+            className="flex items-center gap-2 px-4 py-2 bg-[#3b82f6] text-white font-semibold rounded-xl active:bg-[#3b82f6]/80"
+          >
+            <Plus className="h-4 w-4" />
+            Nouveau contact
+          </button>
+        </div>
       }
     >
       {/* New contact dialog */}

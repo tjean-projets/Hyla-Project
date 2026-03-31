@@ -360,7 +360,7 @@ export default function Dashboard() {
 
         {/* ── Prochaines tâches ── */}
         <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <h3 className="text-xs font-bold text-foreground">Prochaines tâches</h3>
             <a href="/tasks" className="text-[10px] text-[#3b82f6] font-medium flex items-center gap-0.5">
               Voir tout <ChevronRight className="h-3 w-3" />
