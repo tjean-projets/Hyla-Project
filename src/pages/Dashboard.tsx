@@ -35,6 +35,19 @@ export default function Dashboard() {
     enabled: !!effectiveId,
   });
 
+  // Auto-generate relance tasks for inactive prospects (runs once per session)
+  useQuery({
+    queryKey: ['auto-relances', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return 0;
+      const { data } = await supabase.rpc('generate_relance_tasks', { p_user_id: effectiveId, p_days_threshold: 7 });
+      return data || 0;
+    },
+    enabled: !!effectiveId,
+    staleTime: 1000 * 60 * 30, // Only run every 30 minutes
+    refetchOnWindowFocus: false,
+  });
+
   const { data: deals = [] } = useQuery({
     queryKey: ['dashboard-deals', effectiveId],
     queryFn: async () => {

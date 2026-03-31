@@ -221,6 +221,11 @@ export default function Tasks() {
     mutationFn: async (taskId: string) => {
       const { error } = await supabase.from('tasks').update({ status: 'terminee', completed_at: new Date().toISOString() }).eq('id', taskId);
       if (error) throw error;
+      // Update last_contacted_at on the contact when completing a relance task
+      const task = tasks.find((t: any) => t.id === taskId);
+      if (task?.contact_id && (task.type === 'relance' || task.type === 'suivi' || task.type === 'rdv')) {
+        await supabase.from('contacts').update({ last_contacted_at: new Date().toISOString() }).eq('id', task.contact_id);
+      }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
   });
