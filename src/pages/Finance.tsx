@@ -206,7 +206,7 @@ export default function Finance() {
         const columns = Object.keys(json[0]);
         const nameCol = columns.find(c => /^nom$|name|conseiller|vendeur/i.test(c)) || '';
         const firstnameCol = columns.find(c => /prénom|prenom|firstname|first.?name/i.test(c)) || '';
-        const idCol = columns.find(c => /id|matricule|code/i.test(c)) || '';
+        const idCol = columns.find(c => /id.?hyla|hyla.?id|matricule|code.?hyla|^id$/i.test(c)) || '';
 
         // Smart amount column: prefer column matching current period month
         const MONTHS_FR = ['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];

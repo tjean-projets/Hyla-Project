@@ -243,6 +243,15 @@ export default function Contacts() {
         suffix++;
         slug = `${baseSlug}-${suffix}`;
       }
+      // Generate unique Hyla ID (HYL-XXXXX)
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let hylaId = '';
+      do {
+        hylaId = 'HYL-' + Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+        const { data: dup } = await supabase.from('team_members').select('id').eq('internal_id', hylaId).maybeSingle();
+        if (!dup) break;
+      } while (true);
+
       const { error } = await supabase.from('team_members').insert({
         user_id: user.id,
         contact_id: contact.id,
@@ -255,6 +264,7 @@ export default function Contacts() {
         matching_names: [`${contact.first_name} ${contact.last_name}`.toLowerCase()],
         slug,
         status: 'actif',
+        internal_id: hylaId,
       });
       if (error) throw error;
     },

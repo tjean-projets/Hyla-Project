@@ -128,11 +128,23 @@ function MemberForm({
           suffix++;
           slug = `${baseSlug}-${suffix}`;
         }
+        // Generate Hyla ID if not manually set
+        let hylaId = form.internal_id || '';
+        if (!hylaId) {
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+          do {
+            hylaId = 'HYL-' + Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+            const { data: dup } = await supabase.from('team_members').select('id').eq('internal_id', hylaId).maybeSingle();
+            if (!dup) break;
+          } while (true);
+        }
+
         const { error } = await supabase.from('team_members').insert({
           ...payload,
           contact_id: newContact.id,
           linked_user_id: linkedProfile?.id || null,
           slug,
+          internal_id: hylaId,
         });
         if (error) throw error;
       }
@@ -1486,6 +1498,9 @@ export default function NetworkPage() {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-white truncate">{member.first_name} {member.last_name}</p>
                       <TierIcon className={`h-3.5 w-3.5 flex-shrink-0 ${tier.text}`} />
+                      {member.internal_id && (
+                        <span className="text-[9px] font-mono bg-white/[0.08] text-gray-400 px-1.5 py-0.5 rounded border border-white/10">{member.internal_id}</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       {member.joined_at && (
