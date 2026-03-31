@@ -4,7 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, COMMISSION_TYPE_LABELS } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Zap, Trophy, Star, ArrowUp, DollarSign, Users, ChevronDown, ChevronRight } from 'lucide-react';
+import { TrendingUp, Zap, Trophy, Star, ArrowUp, DollarSign, Users, ChevronDown, ChevronRight, FileText, Download, Check } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -16,6 +17,10 @@ export default function Commissions() {
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [view, setView] = useState<'perso' | 'equipe'>('perso');
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportMembers, setExportMembers] = useState<Set<string>>(new Set());
+  const [exportFrom, setExportFrom] = useState(`${now.getFullYear()}-01`);
+  const [exportTo, setExportTo] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
 
   const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
@@ -93,6 +98,63 @@ export default function Commissions() {
 
   const memberList = Object.values(byMember).sort((a: any, b: any) => b.total - a.total);
 
+  // ── Export PDF function ──
+  const exportCommissionsPDF = () => {
+    const selectedMembers = teamMembers.filter((m: any) => exportMembers.has(m.id));
+    const allComms = commissions.filter((c: any) =>
+      c.status === 'validee' && c.period >= exportFrom && c.period <= exportTo
+    );
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const today = new Date().toLocaleDateString('fr-FR');
+    const fromLabel = new Date(exportFrom + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    const toLabel = new Date(exportTo + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+    let membersHtml = '';
+    for (const m of selectedMembers) {
+      const mComms = allComms.filter((c: any) => c.type === 'reseau' && c.team_member_id === m.id);
+      const mTotal = mComms.reduce((s: number, c: any) => s + c.amount, 0);
+      if (mComms.length === 0 && mTotal === 0) continue;
+
+      let rowsHtml = mComms.map((c: any) =>
+        `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee">${new Date(c.period + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600">${c.amount.toLocaleString('fr-FR')} €</td></tr>`
+      ).join('');
+
+      membersHtml += `
+        <div style="page-break-inside:avoid;margin-bottom:24px">
+          <h3 style="font-size:14px;color:#1e293b;margin:0 0 8px;display:flex;align-items:center;gap:8px">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:#8b5cf6;color:white;font-weight:700;font-size:11px">${m.first_name.charAt(0)}${m.last_name.charAt(0)}</span>
+            ${m.first_name} ${m.last_name}
+          </h3>
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:#f8fafc"><th style="padding:8px 12px;text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">Période</th><th style="padding:8px 12px;text-align:right;color:#64748b;font-size:11px;text-transform:uppercase">Montant</th></tr></thead>
+            <tbody>${rowsHtml}</tbody>
+            <tfoot><tr style="background:#f0f9ff"><td style="padding:8px 12px;font-weight:700">Total</td><td style="padding:8px 12px;text-align:right;font-weight:700;color:#3b82f6">${mTotal.toLocaleString('fr-FR')} €</td></tr></tfoot>
+          </table>
+        </div>`;
+    }
+
+    const grandTotal = allComms.filter((c: any) => c.type === 'reseau' && exportMembers.has(c.team_member_id)).reduce((s: number, c: any) => s + c.amount, 0);
+
+    printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Commissions Équipe</title>
+      <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:40px;color:#1e293b}
+      @media print{body{margin:20px}}</style></head><body>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px">
+        <div><h1 style="font-size:22px;margin:0 0 4px;color:#0f172a">Commissions Réseau</h1>
+        <p style="color:#64748b;font-size:13px;margin:0">${fromLabel} → ${toLabel}</p></div>
+        <div style="text-align:right"><p style="font-size:11px;color:#94a3b8;margin:0">Généré le ${today}</p>
+        <p style="font-size:24px;font-weight:700;color:#3b82f6;margin:4px 0 0">${grandTotal.toLocaleString('fr-FR')} €</p></div>
+      </div>
+      ${membersHtml}
+      <div style="margin-top:32px;padding-top:16px;border-top:2px solid #e2e8f0;text-align:right">
+        <p style="font-size:11px;color:#94a3b8">Hyla Assistant — ${selectedMembers.length} membre${selectedMembers.length > 1 ? 's' : ''} sélectionné${selectedMembers.length > 1 ? 's' : ''}</p>
+      </div></body></html>`);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
   return (
     <AppLayout title="Commissions" variant="dark">
       <div className="space-y-6">
@@ -160,6 +222,17 @@ export default function Commissions() {
               <p className="text-3xl font-bold text-white">{teamTotal.toLocaleString('fr-FR')} <span className="text-lg text-gray-400">€</span></p>
               <p className="text-xs text-gray-500 mt-1">{teamSummary.filter((m: any) => m.total > 0).length} membre{teamSummary.filter((m: any) => m.total > 0).length > 1 ? 's' : ''} actif{teamSummary.filter((m: any) => m.total > 0).length > 1 ? 's' : ''}</p>
             </div>
+
+            {/* Export button */}
+            <button
+              onClick={() => {
+                setExportMembers(new Set(teamMembers.map((m: any) => m.id)));
+                setShowExportDialog(true);
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-white/[0.06] border border-white/10 rounded-xl text-sm text-gray-400 hover:text-white hover:border-white/20 transition-all"
+            >
+              <FileText className="h-4 w-4" /> Exporter en PDF
+            </button>
 
             {/* Members list */}
             <div className="space-y-2">
@@ -274,6 +347,53 @@ export default function Commissions() {
           </ResponsiveContainer>
         </div>
 
+        {/* ── Déclaration micro-entreprise ── */}
+        {total > 0 && (
+          <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/5 backdrop-blur-xl rounded-2xl border border-orange-500/15 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <FileText className="h-5 w-5 text-orange-400" />
+              <h3 className="text-sm font-bold text-white">Déclaration micro-entreprise</h3>
+              <span className="ml-auto text-[10px] text-gray-500">
+                {selectedMonth === 'all' ? selectedYear : `${MONTHS_FR[parseInt(selectedMonth) - 1]} ${selectedYear}`}
+              </span>
+            </div>
+            <p className="text-xs text-gray-400 mb-4">
+              Montants à reporter dans votre déclaration URSSAF / impots.gouv.fr
+            </p>
+            <div className="space-y-3">
+              <div className="bg-white/[0.04] rounded-xl p-4 border border-white/5">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-400">Case 1 — Ventes de marchandises (BIC)</span>
+                  <span className="text-xs text-gray-600">Non applicable</span>
+                </div>
+                <p className="text-xl font-bold text-gray-600">0 €</p>
+              </div>
+              <div className="bg-white/[0.04] rounded-xl p-4 border border-orange-500/20 ring-1 ring-orange-500/10">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-orange-300 font-semibold">Case 2 — Prestations de services (BIC)</span>
+                  <span className="text-[10px] bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded font-semibold">Commissions MLM</span>
+                </div>
+                <p className="text-xl font-bold text-white">{total.toLocaleString('fr-FR')} €</p>
+                <div className="flex gap-4 mt-2 text-[10px] text-gray-500">
+                  <span>Directes : {totalDirecte.toLocaleString('fr-FR')} €</span>
+                  <span>Réseau : {totalReseau.toLocaleString('fr-FR')} €</span>
+                </div>
+              </div>
+              <div className="bg-white/[0.04] rounded-xl p-4 border border-white/5">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-400">Case 3 — Autres prestations de services (BNC)</span>
+                  <span className="text-xs text-gray-600">Non applicable</span>
+                </div>
+                <p className="text-xl font-bold text-gray-600">0 €</p>
+              </div>
+            </div>
+            <p className="text-[10px] text-gray-600 mt-3">
+              Les commissions Hyla (directes + réseau) sont des prestations de services commerciales (BIC).
+              Taux de cotisations URSSAF : 21,1% du CA déclaré.
+            </p>
+          </div>
+        )}
+
         {/* ── Top contributeurs (leaderboard style, mockup 3) ── */}
         {memberList.length > 0 && (
           <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-6">
@@ -365,6 +485,74 @@ export default function Commissions() {
         </>
         )}
       </div>
+
+      {/* ── Export PDF Dialog ── */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[#3b82f6]" />
+              Exporter les commissions
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">De</label>
+                <input type="month" value={exportFrom} onChange={e => setExportFrom(e.target.value)} className="w-full border rounded-xl px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">À</label>
+                <input type="month" value={exportTo} onChange={e => setExportTo(e.target.value)} className="w-full border rounded-xl px-3 py-2 text-sm" />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium text-gray-500">Membres à inclure</label>
+                <button
+                  onClick={() => {
+                    if (exportMembers.size === teamMembers.length) setExportMembers(new Set());
+                    else setExportMembers(new Set(teamMembers.map((m: any) => m.id)));
+                  }}
+                  className="text-[10px] text-[#3b82f6] font-semibold"
+                >
+                  {exportMembers.size === teamMembers.length ? 'Tout décocher' : 'Tout sélectionner'}
+                </button>
+              </div>
+              <div className="max-h-48 overflow-y-auto space-y-1 border rounded-xl p-2">
+                {teamMembers.map((m: any) => (
+                  <label key={m.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={exportMembers.has(m.id)}
+                      onChange={() => {
+                        const next = new Set(exportMembers);
+                        if (next.has(m.id)) next.delete(m.id);
+                        else next.add(m.id);
+                        setExportMembers(next);
+                      }}
+                      className="rounded"
+                    />
+                    <span className="text-sm">{m.first_name} {m.last_name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                exportCommissionsPDF();
+                setShowExportDialog(false);
+              }}
+              disabled={exportMembers.size === 0}
+              className="w-full py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Download className="h-4 w-4" /> Générer le PDF
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
