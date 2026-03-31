@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, CONTACT_STATUS_LABELS, CONTACT_STATUS_COLORS, PRIORITY_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Network, Trash2, Settings, Download, CalendarPlus, ClipboardList } from 'lucide-react';
+import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Network, Trash2, Settings, Download, CalendarPlus, ClipboardList, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,25 @@ import type { Tables } from '@/integrations/supabase/types';
 import { SkeletonTable } from '@/components/ui/skeleton-card';
 
 type Contact = Tables<'contacts'>;
+
+// ── Fuzzy name matching (local copy from Imports.tsx) ──
+function normalizeStr(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function matchScore(a: string, b: string): number {
+  const na = normalizeStr(a);
+  const nb = normalizeStr(b);
+  if (na === nb) return 100;
+  if (na.includes(nb) || nb.includes(na)) return 85;
+  const maxLen = Math.max(na.length, nb.length);
+  if (maxLen === 0) return 100;
+  let matches = 0;
+  for (let i = 0; i < Math.min(na.length, nb.length); i++) {
+    if (na[i] === nb[i]) matches++;
+  }
+  return Math.round((matches / maxLen) * 100);
+}
 
 function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, onAddToNetwork }: {
   onSuccess: () => void;
@@ -33,6 +52,36 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
 
   // Check if this contact is already in the network
   const isInNetwork = isEdit && teamMembers?.some(m => m.contact_id === initialData?.id);
+
+  // ── Duplicate detection (creation mode only) ──
+  const [duplicates, setDuplicates] = useState<{ id: string; first_name: string; last_name: string; phone: string | null; email: string | null }[]>([]);
+
+  useEffect(() => {
+    if (isEdit) return;
+    const firstName = form.first_name.trim();
+    const lastName = form.last_name.trim();
+    if (!firstName || !lastName) {
+      setDuplicates([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      if (!user) return;
+      const fullName = `${firstName} ${lastName}`;
+      const { data } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, phone, email')
+        .eq('user_id', user.id)
+        .ilike('last_name', `%${lastName}%`)
+        .limit(3);
+      if (!data) return;
+      const matches = data.filter(d => {
+        const existing = `${d.first_name} ${d.last_name}`;
+        return matchScore(fullName, existing) >= 75;
+      });
+      setDuplicates(matches);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [form.first_name, form.last_name, isEdit, user]);
 
   const [showRdvForm, setShowRdvForm] = useState(false);
   const [rdvForm, setRdvForm] = useState({ title: '', type: 'rdv', date: '', duration: '60', location: '' });
@@ -151,6 +200,21 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
           <Input className="h-11" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required />
         </div>
       </div>
+      {!isEdit && duplicates.length > 0 && (
+        <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">Contact similaire détecté</span>
+          </div>
+          {duplicates.map(dup => (
+            <div key={dup.id} className="text-xs text-amber-700 dark:text-amber-400 flex items-center justify-between">
+              <span>{dup.first_name} {dup.last_name}</span>
+              <span className="text-amber-500">{dup.phone || dup.email || ''}</span>
+            </div>
+          ))}
+          <p className="text-[10px] text-amber-600 dark:text-amber-500 mt-2">Tu peux continuer si c'est un contact différent.</p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Téléphone</Label>
