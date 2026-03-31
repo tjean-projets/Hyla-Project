@@ -48,7 +48,7 @@ interface ImportFlowState {
   step: 'upload' | 'mapping' | 'matching' | 'done';
   rawData: Record<string, string>[];
   columns: string[];
-  mapping: { name_col: string; amount_col: string; id_col: string };
+  mapping: { name_col: string; firstname_col: string; amount_col: string; id_col: string };
   period: string;
   fileName: string;
 }
@@ -72,11 +72,22 @@ export default function Finance() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [flow, setFlow] = useState<ImportFlowState>({
     step: 'upload', rawData: [], columns: [],
-    mapping: { name_col: '', amount_col: '', id_col: '' },
+    mapping: { name_col: '', firstname_col: '', amount_col: '', id_col: '' },
     period: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
     fileName: '',
   });
   const [matchResults, setMatchResults] = useState<any[]>([]);
+
+  // ── User settings (saved column mappings) ──
+  const { data: settings } = useQuery({
+    queryKey: ['user-settings', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase.from('user_settings').select('*').eq('user_id', user.id).maybeSingle();
+      return data;
+    },
+    enabled: !!user,
+  });
 
   // ── Imports data ──
   const { data: imports = [] } = useQuery({
@@ -193,18 +204,51 @@ export default function Finance() {
         }
 
         const columns = Object.keys(json[0]);
-        const nameCol = columns.find(c => /nom|name|conseiller|vendeur/i.test(c)) || '';
-        const amountCol = columns.find(c => /montant|amount|commission|total/i.test(c)) || '';
+        const nameCol = columns.find(c => /^nom$|name|conseiller|vendeur/i.test(c)) || '';
+        const firstnameCol = columns.find(c => /prénom|prenom|firstname|first.?name/i.test(c)) || '';
         const idCol = columns.find(c => /id|matricule|code/i.test(c)) || '';
 
-        setFlow({
-          step: 'mapping',
-          rawData: json,
-          columns,
-          mapping: { name_col: nameCol, amount_col: amountCol, id_col: idCol },
-          period: flow.period,
-          fileName: file.name,
-        });
+        // Smart amount column: prefer column matching current period month
+        const MONTHS_FR = ['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
+        const periodMonth = parseInt(flow.period.split('-')[1]) - 1;
+        const periodYear = flow.period.split('-')[0];
+        const monthName = MONTHS_FR[periodMonth] || '';
+        const amountCols = columns.filter(c => /montant|amount|com\b|comm|commission|total/i.test(c));
+        // Try to find column matching current period (month + year)
+        let amountCol = amountCols.find(c => {
+          const lower = c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          return monthName && lower.includes(monthName) && lower.includes(periodYear);
+        }) || amountCols.find(c => {
+          const lower = c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          return monthName && lower.includes(monthName);
+        }) || amountCols[0] || '';
+
+        // Check saved mapping profiles
+        const columnsKey = [...columns].sort().join(',');
+        const savedProfiles = settings?.column_mappings as any;
+        const savedProfile = savedProfiles?.profiles?.find((p: any) => p.columns_key === columnsKey);
+
+        if (savedProfile) {
+          // Auto-apply saved mapping, go straight to matching
+          setFlow({
+            step: 'mapping',
+            rawData: json,
+            columns,
+            mapping: { ...savedProfile.mapping, amount_col: amountCol || savedProfile.mapping.amount_col },
+            period: flow.period,
+            fileName: file.name,
+          });
+          // Will auto-trigger matching after render
+        } else {
+          setFlow({
+            step: 'mapping',
+            rawData: json,
+            columns,
+            mapping: { name_col: nameCol, firstname_col: firstnameCol, amount_col: amountCol, id_col: idCol },
+            period: flow.period,
+            fileName: file.name,
+          });
+        }
       } catch {
         toast({ title: 'Erreur de lecture du fichier', variant: 'destructive' });
       }
@@ -221,7 +265,9 @@ export default function Finance() {
     const ownerName = profile?.full_name || '';
 
     const results = rawData.map((row) => {
-      const rowName = String(row[mapping.name_col] || '').trim();
+      const firstName = mapping.firstname_col ? String(row[mapping.firstname_col] || '').trim() : '';
+      const lastName = String(row[mapping.name_col] || '').trim();
+      const rowName = firstName ? `${firstName} ${lastName}` : lastName;
       const rowId = String(row[mapping.id_col] || '').trim();
       const amount = parseFloat(String(row[mapping.amount_col] || '0').replace(/[^\d.,\-]/g, '').replace(',', '.')) || 0;
 
@@ -313,10 +359,25 @@ export default function Finance() {
         await supabase.from('commissions').insert(linkedCommissions);
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
       queryClient.invalidateQueries({ queryKey: ['commissions'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
+
+      // Save mapping profile for future auto-mapping
+      if (user) {
+        const columnsKey = [...flow.columns].sort().join(',');
+        const existingProfiles = ((settings?.column_mappings as any)?.profiles || []) as any[];
+        const newProfile = { columns_key: columnsKey, mapping: flow.mapping, last_used: new Date().toISOString().split('T')[0] };
+        const updatedProfiles = existingProfiles.filter((p: any) => p.columns_key !== columnsKey);
+        updatedProfiles.push(newProfile);
+        await supabase.from('user_settings').upsert({
+          user_id: user.id,
+          column_mappings: { profiles: updatedProfiles } as any,
+        }, { onConflict: 'user_id' });
+        queryClient.invalidateQueries({ queryKey: ['user-settings'] });
+      }
+
       setFlow({ ...flow, step: 'done' });
       toast({ title: 'Import traité avec succès' });
     },
@@ -515,6 +576,16 @@ export default function Finance() {
                         </Select>
                       </div>
                       <div>
+                        <Label className="text-xs">Colonne Prénom (optionnel)</Label>
+                        <Select value={flow.mapping.firstname_col || '__none__'} onValueChange={(v) => setFlow({ ...flow, mapping: { ...flow.mapping, firstname_col: v === '__none__' ? '' : v } })}>
+                          <SelectTrigger className="h-10"><SelectValue placeholder="Aucune" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Aucune</SelectItem>
+                            {flow.columns.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
                         <Label className="text-xs">Colonne Montant *</Label>
                         <Select value={flow.mapping.amount_col || undefined} onValueChange={(v) => setFlow({ ...flow, mapping: { ...flow.mapping, amount_col: v } })}>
                           <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
@@ -536,7 +607,7 @@ export default function Finance() {
                       <p className="text-[10px] font-semibold text-gray-400 mb-1.5">Aperçu</p>
                       {flow.rawData.slice(0, 3).map((row, i) => (
                         <div key={i} className="text-xs text-gray-600 mb-0.5">
-                          <span className="font-medium">{row[flow.mapping.name_col] || '—'}</span>
+                          <span className="font-medium">{[row[flow.mapping.firstname_col], row[flow.mapping.name_col]].filter(Boolean).join(' ') || '—'}</span>
                           {' → '}
                           <span className="text-green-700">{row[flow.mapping.amount_col] || '0'} €</span>
                         </div>
