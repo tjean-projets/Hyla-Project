@@ -904,6 +904,153 @@ function DeleteAccountDialog({
   );
 }
 
+/* ── Fiche Membre Détaillée ── */
+function FicheMembre({
+  member,
+  open,
+  onClose,
+  onEdit,
+  onImpersonate,
+}: {
+  member: TeamMember;
+  open: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onImpersonate?: () => void;
+}) {
+  const effectiveId = useEffectiveUserId();
+
+  // Fetch commissions for this member (réseau commissions in owner's space)
+  const { data: commissions = [] } = useQuery({
+    queryKey: ['member-commissions', member.id, effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase
+        .from('commissions')
+        .select('*')
+        .eq('user_id', effectiveId)
+        .eq('team_member_id', member.id)
+        .eq('status', 'validee')
+        .order('period', { ascending: false });
+      return data || [];
+    },
+    enabled: open && !!effectiveId,
+  });
+
+  // Fetch deals sold by this member
+  const { data: deals = [] } = useQuery({
+    queryKey: ['member-deals', member.id, effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase
+        .from('deals')
+        .select('*')
+        .eq('user_id', effectiveId)
+        .eq('sold_by', member.id)
+        .order('created_at', { ascending: false });
+      return data || [];
+    },
+    enabled: open && !!effectiveId,
+  });
+
+  const totalCommissions = commissions.reduce((s: number, c: any) => s + c.amount, 0);
+  const dealsSignes = deals.filter((d: any) => d.status === 'signee').length;
+  const dealsEnCours = deals.filter((d: any) => d.status === 'en_cours' || d.status === 'en_attente').length;
+
+  const tier = member.level >= 2 ? 'Manager' : 'Conseillère';
+  const joined = member.joined_at
+    ? new Date(member.joined_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'Non renseigné';
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md p-0 overflow-hidden">
+        {/* Header gradient */}
+        <div className="bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6] px-6 pt-6 pb-8">
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center">
+              <span className="text-white font-bold text-xl">{member.first_name.charAt(0)}{member.last_name.charAt(0)}</span>
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">{member.first_name} {member.last_name}</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-lg">{tier}</span>
+                {member.internal_id && (
+                  <span className="text-xs font-mono bg-white/10 text-white/70 px-2 py-0.5 rounded-lg">{member.internal_id}</span>
+                )}
+                <span className={`text-xs px-2 py-0.5 rounded-lg ${
+                  member.status === 'actif' ? 'bg-emerald-500/30 text-emerald-200' : 'bg-white/10 text-white/50'
+                }`}>{member.status === 'actif' ? 'Actif' : 'Inactif'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats grid */}
+        <div className="px-6 -mt-4">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white rounded-xl shadow-sm border p-3 text-center">
+              <p className="text-lg font-bold text-gray-900">{totalCommissions.toLocaleString('fr-FR')}€</p>
+              <p className="text-[10px] text-gray-400">Commissions</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border p-3 text-center">
+              <p className="text-lg font-bold text-gray-900">{dealsSignes}</p>
+              <p className="text-[10px] text-gray-400">Ventes signées</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border p-3 text-center">
+              <p className="text-lg font-bold text-gray-900">{dealsEnCours}</p>
+              <p className="text-[10px] text-gray-400">En cours</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Details */}
+        <div className="px-6 py-4 space-y-3">
+          <div className="space-y-2 text-sm">
+            {member.phone && <div className="flex justify-between"><span className="text-gray-400">Téléphone</span><span className="text-gray-900">{member.phone}</span></div>}
+            {member.email && <div className="flex justify-between"><span className="text-gray-400">Email</span><span className="text-gray-900 truncate ml-4">{member.email}</span></div>}
+            <div className="flex justify-between"><span className="text-gray-400">Depuis le</span><span className="text-gray-900">{joined}</span></div>
+          </div>
+
+          {/* Recent commissions */}
+          {commissions.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Dernières commissions</p>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {commissions.slice(0, 5).map((c: any) => (
+                  <div key={c.id} className="flex justify-between text-xs py-1 border-b border-gray-50">
+                    <span className="text-gray-500">{new Date(c.period + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
+                    <span className="font-semibold text-gray-900">{c.amount.toLocaleString('fr-FR')} €</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={onEdit}
+              className="flex-1 py-2.5 text-sm font-semibold bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              Modifier
+            </button>
+            {onImpersonate && (
+              <button
+                onClick={onImpersonate}
+                className="flex-1 py-2.5 text-sm font-semibold bg-[#3b82f6] text-white rounded-xl hover:bg-[#2563eb] transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                Voir son espace
+              </button>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /* ── Org Chart Tree Node (recursive) ── */
 interface OrgNode {
   id: string;
@@ -1334,9 +1481,10 @@ export default function NetworkPage() {
     setEditingMember(null);
   };
 
+  const [fichemembre, setFichemembre] = useState<TeamMember | null>(null);
+
   const handleOpenEdit = (member: TeamMember) => {
-    setEditingMember(member);
-    setShowForm(true);
+    setFichemembre(member);
   };
 
   return (
@@ -1673,6 +1821,24 @@ export default function NetworkPage() {
         onOpenChange={setShowInviteDialog}
         inviteCode={profile?.invite_code || null}
       />
+
+      {/* Fiche membre détaillée */}
+      {fichemembre && (
+        <FicheMembre
+          member={fichemembre}
+          open={!!fichemembre}
+          onClose={() => setFichemembre(null)}
+          onEdit={() => {
+            setEditingMember(fichemembre);
+            setFichemembre(null);
+            setShowForm(true);
+          }}
+          onImpersonate={(fichemembre as any).linked_user_id ? () => {
+            startImpersonation((fichemembre as any).linked_user_id, `${fichemembre.first_name} ${fichemembre.last_name}`, 'individual');
+            navigate('/');
+          } : undefined}
+        />
+      )}
     </AppLayout>
   );
 }
