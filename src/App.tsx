@@ -18,6 +18,7 @@ import Tasks from "./pages/Tasks";
 import CalendarPage from "./pages/CalendarPage";
 import Imports from "./pages/Imports";
 import Finance from "./pages/Finance";
+import StatsPage from "./pages/StatsPage";
 import SettingsPage from "./pages/SettingsPage";
 import ObjectifForm from "./pages/ObjectifForm";
 import InscriptionPage from "./pages/InscriptionPage";
@@ -85,6 +86,7 @@ function AppRoutes() {
       <Route path="/deals" element={<ProtectedRoute><Deals /></ProtectedRoute>} />
       <Route path="/network" element={<ProtectedRoute><NetworkPage /></ProtectedRoute>} />
       <Route path="/commissions" element={<ProtectedRoute><Commissions /></ProtectedRoute>} />
+      <Route path="/stats" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
       <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
       <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
       <Route path="/imports" element={<Navigate to="/finance" replace />} />

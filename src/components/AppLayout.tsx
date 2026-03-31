@@ -27,6 +27,7 @@ import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { useImpersonationSafe } from '@/hooks/useImpersonation';
 import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
 import { useThemeSafe } from '@/hooks/useTheme';
+import { BarChart3 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -356,6 +357,7 @@ const sidebarLinks = [
   { to: '/tasks', icon: CheckSquare, label: 'Tâches' },
   { to: '/calendar', icon: Calendar, label: 'Calendrier' },
   { to: '/finance', icon: Wallet, label: 'Finance' },
+  { to: '/stats', icon: BarChart3, label: 'Statistiques' },
   { to: '/settings', icon: Settings, label: 'Paramètres' },
 ];
 
