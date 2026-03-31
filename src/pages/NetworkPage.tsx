@@ -353,7 +353,7 @@ function AssistantPanel({ member }: { member: TeamMember }) {
           <div className="flex-1 bg-muted rounded-xl px-3 py-2.5 text-xs text-muted-foreground truncate border">
             {inscriptionUrl}
           </div>
-          <button onClick={copyLink} className="px-3 py-2.5 bg-muted rounded-xl hover:bg-gray-200 transition-colors">
+          <button onClick={copyLink} className="px-3 py-2.5 bg-muted rounded-xl hover:bg-muted/70 transition-colors">
             <Copy className="h-4 w-4 text-muted-foreground" />
           </button>
         </div>
@@ -471,7 +471,7 @@ function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onS
 
       {/* Custom answers */}
       {customQuestions.length > 0 && Object.keys(customAnswers).length > 0 && (
-        <div className="border rounded-xl p-3 border-border bg-gray-50/50">
+        <div className="border rounded-xl p-3 border-border bg-muted/30">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Réponses complémentaires</p>
           <div className="space-y-1.5">
             {customQuestions.map((q) => customAnswers[q.id] ? (
@@ -736,7 +736,7 @@ function InviteLinkDialog({ open, onOpenChange, inviteCode }: { open: boolean; o
             <div className="flex-1 bg-muted rounded-xl px-3 py-2.5 text-xs text-muted-foreground truncate border">
               {inviteUrl || 'Aucun code d\'invitation'}
             </div>
-            <button onClick={copyLink} disabled={!inviteCode} className="px-3 py-2.5 bg-muted rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50">
+            <button onClick={copyLink} disabled={!inviteCode} className="px-3 py-2.5 bg-muted rounded-xl hover:bg-muted/70 transition-colors disabled:opacity-50">
               <Copy className="h-4 w-4 text-muted-foreground" />
             </button>
           </div>
@@ -1138,7 +1138,7 @@ function DownlineSection({ currentUserId, members }: { currentUserId: string; me
           <Star className="h-6 w-6 text-white" />
         </div>
         <p className="text-xs font-bold text-foreground">Moi</p>
-        {orgTree.length > 0 && <div className="w-px h-5 bg-gray-200 mt-1.5" />}
+        {orgTree.length > 0 && <div className="w-px h-5 bg-border mt-1.5" />}
       </div>
 
       {/* Membres */}
@@ -1146,13 +1146,13 @@ function DownlineSection({ currentUserId, members }: { currentUserId: string; me
         <>
           {orgTree.length > 1 && (
             <div className="flex justify-center">
-              <div className="h-px bg-gray-200 w-full max-w-[80%]" />
+              <div className="h-px bg-border w-full max-w-[80%]" />
             </div>
           )}
           <div className="flex flex-wrap justify-center gap-4 mt-0">
             {orgTree.map((node) => (
               <div key={node.id} className="flex flex-col items-center w-20">
-                <div className="w-px h-4 bg-gray-200 mb-1.5" />
+                <div className="w-px h-4 bg-border mb-1.5" />
                 <div className="h-10 w-10 rounded-xl bg-violet-100 flex items-center justify-center mb-1">
                   <span className="text-violet-700 font-bold text-[10px]">{node.initials}</span>
                 </div>
@@ -1164,7 +1164,7 @@ function DownlineSection({ currentUserId, members }: { currentUserId: string; me
                 </span>
                 {node.children.length > 0 && (
                   <div className="mt-2 space-y-1">
-                    <div className="w-px h-3 bg-gray-200 mx-auto" />
+                    <div className="w-px h-3 bg-border mx-auto" />
                     {node.children.map((child) => (
                       <div key={child.id} className="flex flex-col items-center">
                         <div className="h-7 w-7 rounded-lg bg-blue-50 flex items-center justify-center mb-0.5">
@@ -1647,7 +1647,7 @@ export default function NetworkPage() {
           </div>
           <button
             onClick={() => setShowMemberList(!showMemberList)}
-            className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-gray-600 hover:border-gray-300 transition-colors"
+            className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:border-border/70 transition-colors"
             title={showMemberList ? 'Masquer' : 'Afficher'}
           >
             {showMemberList ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

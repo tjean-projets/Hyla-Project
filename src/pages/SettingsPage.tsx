@@ -373,7 +373,7 @@ export default function SettingsPage() {
                       }
                     }}
                     disabled={emailSaving || !newEmail || newEmail === user?.email}
-                    className="px-4 h-11 bg-muted hover:bg-gray-200 text-foreground font-semibold text-sm rounded-xl disabled:opacity-30 transition-colors whitespace-nowrap"
+                    className="px-4 h-11 bg-muted hover:bg-muted/70 text-foreground font-semibold text-sm rounded-xl disabled:opacity-30 transition-colors whitespace-nowrap"
                   >
                     {emailSaving ? '...' : 'Modifier'}
                   </button>
