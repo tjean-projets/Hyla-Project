@@ -36,21 +36,27 @@ import {
 
 /* ── Notification Center ── */
 
-function NotifItem({ color, title, subtitle, meta, action, actionLabel }: {
-  color: string; title: string; subtitle: string; meta: string; action: () => void; actionLabel: string;
+function NotifItem({ color, title, subtitle, meta, action, actionLabel, isDark }: {
+  color: string; title: string; subtitle: string; meta: string; action: () => void; actionLabel: string; isDark?: boolean;
 }) {
   return (
     <div
       onClick={action}
-      className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors active:scale-[0.99]"
+      className={cn(
+        'flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-colors active:scale-[0.99]',
+        isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'
+      )}
     >
       <div className={cn('w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0', color)} />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{title}</p>
-        {subtitle && <p className="text-xs text-gray-500 truncate">{subtitle}</p>}
-        <p className="text-[10px] text-gray-400 mt-0.5">{meta}</p>
+        <p className={cn('text-sm font-semibold truncate', isDark ? 'text-white' : 'text-gray-900')}>{title}</p>
+        {subtitle && <p className={cn('text-xs truncate', isDark ? 'text-gray-400' : 'text-gray-500')}>{subtitle}</p>}
+        <p className={cn('text-[10px] mt-0.5', isDark ? 'text-gray-500' : 'text-gray-400')}>{meta}</p>
       </div>
-      <button className="text-[11px] text-blue-600 font-semibold flex-shrink-0 px-2 py-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-500/10">
+      <button className={cn(
+        'text-[11px] text-blue-500 font-semibold flex-shrink-0 px-2 py-1 rounded-lg',
+        isDark ? 'hover:bg-blue-500/10' : 'hover:bg-blue-50'
+      )}>
         {actionLabel}
       </button>
     </div>
@@ -231,8 +237,8 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
 
           {notifications.length === 0 ? (
             <div className="text-center py-8">
-              <Bell className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">Aucune notification</p>
+              <Bell className={cn('h-8 w-8 mx-auto mb-2', isDark ? 'text-gray-600' : 'text-gray-300')} />
+              <p className={cn('text-sm', isDark ? 'text-gray-500' : 'text-gray-400')}>Aucune notification</p>
             </div>
           ) : (
             <div className="space-y-1">
@@ -240,7 +246,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
                 <>
                   <p className="text-[10px] font-bold text-green-600 uppercase mt-2 mb-1 px-1">Nouveaux leads ({newLeads.length})</p>
                   {notifications.filter(n => n.type === 'lead').map(n => (
-                    <NotifItem key={n.id} {...n} />
+                    <NotifItem key={n.id} {...n} isDark={isDark} />
                   ))}
                 </>
               )}
@@ -248,7 +254,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
                 <>
                   <p className="text-[10px] font-bold text-red-600 uppercase mt-3 mb-1 px-1">En retard ({overdueTasks.length})</p>
                   {notifications.filter(n => n.type === 'overdue').map(n => (
-                    <NotifItem key={n.id} {...n} />
+                    <NotifItem key={n.id} {...n} isDark={isDark} />
                   ))}
                 </>
               )}
@@ -256,7 +262,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
                 <>
                   <p className="text-[10px] font-bold text-orange-600 uppercase mt-3 mb-1 px-1">Aujourd&apos;hui ({todayTasks.length})</p>
                   {notifications.filter(n => n.type === 'today').map(n => (
-                    <NotifItem key={n.id} {...n} />
+                    <NotifItem key={n.id} {...n} isDark={isDark} />
                   ))}
                 </>
               )}
