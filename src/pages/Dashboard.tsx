@@ -73,7 +73,11 @@ export default function Dashboard() {
 
   const k = kpis || {} as Record<string, number>;
   const nbSignees = deals.length;
-  const commissionEstimee = getHylaCommission(nbSignees);
+  const commDirecte = k.commissions_mois_directe || 0;
+  const commReseau = k.commissions_mois_reseau || 0;
+  const commTotal = commDirecte + commReseau;
+  // Fallback to estimated if no real commissions yet
+  const commissionAffichee = commTotal > 0 ? commTotal : getHylaCommission(nbSignees);
 
   // Challenge calculations (centralisé via HYLA_CHALLENGES)
   const startDate = profileData ? new Date(profileData.created_at) : new Date();
@@ -266,14 +270,23 @@ export default function Dashboard() {
               <p className="text-[10px] font-semibold uppercase text-gray-400">CA du mois</p>
               <TrendingUp className="h-4 w-4 text-emerald-500" />
             </div>
-            <p className="text-xl font-bold text-gray-900">{(k.ca_mois || 0).toLocaleString('fr-FR')} <span className="text-sm text-gray-400">€</span></p>
+            <p className="text-xl font-bold text-gray-900">{(commTotal > 0 ? commTotal : (k.ca_mois || 0)).toLocaleString('fr-FR')} <span className="text-sm text-gray-400">€</span></p>
+            {(k.commissions_annee || 0) > 0 && (
+              <p className="text-[9px] text-gray-400 mt-1">{(k.commissions_annee || 0).toLocaleString('fr-FR')}€ cette année</p>
+            )}
           </div>
           <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl p-4 text-white">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-semibold uppercase opacity-80">Commission</p>
+              <p className="text-[10px] font-semibold uppercase opacity-80">Commissions</p>
               <Zap className="h-4 w-4 opacity-80" />
             </div>
-            <p className="text-xl font-bold">{commissionEstimee.toLocaleString('fr-FR')} <span className="text-sm opacity-70">€</span></p>
+            <p className="text-xl font-bold">{commissionAffichee.toLocaleString('fr-FR')} <span className="text-sm opacity-70">€</span></p>
+            {commTotal > 0 && (
+              <div className="flex gap-2 mt-1 text-[9px] opacity-70">
+                <span>Directe {commDirecte.toLocaleString('fr-FR')}€</span>
+                <span>Réseau {commReseau.toLocaleString('fr-FR')}€</span>
+              </div>
+            )}
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-1">
