@@ -4,6 +4,7 @@ import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart3, ArrowUp, ArrowDown, Trophy } from 'lucide-react';
+import { SkeletonKPI, SkeletonChart } from '@/components/ui/skeleton-card';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
@@ -13,7 +14,7 @@ export default function StatsPage() {
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear().toString());
 
-  const { data: commissions = [] } = useQuery({
+  const { data: commissions = [], isLoading: commissionsLoading } = useQuery({
     queryKey: ['stats-commissions', effectiveId, selectedYear],
     queryFn: async () => {
       if (!effectiveId) return [];
@@ -121,50 +122,63 @@ export default function StatsPage() {
         </div>
 
         {/* ── Hero KPIs ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
-            <p className="text-[10px] text-muted-foreground uppercase font-semibold">CA Total</p>
-            <p className="text-xl font-bold text-foreground mt-1">{totalCA.toLocaleString('fr-FR')}€</p>
+        {commissionsLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <SkeletonKPI />
+            <SkeletonKPI />
+            <SkeletonKPI />
+            <SkeletonKPI />
           </div>
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
-            <p className="text-[10px] text-muted-foreground uppercase font-semibold">Ce mois</p>
-            <p className="text-xl font-bold text-foreground mt-1">{currentMonthCA.toLocaleString('fr-FR')}€</p>
-            {monthGrowth !== 0 && (
-              <div className={`flex items-center gap-1 mt-1 text-[10px] font-semibold ${monthGrowth > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                {monthGrowth > 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                {Math.abs(monthGrowth)}% vs mois dernier
-              </div>
-            )}
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+              <p className="text-[10px] text-muted-foreground uppercase font-semibold">CA Total</p>
+              <p className="text-xl font-bold text-foreground mt-1">{totalCA.toLocaleString('fr-FR')}€</p>
+            </div>
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Ce mois</p>
+              <p className="text-xl font-bold text-foreground mt-1">{currentMonthCA.toLocaleString('fr-FR')}€</p>
+              {monthGrowth !== 0 && (
+                <div className={`flex items-center gap-1 mt-1 text-[10px] font-semibold ${monthGrowth > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {monthGrowth > 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                  {Math.abs(monthGrowth)}% vs mois dernier
+                </div>
+              )}
+            </div>
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Équipe</p>
+              <p className="text-xl font-bold text-foreground mt-1">{members.length}</p>
+              <p className="text-[10px] text-muted-foreground">{members.filter((m: any) => m.status === 'actif').length} actifs</p>
+            </div>
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Conversion</p>
+              <p className="text-xl font-bold text-foreground mt-1">{conversionRate}%</p>
+              <p className="text-[10px] text-muted-foreground">{recrues}/{totalContacts} contacts</p>
+            </div>
           </div>
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
-            <p className="text-[10px] text-muted-foreground uppercase font-semibold">Équipe</p>
-            <p className="text-xl font-bold text-foreground mt-1">{members.length}</p>
-            <p className="text-[10px] text-muted-foreground">{members.filter((m: any) => m.status === 'actif').length} actifs</p>
-          </div>
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
-            <p className="text-[10px] text-muted-foreground uppercase font-semibold">Conversion</p>
-            <p className="text-xl font-bold text-foreground mt-1">{conversionRate}%</p>
-            <p className="text-[10px] text-muted-foreground">{recrues}/{totalContacts} contacts</p>
-          </div>
-        </div>
+        )}
 
         {/* ── CA Evolution chart ── */}
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-6">
-          <h3 className="text-sm font-bold text-foreground mb-4">Évolution du CA</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--foreground)' }}
-                formatter={(value: number) => `${value.toLocaleString('fr-FR')} €`}
-              />
-              <Bar dataKey="Directe" fill="#3b82f6" radius={[4, 4, 0, 0]} stackId="a" />
-              <Bar dataKey="Réseau" fill="#f59e0b" radius={[4, 4, 0, 0]} stackId="a" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {commissionsLoading ? (
+          <SkeletonChart />
+        ) : (
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-6">
+            <h3 className="text-sm font-bold text-foreground mb-4">Évolution du CA</h3>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--foreground)' }}
+                  formatter={(value: number) => `${value.toLocaleString('fr-FR')} €`}
+                />
+                <Bar dataKey="Directe" fill="#3b82f6" radius={[4, 4, 0, 0]} stackId="a" />
+                <Bar dataKey="Réseau" fill="#f59e0b" radius={[4, 4, 0, 0]} stackId="a" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
         {/* ── Split Directe vs Réseau ── */}
         {pieData.length > 0 && (

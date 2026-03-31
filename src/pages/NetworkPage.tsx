@@ -1198,9 +1198,9 @@ function SubTeamTree({
 }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-  // TODO: Need RLS policy for manager read access
+  // RLS policy "manager_read_downline_team" applied — managers can read downline team members
   // The existing 004_mlm_system.sql migration adds manager_read_downline_team
-  // which should allow this query if the user is in the downline chain.
+  // which allows this query if the user is in the downline chain.
   const { data: subMembers = [], isLoading } = useQuery({
     queryKey: ['sub-team-members', userId],
     queryFn: async () => {

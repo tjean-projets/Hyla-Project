@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { SkeletonTable } from '@/components/ui/skeleton-card';
 import * as XLSX from 'xlsx';
 
 // ── Fuzzy name matching ──
@@ -117,7 +118,7 @@ export default function Imports() {
   });
   const [matchResults, setMatchResults] = useState<MatchRow[]>([]);
 
-  const { data: imports = [] } = useQuery({
+  const { data: imports = [], isLoading: importsLoading } = useQuery({
     queryKey: ['commission-imports', user?.id],
     queryFn: async () => {
       if (!user) return [];
@@ -585,52 +586,56 @@ export default function Imports() {
         </Dialog>
 
         {/* Import history */}
-        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-          <div className="px-5 py-4 border-b border-border">
-            <h3 className="text-sm font-semibold text-foreground">Historique des imports</h3>
+        {importsLoading ? (
+          <SkeletonTable rows={3} />
+        ) : (
+          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+            <div className="px-5 py-4 border-b border-border">
+              <h3 className="text-sm font-semibold text-foreground">Historique des imports</h3>
+            </div>
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b border-border">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Fichier</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Période</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Stats</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {imports.map((imp: any) => {
+                  const stats = imp.stats || {};
+                  return (
+                    <tr key={imp.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 font-medium text-foreground">
+                        <div className="flex items-center gap-2">
+                          <FileSpreadsheet className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <span className="truncate max-w-[160px]">{imp.file_name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-foreground font-mono text-xs">{imp.period}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${IMPORT_STATUS_COLORS[imp.status as keyof typeof IMPORT_STATUS_COLORS]}`}>
+                          {IMPORT_STATUS_LABELS[imp.status as keyof typeof IMPORT_STATUS_LABELS]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground hidden md:table-cell">
+                        {stats.matched_rows !== undefined && (
+                          <span>{stats.matched_rows}/{stats.total_rows} matchées · {(stats.total_amount || 0).toLocaleString('fr-FR')} €</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">{new Date(imp.uploaded_at).toLocaleDateString('fr-FR')}</td>
+                    </tr>
+                  );
+                })}
+                {imports.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">Aucun import</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Fichier</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Période</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Stats</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {imports.map((imp: any) => {
-                const stats = imp.stats || {};
-                return (
-                  <tr key={imp.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-medium text-foreground">
-                      <div className="flex items-center gap-2">
-                        <FileSpreadsheet className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <span className="truncate max-w-[160px]">{imp.file_name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-foreground font-mono text-xs">{imp.period}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${IMPORT_STATUS_COLORS[imp.status as keyof typeof IMPORT_STATUS_COLORS]}`}>
-                        {IMPORT_STATUS_LABELS[imp.status as keyof typeof IMPORT_STATUS_LABELS]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground hidden md:table-cell">
-                      {stats.matched_rows !== undefined && (
-                        <span>{stats.matched_rows}/{stats.total_rows} matchées · {(stats.total_amount || 0).toLocaleString('fr-FR')} €</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">{new Date(imp.uploaded_at).toLocaleDateString('fr-FR')}</td>
-                  </tr>
-                );
-              })}
-              {imports.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">Aucun import</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        )}
       </div>
     </AppLayout>
   );

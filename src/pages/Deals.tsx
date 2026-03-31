@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS, HYLA_PRODUCTS, HYLA_COMMISSION_SCALE, getHylaCommission } from '@/lib/supabase';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Clock, TrendingUp, Download } from 'lucide-react';
+import { Plus, Search, Clock, TrendingUp, Download, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -566,6 +566,12 @@ export default function Deals() {
                         </p>
                         {deal.product && <p className="text-xs text-muted-foreground mt-0.5 truncate">{deal.product}</p>}
                         <p className="text-sm font-bold text-[#3b82f6] mt-1">{(deal.amount || 0).toLocaleString('fr-FR')} €</p>
+                        {deal.team_members && (
+                          <span className="text-[10px] bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded-full flex items-center gap-1 mt-1 w-fit">
+                            <Users className="h-2.5 w-2.5" />
+                            {deal.team_members.first_name}
+                          </span>
+                        )}
                         {deal.signed_at && (
                           <p className="text-[10px] text-muted-foreground mt-1">
                             Signé le {new Date(deal.signed_at).toLocaleDateString('fr-FR')}
