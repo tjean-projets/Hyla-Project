@@ -117,11 +117,22 @@ function MemberForm({
           .select('id')
           .single();
         if (contactError) throw contactError;
+        // Find a unique slug by appending a suffix if needed
+        const baseSlug = generateSlug(form.first_name, form.last_name);
+        let slug = baseSlug;
+        let suffix = 1;
+        while (true) {
+          const { data: existing } = await supabase
+            .from('team_members').select('id').eq('slug', slug).maybeSingle();
+          if (!existing) break;
+          suffix++;
+          slug = `${baseSlug}-${suffix}`;
+        }
         const { error } = await supabase.from('team_members').insert({
           ...payload,
           contact_id: newContact.id,
           linked_user_id: linkedProfile?.id || null,
-          slug: generateSlug(form.first_name, form.last_name),
+          slug,
         });
         if (error) throw error;
       }
@@ -879,111 +890,88 @@ function DeleteAccountDialog({
   );
 }
 
-/* ── Downline Tree Types & Helpers ── */
-interface DownlineMember {
+/* ── Org Chart Tree Node (recursive) ── */
+interface OrgNode {
   id: string;
-  full_name: string;
-  email: string | null;
-  sponsor_user_id: string | null;
-  invite_code: string | null;
-  level: number; // depth in tree: 1 = direct, 2 = indirect...
-  hasAccount: boolean; // linked_user_id on their team_member record or they have a profile
-  userId: string; // their actual user id (profile id)
+  name: string;
+  initials: string;
+  status: string;
+  children: OrgNode[];
 }
 
-function buildDownlineTree(
-  allProfiles: { id: string; full_name: string; email: string | null; sponsor_user_id: string | null; invite_code: string | null }[],
-  currentUserId: string,
-): DownlineMember[] {
-  const result: DownlineMember[] = [];
-  const byParent = new Map<string, typeof allProfiles>();
-  allProfiles.forEach(p => {
-    const sid = p.sponsor_user_id;
-    if (sid) {
-      if (!byParent.has(sid)) byParent.set(sid, []);
-      byParent.get(sid)!.push(p);
+function buildOrgTree(
+  members: TeamMember[],
+): OrgNode[] {
+  const byParent = new Map<string, TeamMember[]>();
+  const roots: TeamMember[] = [];
+
+  members.forEach(m => {
+    if (m.sponsor_id) {
+      if (!byParent.has(m.sponsor_id)) byParent.set(m.sponsor_id, []);
+      byParent.get(m.sponsor_id)!.push(m);
+    } else {
+      roots.push(m);
     }
   });
 
-  function walk(parentId: string, depth: number) {
-    const children = byParent.get(parentId) || [];
-    for (const child of children) {
-      result.push({
-        id: child.id,
-        full_name: child.full_name || 'Sans nom',
-        email: child.email,
-        sponsor_user_id: child.sponsor_user_id,
-        invite_code: child.invite_code,
-        level: depth,
-        hasAccount: true, // they have a profile so they have an account
-        userId: child.id,
-      });
-      walk(child.id, depth + 1);
-    }
+  function toNode(m: TeamMember): OrgNode {
+    const children = (byParent.get(m.id) || []).map(toNode);
+    return {
+      id: m.id,
+      name: `${m.first_name} ${m.last_name}`,
+      initials: `${m.first_name.charAt(0)}${m.last_name.charAt(0)}`,
+      status: m.status || 'actif',
+      children,
+    };
   }
-  walk(currentUserId, 1);
-  return result;
+
+  return roots.map(toNode);
 }
 
-/* ── Downline Section ── */
-function DownlineSection({ currentUserId }: { currentUserId: string }) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [statsUserId, setStatsUserId] = useState<string | null>(null);
-  const [statsName, setStatsName] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState<DownlineMember | null>(null);
+function OrgTreeNode({ node, isLast = false }: { node: OrgNode; isLast?: boolean }) {
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = node.children.length > 0;
 
-  // Fetch all profiles with sponsor_user_id to build the tree
-  const { data: downline = [], isLoading } = useQuery({
-    queryKey: ['downline-tree', currentUserId],
-    queryFn: async () => {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, sponsor_user_id, invite_code');
-      if (!profiles) return [];
-      return buildDownlineTree(profiles as any, currentUserId);
-    },
-    enabled: !!currentUserId,
-  });
-
-  // Deactivate account mutation
-  const deactivateMutation = useMutation({
-    mutationFn: async (member: DownlineMember) => {
-      // Find team_member record linked to this user
-      const { data: teamMembers } = await supabase
-        .from('team_members')
-        .select('id')
-        .eq('linked_user_id' as any, member.userId);
-      if (teamMembers && teamMembers.length > 0) {
-        for (const tm of teamMembers) {
-          await supabase.from('team_members').update({
-            linked_user_id: null,
-            status: 'inactif',
-          } as any).eq('id', tm.id);
-        }
-      }
-      // Also remove sponsor link on their profile
-      await supabase.from('profiles').update({ sponsor_user_id: null } as any).eq('id', member.userId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['downline-tree'] });
-      queryClient.invalidateQueries({ queryKey: ['team-members'] });
-      toast({ title: 'Compte desactive' });
-      setDeleteTarget(null);
-    },
-    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
-  });
-
-  if (isLoading) {
-    return (
-      <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-        <p className="text-sm text-gray-400 text-center">Chargement du reseau...</p>
+  return (
+    <div className="relative">
+      {/* Node */}
+      <div className="flex items-center gap-2 py-1.5">
+        <div
+          className={`h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500/30 to-indigo-500/30 flex items-center justify-center flex-shrink-0 ${hasChildren ? 'cursor-pointer' : ''}`}
+          onClick={() => hasChildren && setExpanded(!expanded)}
+        >
+          <span className="text-white font-bold text-[10px]">{node.initials}</span>
+        </div>
+        <span className="text-sm text-white font-medium truncate">{node.name}</span>
+        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
+          node.status === 'actif' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-gray-500/15 text-gray-400'
+        }`}>
+          {node.status === 'actif' ? 'Actif' : 'Inactif'}
+        </span>
+        {hasChildren && (
+          <button onClick={() => setExpanded(!expanded)} className="text-gray-500 hover:text-white ml-auto">
+            {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          </button>
+        )}
       </div>
-    );
-  }
 
-  if (downline.length === 0) {
+      {/* Children with tree lines */}
+      {hasChildren && expanded && (
+        <div className="ml-4 border-l border-white/10 pl-4 space-y-0">
+          {node.children.map((child, i) => (
+            <OrgTreeNode key={child.id} node={child} isLast={i === node.children.length - 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Mon Reseau Hyla Section ── */
+function DownlineSection({ currentUserId, members }: { currentUserId: string; members: TeamMember[] }) {
+  const orgTree = buildOrgTree(members);
+
+  if (members.length === 0) {
     return (
       <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-6">
         <div className="flex items-center gap-2 mb-3">
@@ -992,124 +980,75 @@ function DownlineSection({ currentUserId }: { currentUserId: string }) {
         </div>
         <div className="text-center py-8">
           <Users className="h-10 w-10 text-gray-600 mx-auto mb-3" />
-          <p className="text-sm text-gray-500">Aucun filleul dans votre reseau</p>
-          <p className="text-xs text-gray-600 mt-1">Partagez votre lien d'invitation pour developper votre equipe</p>
+          <p className="text-sm text-gray-500">Aucun membre dans votre reseau</p>
+          <p className="text-xs text-gray-600 mt-1">Ajoutez des membres pour voir l'organigramme</p>
         </div>
       </div>
     );
   }
 
-  const directCount = downline.filter(d => d.level === 1).length;
-  const indirectCount = downline.filter(d => d.level > 1).length;
-
   return (
-    <>
-      <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Network className="h-5 w-5 text-violet-400" />
-          <h3 className="text-sm font-bold text-white">Mon Reseau Hyla</h3>
-          <span className="ml-auto text-xs text-gray-500">{downline.length} membre{downline.length > 1 ? 's' : ''}</span>
-        </div>
+    <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Network className="h-5 w-5 text-violet-400" />
+        <h3 className="text-sm font-bold text-white">Mon Reseau Hyla</h3>
+        <span className="ml-auto text-xs text-gray-500">{members.length} membre{members.length > 1 ? 's' : ''}</span>
+      </div>
 
-        {/* Summary */}
-        <div className="flex gap-3 mb-4">
-          <div className="flex-1 bg-violet-500/10 rounded-xl px-3 py-2 text-center">
-            <p className="text-lg font-bold text-violet-300">{directCount}</p>
-            <p className="text-[10px] text-gray-500">Directs (N1)</p>
+      {/* Root: current user (centered) */}
+      <div className="flex flex-col items-center mb-4">
+        <div className="flex flex-col items-center">
+          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500/40 to-orange-500/40 flex items-center justify-center ring-2 ring-amber-500/30 mb-1">
+            <Star className="h-7 w-7 text-amber-300" />
           </div>
-          <div className="flex-1 bg-blue-500/10 rounded-xl px-3 py-2 text-center">
-            <p className="text-lg font-bold text-blue-300">{indirectCount}</p>
-            <p className="text-[10px] text-gray-500">Indirects</p>
-          </div>
+          <p className="text-sm font-bold text-white">Moi</p>
+          <p className="text-[10px] text-gray-500">Manager</p>
         </div>
+        {/* Vertical line down */}
+        {orgTree.length > 0 && <div className="w-px h-6 bg-white/15 mt-2" />}
+      </div>
 
-        {/* Tree list */}
-        <div className="space-y-2">
-          {downline.map((member) => {
-            const isExpanded = expandedId === member.id;
-            const isDirect = member.level === 1;
-            return (
-              <div key={member.id} className="bg-white/[0.04] rounded-xl border border-white/5 overflow-hidden">
-                <div
-                  className="flex items-center gap-3 p-3 cursor-pointer hover:bg-white/[0.02] transition-colors"
-                  onClick={() => setExpandedId(isExpanded ? null : member.id)}
-                >
-                  {/* Indentation */}
-                  <div style={{ width: (member.level - 1) * 16 }} className="flex-shrink-0" />
-
-                  <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500/30 to-indigo-500/30 flex items-center justify-center flex-shrink-0">
-                    <span className="text-white font-bold text-xs">
-                      {member.full_name.split(' ').map(n => n.charAt(0)).join('').slice(0, 2)}
-                    </span>
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-white truncate">{member.full_name}</p>
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                        isDirect ? 'bg-violet-500/20 text-violet-300' : 'bg-blue-500/20 text-blue-300'
-                      }`}>
-                        N{member.level}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {member.email && <span className="text-[10px] text-gray-500 truncate">{member.email}</span>}
-                      {member.hasAccount && (
-                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
-                          Connecte
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-500 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-gray-500 flex-shrink-0" />}
+      {/* Members: horizontal row */}
+      {orgTree.length > 0 && (
+        <>
+          {/* Horizontal connector line */}
+          <div className="flex justify-center mb-0">
+            <div className={`h-px bg-white/15 ${orgTree.length === 1 ? 'w-0' : 'w-full max-w-[80%]'}`} />
+          </div>
+          <div className="flex flex-wrap justify-center gap-3 mt-0">
+            {orgTree.map((node) => (
+              <div key={node.id} className="flex flex-col items-center w-20">
+                {/* Vertical line from horizontal connector */}
+                <div className="w-px h-4 bg-white/15 mb-1" />
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500/30 to-indigo-500/30 flex items-center justify-center mb-1">
+                  <span className="text-white font-bold text-[10px]">{node.initials}</span>
                 </div>
-
-                {isExpanded && (
-                  <div className="px-3 pb-3 flex gap-2 border-t border-white/5 pt-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setStatsUserId(member.userId); setStatsName(member.full_name); }}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/20 active:scale-[0.97]"
-                    >
-                      <Eye className="h-3.5 w-3.5" /> Voir
-                    </button>
-                    {isDirect && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(member); }}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-red-500/15 text-red-400 border border-red-500/20 active:scale-[0.97]"
-                      >
-                        <UserMinus className="h-3.5 w-3.5" /> Supprimer le compte
-                      </button>
-                    )}
+                <p className="text-[11px] text-white font-medium text-center leading-tight">{node.name}</p>
+                <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded mt-1 ${
+                  node.status === 'actif' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-gray-500/15 text-gray-400'
+                }`}>
+                  {node.status === 'actif' ? 'Actif' : 'Inactif'}
+                </span>
+                {/* Sub-members if any */}
+                {node.children.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <div className="w-px h-3 bg-white/10 mx-auto" />
+                    {node.children.map((child) => (
+                      <div key={child.id} className="flex flex-col items-center">
+                        <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center mb-0.5">
+                          <span className="text-white font-bold text-[8px]">{child.initials}</span>
+                        </div>
+                        <p className="text-[9px] text-gray-400 text-center leading-tight">{child.name}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Manager Stats Dialog */}
-      {statsUserId && (
-        <ManagerStatsPanel
-          userId={statsUserId}
-          memberName={statsName}
-          open={!!statsUserId}
-          onOpenChange={(open) => { if (!open) { setStatsUserId(null); setStatsName(''); } }}
-        />
+            ))}
+          </div>
+        </>
       )}
-
-      {/* Delete Account Dialog */}
-      {deleteTarget && (
-        <DeleteAccountDialog
-          open={!!deleteTarget}
-          onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-          memberName={deleteTarget.full_name}
-          onConfirm={() => deactivateMutation.mutate(deleteTarget)}
-          isPending={deactivateMutation.isPending}
-        />
-      )}
-    </>
+    </div>
   );
 }
 
@@ -1312,6 +1251,7 @@ export default function NetworkPage() {
   const [subMemberToEdit, setSubMemberToEdit] = useState<{ member: TeamMember; parentName: string } | null>(null);
   const [showSubMemberConfirm, setShowSubMemberConfirm] = useState(false);
   const [promoteMember, setPromoteMember] = useState<TeamMember | null>(null);
+  const [showMemberList, setShowMemberList] = useState(true);
 
   const toggleTeamExpand = (memberId: string) => {
     setExpandedTeamIds(prev => {
@@ -1505,19 +1445,28 @@ export default function NetworkPage() {
           );
         })()}
 
-        {/* ── Search ── */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-          <input
-            placeholder="Rechercher un membre..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white/[0.06] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-all"
-          />
+        {/* ── Search + Toggle ── */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+            <input
+              placeholder="Rechercher un membre..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-white/[0.06] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 transition-all"
+            />
+          </div>
+          <button
+            onClick={() => setShowMemberList(!showMemberList)}
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-white/[0.06] border border-white/10 rounded-xl text-sm text-gray-400 hover:text-white hover:border-white/20 transition-all"
+            title={showMemberList ? 'Masquer la liste' : 'Afficher la liste'}
+          >
+            {showMemberList ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
 
         {/* ── Member cards (clean mobile) ── */}
-        <div className="space-y-3">
+        {showMemberList ? (<div className="space-y-3">
           {filtered.map((member, index) => {
             const tier = getTier(member.level);
             const TierIcon = tier.icon;
@@ -1637,10 +1586,10 @@ export default function NetworkPage() {
               </p>
             </div>
           )}
-        </div>
+        </div>) : null}
 
         {/* ── Mon Réseau Hyla (downline) ── */}
-        {effectiveId && <DownlineSection currentUserId={effectiveId} />}
+        {effectiveId && <DownlineSection currentUserId={effectiveId} members={members} />}
       </div>
 
       {/* Sub-member edit confirmation dialog */}

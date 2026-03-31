@@ -230,6 +230,19 @@ export default function Contacts() {
   const addToNetwork = useMutation({
     mutationFn: async (contact: Contact) => {
       if (!user) throw new Error('Non connecté');
+      const baseSlug = `${contact.first_name}-${contact.last_name}`
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      // Find a unique slug by appending a suffix if needed
+      let slug = baseSlug;
+      let suffix = 1;
+      while (true) {
+        const { data: existing } = await supabase
+          .from('team_members').select('id').eq('slug', slug).maybeSingle();
+        if (!existing) break;
+        suffix++;
+        slug = `${baseSlug}-${suffix}`;
+      }
       const { error } = await supabase.from('team_members').insert({
         user_id: user.id,
         contact_id: contact.id,
@@ -240,6 +253,8 @@ export default function Contacts() {
         level: 1,
         joined_at: new Date().toISOString().split('T')[0],
         matching_names: [`${contact.first_name} ${contact.last_name}`.toLowerCase()],
+        slug,
+        status: 'actif',
       });
       if (error) throw error;
     },

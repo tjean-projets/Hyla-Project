@@ -509,24 +509,24 @@ export default function Finance() {
                     <div className="space-y-2">
                       <div>
                         <Label className="text-xs">Colonne Nom *</Label>
-                        <Select value={flow.mapping.name_col} onValueChange={(v) => setFlow({ ...flow, mapping: { ...flow.mapping, name_col: v } })}>
+                        <Select value={flow.mapping.name_col || undefined} onValueChange={(v) => setFlow({ ...flow, mapping: { ...flow.mapping, name_col: v } })}>
                           <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
                           <SelectContent>{flow.columns.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
                       <div>
                         <Label className="text-xs">Colonne Montant *</Label>
-                        <Select value={flow.mapping.amount_col} onValueChange={(v) => setFlow({ ...flow, mapping: { ...flow.mapping, amount_col: v } })}>
+                        <Select value={flow.mapping.amount_col || undefined} onValueChange={(v) => setFlow({ ...flow, mapping: { ...flow.mapping, amount_col: v } })}>
                           <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
                           <SelectContent>{flow.columns.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
                       <div>
                         <Label className="text-xs">Colonne ID (optionnel)</Label>
-                        <Select value={flow.mapping.id_col} onValueChange={(v) => setFlow({ ...flow, mapping: { ...flow.mapping, id_col: v } })}>
+                        <Select value={flow.mapping.id_col || '__none__'} onValueChange={(v) => setFlow({ ...flow, mapping: { ...flow.mapping, id_col: v === '__none__' ? '' : v } })}>
                           <SelectTrigger className="h-10"><SelectValue placeholder="Aucune" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Aucune</SelectItem>
+                            <SelectItem value="__none__">Aucune</SelectItem>
                             {flow.columns.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                           </SelectContent>
                         </Select>
