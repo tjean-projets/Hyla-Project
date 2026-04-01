@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
 import { SkeletonTable, SkeletonRow } from '@/components/ui/skeleton-card';
+import { DealDrawer } from '@/components/DealDrawer';
 
 type Deal = Tables<'deals'>;
 
@@ -56,6 +57,17 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
       });
     }
   }, [initialData]);
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    const amt = parseFloat(form.amount);
+    if (!form.amount || isNaN(amt) || amt <= 0) e.amount = 'Montant invalide';
+    if (!form.status) e.status = 'Requis';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -135,7 +147,7 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
   });
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} className="space-y-4">
+    <form onSubmit={(e) => { e.preventDefault(); if (!validate()) return; mutation.mutate(); }} className="space-y-4">
       <div>
         <Label>Cliente</Label>
         <Select value={form.contact_id} onValueChange={(v) => setForm({ ...form, contact_id: v })}>
@@ -150,18 +162,27 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Montant (€) *</Label>
-          <Input className="h-11" type="number" step="0.01" placeholder="0,00" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
+          <Input
+            className={`h-11 ${errors.amount ? 'border-red-400 dark:border-red-600 focus:border-red-400' : ''}`}
+            type="number"
+            step="0.01"
+            placeholder="0,00"
+            value={form.amount}
+            onChange={(e) => { setForm({ ...form, amount: e.target.value }); if (errors.amount) setErrors(prev => ({ ...prev, amount: '' })); }}
+          />
+          {errors.amount && <p className="text-[10px] text-red-500 mt-1">{errors.amount}</p>}
         </div>
         <div>
           <Label>Statut</Label>
-          <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Deal['status'] })}>
-            <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+          <Select value={form.status} onValueChange={(v) => { setForm({ ...form, status: v as Deal['status'] }); if (errors.status) setErrors(prev => ({ ...prev, status: '' })); }}>
+            <SelectTrigger className={`h-11 ${errors.status ? 'border-red-400 dark:border-red-600' : ''}`}><SelectValue /></SelectTrigger>
             <SelectContent>
               {Object.entries(DEAL_STATUS_LABELS).map(([k, v]) => (
                 <SelectItem key={k} value={k}>{v}</SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {errors.status && <p className="text-[10px] text-red-500 mt-1">{errors.status}</p>}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -278,6 +299,7 @@ export default function Deals() {
   const [showForm, setShowForm] = useState(false);
   const [editingDeal, setEditingDeal] = useState<any | null>(null);
   const [view, setView] = useState<'list' | 'kanban'>('list');
+  const [drawerDeal, setDrawerDeal] = useState<any | null>(null);
 
   const { data: deals = [], isLoading } = useQuery({
     queryKey: ['deals', effectiveId],

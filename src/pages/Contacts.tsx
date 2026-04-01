@@ -148,6 +148,17 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
     notes: initialData?.notes || '',
   });
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!form.first_name.trim()) e.first_name = 'Requis';
+    if (!form.last_name.trim()) e.last_name = 'Requis';
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = 'Format invalide';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
   const mutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
@@ -189,15 +200,25 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
   });
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} className="space-y-4">
+    <form onSubmit={(e) => { e.preventDefault(); if (!validate()) return; mutation.mutate(); }} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Prénom *</Label>
-          <Input className="h-11" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required />
+          <Input
+            className={`h-11 ${errors.first_name ? 'border-red-400 dark:border-red-600 focus:border-red-400' : ''}`}
+            value={form.first_name}
+            onChange={(e) => { setForm({ ...form, first_name: e.target.value }); if (errors.first_name) setErrors(prev => ({ ...prev, first_name: '' })); }}
+          />
+          {errors.first_name && <p className="text-[10px] text-red-500 mt-1">{errors.first_name}</p>}
         </div>
         <div>
           <Label>Nom *</Label>
-          <Input className="h-11" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required />
+          <Input
+            className={`h-11 ${errors.last_name ? 'border-red-400 dark:border-red-600 focus:border-red-400' : ''}`}
+            value={form.last_name}
+            onChange={(e) => { setForm({ ...form, last_name: e.target.value }); if (errors.last_name) setErrors(prev => ({ ...prev, last_name: '' })); }}
+          />
+          {errors.last_name && <p className="text-[10px] text-red-500 mt-1">{errors.last_name}</p>}
         </div>
       </div>
       {!isEdit && duplicates.length > 0 && (
@@ -222,7 +243,13 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
         </div>
         <div>
           <Label>Email</Label>
-          <Input className="h-11" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <Input
+            className={`h-11 ${errors.email ? 'border-red-400 dark:border-red-600 focus:border-red-400' : ''}`}
+            type="email"
+            value={form.email}
+            onChange={(e) => { setForm({ ...form, email: e.target.value }); if (errors.email) setErrors(prev => ({ ...prev, email: '' })); }}
+          />
+          {errors.email && <p className="text-[10px] text-red-500 mt-1">{errors.email}</p>}
         </div>
       </div>
       <div>

@@ -58,6 +58,15 @@ function TaskForm({
     }
   }, [initialData]);
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!form.title.trim()) e.title = 'Requis';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
   const mutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
@@ -102,10 +111,15 @@ function TaskForm({
   });
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} className="space-y-4">
+    <form onSubmit={(e) => { e.preventDefault(); if (!validate()) return; mutation.mutate(); }} className="space-y-4">
       <div>
         <Label className="text-xs">Titre *</Label>
-        <Input className="h-11" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+        <Input
+          className={`h-11 ${errors.title ? 'border-red-400 dark:border-red-600 focus:border-red-400' : ''}`}
+          value={form.title}
+          onChange={(e) => { setForm({ ...form, title: e.target.value }); if (errors.title) setErrors(prev => ({ ...prev, title: '' })); }}
+        />
+        {errors.title && <p className="text-[10px] text-red-500 mt-1">{errors.title}</p>}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
