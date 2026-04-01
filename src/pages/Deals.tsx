@@ -349,6 +349,12 @@ export default function Deals() {
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
 
+  const handleStatusChange = async (dealId: string, status: string) => {
+    await supabase.from('deals').update({ status }).eq('id', dealId);
+    queryClient.invalidateQueries({ queryKey: ['deals'] });
+    setDrawerDeal(null);
+  };
+
   const filtered = deals.filter((d: any) => {
     const name = d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : '';
     const matchesSearch = !search || `${name} ${d.product || ''}`.toLowerCase().includes(search.toLowerCase());
@@ -537,7 +543,7 @@ export default function Deals() {
               </thead>
               <tbody className="divide-y divide-border">
                 {filtered.map((deal: any) => (
-                  <tr key={deal.id} className="hover:bg-muted cursor-pointer" onClick={() => setEditingDeal(deal)}>
+                  <tr key={deal.id} className="hover:bg-muted cursor-pointer" onClick={() => setDrawerDeal(deal)}>
                     <td className="px-4 py-3 font-medium text-foreground">
                       {deal.contacts ? `${deal.contacts.first_name} ${deal.contacts.last_name}` : '—'}
                     </td>
@@ -607,9 +613,9 @@ export default function Deals() {
                     {colDeals.map((deal: any) => (
                       <div key={deal.id}
                         draggable
-                        onDragStart={(e) => { e.dataTransfer.setData('dealId', deal.id); (e.currentTarget as HTMLElement).style.opacity = '0.5'; }}
-                        onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
-                        onClick={() => setEditingDeal(deal)}
+                        onDragStart={(e) => { e.dataTransfer.setData('dealId', deal.id); (e.currentTarget as HTMLElement).style.opacity = '0.5'; (e.currentTarget as HTMLElement).dataset.dragging = 'true'; }}
+                        onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; delete (e.currentTarget as HTMLElement).dataset.dragging; }}
+                        onClick={(e) => { if ((e.currentTarget as HTMLElement).dataset.dragging) return; setDrawerDeal(deal); }}
                         className="bg-card rounded-xl border border-border p-3 cursor-pointer hover:shadow-md transition-shadow"
                       >
                         <p className="text-sm font-semibold text-foreground truncate">
@@ -642,6 +648,13 @@ export default function Deals() {
           </div>
         )}
       </div>
+      <DealDrawer
+        deal={drawerDeal}
+        onClose={() => setDrawerDeal(null)}
+        onEdit={(d) => { setEditingDeal(d); setShowForm(true); }}
+        onDelete={(id) => deleteMutation.mutate(id)}
+        onStatusChange={handleStatusChange}
+      />
     </AppLayout>
   );
 }
