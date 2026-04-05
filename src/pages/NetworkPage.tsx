@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
+import { usePlan } from '@/hooks/usePlan';
+import { PaywallScreen } from '@/components/PaywallScreen';
 import { supabase, HYLA_NETWORK_TIERS, HYLA_NETWORK_COMMISSION } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Users, UserPlus, Star, Trophy, Crown, Award, ChevronUp, Zap, Trash2, Target, Copy, Mail, Edit3, CheckCircle, Clock, Sparkles, Link2, Share2, Eye, EyeOff, AlertTriangle, ChevronDown, ChevronRight, Network, DollarSign, ShoppingCart, UserMinus } from 'lucide-react';
@@ -1480,6 +1482,16 @@ export default function NetworkPage() {
   const handleOpenEdit = (member: TeamMember) => {
     setFichemembre(member);
   };
+
+  const { canAccess, isTrial, trialDaysLeft } = usePlan();
+
+  if (!canAccess.network) {
+    return (
+      <AppLayout title="Réseau">
+        <PaywallScreen feature="network" isTrial={isTrial} trialDaysLeft={trialDaysLeft} />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout

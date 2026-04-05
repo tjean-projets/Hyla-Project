@@ -7,11 +7,14 @@ import {
   Shield, Users, Search, ChevronDown, ChevronRight, Eye, UserMinus,
   TrendingUp, ShoppingBag, DollarSign, AlertTriangle, Loader2, Network
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useImpersonation } from '@/hooks/useImpersonation';
+
+type PlanType = 'legacy' | 'trial' | 'conseillere' | 'manager' | 'expired';
 
 interface UserProfile {
   id: string;
@@ -21,7 +24,16 @@ interface UserProfile {
   sponsor_user_id: string | null;
   invite_code: string | null;
   created_at: string;
+  plan: PlanType | null;
 }
+
+const PLAN_BADGE: Record<PlanType, { label: string; className: string }> = {
+  legacy:     { label: 'Legacy',     className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' },
+  trial:      { label: 'Essai',      className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' },
+  conseillere:{ label: 'Conseillère',className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' },
+  manager:    { label: 'Manager',    className: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400' },
+  expired:    { label: 'Expiré',     className: 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400' },
+};
 
 interface UserStats {
   deals: number;
@@ -56,11 +68,23 @@ export default function AdminPanel() {
     queryFn: async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, email, phone, sponsor_user_id, invite_code, created_at')
+        .select('id, full_name, email, phone, sponsor_user_id, invite_code, created_at, plan')
         .order('created_at', { ascending: false });
       return (data || []) as UserProfile[];
     },
   });
+
+  async function updateUserPlan(userId: string, newPlan: PlanType) {
+    await supabase
+      .from('profiles')
+      .update({
+        plan: newPlan,
+        plan_status: newPlan === 'expired' ? 'expired' : 'active',
+      })
+      .eq('id', userId);
+    queryClient.invalidateQueries({ queryKey: ['admin-all-profiles'] });
+    toast({ title: 'Plan mis à jour' });
+  }
 
   const filtered = profiles.filter(p => {
     if (!search) return true;
@@ -201,9 +225,13 @@ export default function AdminPanel() {
                     <p className="text-[10px] text-blue-500">Parrainé par {sponsorName(profile.sponsor_user_id)}</p>
                   )}
                 </div>
-                <div className="text-right flex-shrink-0">
+                <div className="text-right flex-shrink-0 space-y-1">
                   <p className="text-[10px] text-gray-400">{new Date(profile.created_at).toLocaleDateString('fr-FR')}</p>
-                  <p className="text-[10px] font-mono text-gray-300">{profile.invite_code || '—'}</p>
+                  {profile.plan && (
+                    <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full ${PLAN_BADGE[profile.plan]?.className || ''}`}>
+                      {PLAN_BADGE[profile.plan]?.label || profile.plan}
+                    </span>
+                  )}
                 </div>
                 {profile.id !== user?.id && (
                   <button
@@ -250,6 +278,33 @@ export default function AdminPanel() {
                     <div className="bg-gray-50 rounded-lg p-2.5 col-span-2">
                       <p className="text-[10px] text-gray-400">Inscrit le</p>
                       <p className="font-medium text-xs">{new Date(selectedUser.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    </div>
+                  </div>
+
+                  {/* Plan */}
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-[10px] text-gray-400 mb-2 font-semibold uppercase">Plan d'abonnement</p>
+                    <div className="flex items-center gap-3">
+                      {selectedUser.plan && (
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${PLAN_BADGE[selectedUser.plan]?.className || ''}`}>
+                          {PLAN_BADGE[selectedUser.plan]?.label || selectedUser.plan}
+                        </span>
+                      )}
+                      <Select
+                        value={selectedUser.plan || 'trial'}
+                        onValueChange={(v) => updateUserPlan(selectedUser.id, v as PlanType)}
+                      >
+                        <SelectTrigger className="h-8 text-xs flex-1">
+                          <SelectValue placeholder="Changer le plan..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="legacy">Legacy</SelectItem>
+                          <SelectItem value="trial">Essai</SelectItem>
+                          <SelectItem value="conseillere">Conseillère</SelectItem>
+                          <SelectItem value="manager">Manager</SelectItem>
+                          <SelectItem value="expired">Expiré</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 

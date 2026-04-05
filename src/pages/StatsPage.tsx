@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
+import { usePlan } from '@/hooks/usePlan';
+import { PaywallScreen } from '@/components/PaywallScreen';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart3, ArrowUp, ArrowDown, Trophy, XCircle } from 'lucide-react';
@@ -133,6 +135,16 @@ export default function StatsPage() {
   const lossStats = Object.entries(lossByReason)
     .sort((a, b) => b[1] - a[1])
     .map(([key, count]) => ({ label: lossReasonLabels[key] || key, count, pct: Math.round((count / lostDeals.length) * 100) }));
+
+  const { canAccess, isTrial, trialDaysLeft } = usePlan();
+
+  if (!canAccess.stats) {
+    return (
+      <AppLayout title="Statistiques">
+        <PaywallScreen feature="stats" isTrial={isTrial} trialDaysLeft={trialDaysLeft} />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title="Statistiques">

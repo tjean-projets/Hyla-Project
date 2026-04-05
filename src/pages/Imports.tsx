@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
+import { usePlan } from '@/hooks/usePlan';
+import { PaywallScreen } from '@/components/PaywallScreen';
 import { supabase, IMPORT_STATUS_LABELS, IMPORT_STATUS_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, XCircle, CalendarRange, Calendar } from 'lucide-react';
@@ -324,6 +326,16 @@ export default function Imports() {
     });
     setMatchResults([]);
   };
+
+  const { canAccess, isTrial, trialDaysLeft } = usePlan();
+
+  if (!canAccess.finance) {
+    return (
+      <AppLayout title="Imports">
+        <PaywallScreen feature="finance" isTrial={isTrial} trialDaysLeft={trialDaysLeft} />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout

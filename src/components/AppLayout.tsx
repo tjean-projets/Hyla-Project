@@ -26,6 +26,7 @@ import { supabase, isSuperAdmin, HYLA_CHALLENGES } from '@/lib/supabase';
 import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { useImpersonationSafe } from '@/hooks/useImpersonation';
 import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
+import { usePlan } from '@/hooks/usePlan';
 import { useThemeSafe } from '@/hooks/useTheme';
 import { BarChart3 } from 'lucide-react';
 import {
@@ -619,6 +620,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
   const { signOut, profile: authProfile, user } = useAuth();
   const { profile: effectiveProfile } = useEffectiveProfile();
   const profile = effectiveProfile || authProfile;
+  const { isTrial, trialDaysLeft } = usePlan();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAdmin = isSuperAdmin(user?.email);
 
@@ -815,6 +817,17 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
 
       {/* ── Challenge Banner ── */}
       {!hideBanner && <ChallengeBanner isDark={isDark} />}
+
+      {/* ── Trial Banner ── */}
+      {!hideBanner && isTrial && (
+        <div className="md:ml-[220px] bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-2 text-center">
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            <span className="font-semibold">Essai gratuit</span> — {trialDaysLeft} jour{trialDaysLeft > 1 ? 's' : ''} restant{trialDaysLeft > 1 ? 's' : ''}
+            {' · '}
+            <a href="mailto:contact@hyla-crm.fr" className="underline font-semibold">Choisir un plan</a>
+          </p>
+        </div>
+      )}
 
       {/* ── Main Content ── */}
       <main key={location.pathname} className={cn('md:ml-[220px] pb-20 md:pb-0 animate-page-in', isImpersonating && 'pt-10')}>
