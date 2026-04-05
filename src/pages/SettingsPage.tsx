@@ -3,13 +3,14 @@ import { AppLayout, ALL_MOBILE_TABS } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint, Eye, Target } from 'lucide-react';
+import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint, Eye, Target, CreditCard } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useThemeSafe } from '@/hooks/useTheme';
 import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
+import { usePlan } from '@/hooks/usePlan';
 
 interface FormQuestion {
   id: string;
@@ -188,6 +189,26 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const themeCtx = useThemeSafe();
+  const { plan, isTrial, trialDaysLeft, trialEndsAt, planStatus } = usePlan();
+
+  const goToCheckout = async (selectedPlan: 'conseillere' | 'manager') => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ plan: selectedPlan, return_url: window.location.origin + '/settings' }),
+      });
+      const { url, error } = await res.json();
+      if (error) throw new Error(error);
+      window.location.href = url;
+    } catch (e) {
+      toast({ title: 'Erreur', description: (e as Error).message, variant: 'destructive' });
+    }
+  };
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -357,6 +378,99 @@ export default function SettingsPage() {
             <p className="text-sm text-amber-800 font-medium">
               Vue en lecture — profil de <strong>{profile?.full_name || 'ce partenaire'}</strong>. Les modifications ne sont pas disponibles en mode impersonation.
             </p>
+          </div>
+        )}
+
+        {/* Abonnement */}
+        {!isImpersonating && (
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-base font-semibold text-foreground">Mon abonnement</h3>
+              {plan === 'legacy' && (
+                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">Accès partenaire</span>
+              )}
+              {isTrial && (
+                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">Essai gratuit</span>
+              )}
+              {plan === 'conseillere' && !isTrial && (
+                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">Conseillère — 9,99€/mois</span>
+              )}
+              {plan === 'manager' && !isTrial && (
+                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-violet-100 text-violet-700">Manager — 29,99€/mois</span>
+              )}
+              {(plan === 'expired' || (!isTrial && planStatus === 'expired')) && plan !== 'legacy' && plan !== 'conseillere' && plan !== 'manager' && (
+                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-600">Expiré</span>
+              )}
+            </div>
+
+            {/* Trial actif */}
+            {isTrial && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Il te reste <strong className="text-amber-600">{trialDaysLeft} jour{trialDaysLeft > 1 ? 's' : ''}</strong> d'essai gratuit
+                  {trialEndsAt && (
+                    <> (jusqu'au {trialEndsAt.toLocaleDateString('fr-FR')})</>
+                  )}.
+                </p>
+                <p className="text-xs text-muted-foreground">Choisis ton plan pour continuer à accéder à toutes les fonctionnalités après la période d'essai.</p>
+                <div className="flex gap-3 mt-2">
+                  <button
+                    onClick={() => goToCheckout('conseillere')}
+                    className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl active:scale-[0.98] transition-transform"
+                  >
+                    Conseillère — 9,99€/mois
+                  </button>
+                  <button
+                    onClick={() => goToCheckout('manager')}
+                    className="flex-1 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl active:scale-[0.98] transition-transform"
+                  >
+                    Manager — 29,99€/mois
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Abonnement actif */}
+            {(plan === 'conseillere' || plan === 'manager') && planStatus === 'active' && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Ton abonnement <strong>{plan === 'manager' ? 'Manager' : 'Conseillère'}</strong> est actif.
+                </p>
+                <button
+                  onClick={() => toast({ title: 'Bientôt disponible', description: 'La gestion du portail Stripe sera disponible prochainement.' })}
+                  className="w-full py-2.5 bg-muted hover:bg-muted/70 text-foreground text-sm font-semibold rounded-xl transition-colors"
+                >
+                  Gérer mon abonnement
+                </button>
+              </div>
+            )}
+
+            {/* Legacy */}
+            {plan === 'legacy' && (
+              <p className="text-sm text-muted-foreground">Tu bénéficies d'un accès partenaire illimité. Aucun abonnement requis.</p>
+            )}
+
+            {/* Expiré */}
+            {plan === 'expired' && (
+              <div className="space-y-3">
+                <p className="text-sm text-red-600 font-medium">Ton accès a expiré. Souscris à un plan pour réactiver l'application.</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => goToCheckout('conseillere')}
+                    className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl active:scale-[0.98] transition-transform"
+                  >
+                    Conseillère — 9,99€/mois
+                  </button>
+                  <button
+                    onClick={() => goToCheckout('manager')}
+                    className="flex-1 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl active:scale-[0.98] transition-transform"
+                  >
+                    Manager — 29,99€/mois
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
