@@ -1,4 +1,6 @@
+import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveProfile } from '@/hooks/useEffectiveUser';
+import { isSuperAdmin } from '@/lib/supabase';
 
 export type PlanType = 'legacy' | 'trial' | 'conseillere' | 'manager' | 'expired';
 
@@ -10,7 +12,22 @@ export interface PlanAccess {
 }
 
 export function usePlan() {
+  const { user } = useAuth();
   const { profile } = useEffectiveProfile();
+
+  // Super admins ont toujours accès à tout
+  if (isSuperAdmin(user?.email)) {
+    return {
+      plan: 'legacy' as PlanType,
+      planStatus: 'active',
+      isTrial: false,
+      isLegacy: true,
+      isExpired: false,
+      trialDaysLeft: 0,
+      trialEndsAt: null,
+      canAccess: { network: true, finance: true, stats: true, basic: true },
+    };
+  }
 
   const plan = (profile?.plan as PlanType) || 'trial';
   const planStatus = profile?.plan_status || 'trialing';
