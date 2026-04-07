@@ -67,6 +67,7 @@ export default function Finance() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabId>('imports');
   const [showImport, setShowImport] = useState(false);
+  const [showOutOfTeam, setShowOutOfTeam] = useState(false);
   const [invoicePeriod, setInvoicePeriod] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -716,8 +717,8 @@ export default function Finance() {
                             </div>
                             {totalPerdu > 0 && (
                               <div className="ml-auto text-right">
-                                <p className="text-red-200 text-[10px]">Non attribué</p>
-                                <p className="font-semibold text-red-200">{totalPerdu.toLocaleString('fr-FR')} €</p>
+                                <p className="text-blue-200 text-[10px]">Hors équipe (ignoré)</p>
+                                <p className="font-semibold text-blue-200">{totalPerdu.toLocaleString('fr-FR')} €</p>
                               </div>
                             )}
                           </div>
@@ -736,69 +737,83 @@ export default function Finance() {
                         <p className="text-lg font-bold text-amber-700">{manualNeeded}</p>
                         <p className="text-[10px] text-amber-600">Manuel</p>
                       </div>
-                      <div className="bg-red-50 rounded-xl p-3 text-center">
-                        <XCircle className="h-4 w-4 text-red-500 mx-auto mb-1" />
-                        <p className="text-lg font-bold text-red-600">{unmatched}</p>
-                        <p className="text-[10px] text-red-500">Inconnu</p>
+                      <div className="bg-gray-50 rounded-xl p-3 text-center">
+                        <XCircle className="h-4 w-4 text-gray-400 mx-auto mb-1" />
+                        <p className="text-lg font-bold text-gray-500">{unmatched}</p>
+                        <p className="text-[10px] text-gray-400">Hors équipe</p>
                       </div>
                     </div>
 
                     {unmatched > 0 && (
-                      <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 rounded-xl border border-red-200">
-                        <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0 mt-0.5" />
-                        <p className="text-xs text-red-700">
-                          <span className="font-semibold">{unmatched} ligne{unmatched > 1 ? 's' : ''} non reconnue{unmatched > 1 ? 's' : ''}</span> — associe-les manuellement ci-dessous ou elles ne seront pas importées.
-                        </p>
+                      <div className="flex items-start justify-between gap-2 px-3 py-2.5 bg-gray-50 rounded-xl border border-gray-200">
+                        <div className="flex items-start gap-2 min-w-0">
+                          <AlertTriangle className="h-3.5 w-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-gray-500">
+                            <span className="font-semibold">{unmatched} ligne{unmatched > 1 ? 's' : ''} hors équipe</span> — autres conseillers France, ignorées automatiquement.
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setShowOutOfTeam(v => !v)}
+                          className="text-[10px] text-blue-500 underline whitespace-nowrap flex-shrink-0"
+                        >
+                          {showOutOfTeam ? 'Masquer' : 'Voir'}
+                        </button>
                       </div>
                     )}
 
                     <div className="max-h-60 overflow-y-auto space-y-1">
-                      {matchResults.map((r, i) => (
-                        <div key={i} className={`p-2.5 rounded-lg text-xs ${
-                          r.match_status === 'auto' ? 'bg-green-50' :
-                          r.match_status === 'manuel' ? 'bg-amber-50' : 'bg-red-50'
-                        }`}>
-                          <div className="flex items-center justify-between">
-                            <div className="min-w-0 flex-1">
-                              <span className="font-medium text-foreground truncate block">{r.row_name}</span>
-                              {r.is_owner_row && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Moi</span>}
-                              {r.matched_member && !r.is_owner_row && (
-                                <span className="text-[10px] text-muted-foreground">→ {r.matched_member.first_name} {r.matched_member.last_name} {r.matched_member.internal_id ? `(${r.matched_member.internal_id})` : ''}</span>
-                              )}
+                      {matchResults.filter(r => showOutOfTeam || r.match_status !== 'non_reconnu').map((r) => {
+                        const originalIndex = matchResults.indexOf(r);
+                        return (
+                          <div key={originalIndex} className={`p-2.5 rounded-lg text-xs ${
+                            r.match_status === 'auto' ? 'bg-green-50' :
+                            r.match_status === 'manuel' ? 'bg-amber-50' : 'bg-gray-50'
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              <div className="min-w-0 flex-1">
+                                <span className="font-medium text-foreground truncate block">{r.row_name}</span>
+                                {r.is_owner_row && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Moi</span>}
+                                {r.matched_member && !r.is_owner_row && (
+                                  <span className="text-[10px] text-muted-foreground">→ {r.matched_member.first_name} {r.matched_member.last_name} {r.matched_member.internal_id ? `(${r.matched_member.internal_id})` : ''}</span>
+                                )}
+                                {r.match_status === 'non_reconnu' && !r.is_owner_row && (
+                                  <span className="text-[10px] text-gray-400">hors équipe</span>
+                                )}
+                              </div>
+                              <span className={`font-semibold ml-2 whitespace-nowrap ${r.match_status === 'non_reconnu' ? 'text-gray-400' : 'text-foreground'}`}>{r.amount.toLocaleString('fr-FR')} €</span>
                             </div>
-                            <span className="font-semibold text-foreground ml-2 whitespace-nowrap">{r.amount.toLocaleString('fr-FR')} €</span>
-                          </div>
-                          {/* Manual matching dropdown for unmatched rows */}
-                          {r.match_status === 'non_reconnu' && !r.is_owner_row && (
-                            <div className="mt-1.5">
-                              <select
-                                className="w-full text-[11px] border border-red-200 rounded-lg px-2 py-1.5 bg-card focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-                                value=""
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  if (!val) return;
-                                  const updated = [...matchResults];
-                                  if (val === '__owner__') {
-                                    updated[i] = { ...r, is_owner_row: true, match_status: 'auto' as const, match_confidence: 100 };
-                                  } else {
-                                    const member = allTreeMembers.find((m: any) => m.id === val);
-                                    if (member) {
-                                      updated[i] = { ...r, matched_member: member, match_confidence: 100, match_status: 'manuel' as const };
+                            {/* Manual matching dropdown for unmatched rows — only shown when visible */}
+                            {r.match_status === 'non_reconnu' && !r.is_owner_row && showOutOfTeam && (
+                              <div className="mt-1.5">
+                                <select
+                                  className="w-full text-[11px] border border-gray-200 rounded-lg px-2 py-1.5 bg-card focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                                  value=""
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (!val) return;
+                                    const updated = [...matchResults];
+                                    if (val === '__owner__') {
+                                      updated[originalIndex] = { ...r, is_owner_row: true, match_status: 'auto' as const, match_confidence: 100 };
+                                    } else {
+                                      const member = allTreeMembers.find((m: any) => m.id === val);
+                                      if (member) {
+                                        updated[originalIndex] = { ...r, matched_member: member, match_confidence: 100, match_status: 'manuel' as const };
+                                      }
                                     }
-                                  }
-                                  setMatchResults(updated);
-                                }}
-                              >
-                                <option value="">Associer à un membre...</option>
-                                <option value="__owner__">C'est moi</option>
-                                {allTreeMembers.map((m: any) => (
-                                  <option key={m.id} value={m.id}>{m.first_name} {m.last_name} {m.internal_id ? `(${m.internal_id})` : ''}</option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                                    setMatchResults(updated);
+                                  }}
+                                >
+                                  <option value="">Assigner à un membre de l'équipe...</option>
+                                  <option value="__owner__">C'est moi</option>
+                                  {allTreeMembers.map((m: any) => (
+                                    <option key={m.id} value={m.id}>{m.first_name} {m.last_name} {m.internal_id ? `(${m.internal_id})` : ''}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
 
                     <div className="flex gap-2">
