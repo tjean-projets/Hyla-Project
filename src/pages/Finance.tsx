@@ -692,6 +692,39 @@ export default function Finance() {
 
                 {flow.step === 'matching' && (
                   <div className="space-y-3">
+                    {/* ── Récap financier ── */}
+                    {(() => {
+                      const recognizedRows = matchResults.filter(r => r.match_status !== 'non_reconnu');
+                      const totalImporte = recognizedRows.reduce((s, r) => s + r.amount, 0);
+                      const totalDirecte = matchResults.filter(r => r.is_owner_row).reduce((s, r) => s + r.amount, 0);
+                      const totalReseau = recognizedRows.filter(r => !r.is_owner_row).reduce((s, r) => s + r.amount, 0);
+                      const totalPerdu = matchResults.filter(r => r.match_status === 'non_reconnu').reduce((s, r) => s + r.amount, 0);
+                      return (
+                        <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-xl p-4 text-white">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-[10px] font-semibold uppercase opacity-80">Total importé</p>
+                            <p className="text-xl font-bold">{totalImporte.toLocaleString('fr-FR')} €</p>
+                          </div>
+                          <div className="flex gap-3 text-xs opacity-90">
+                            <div>
+                              <p className="opacity-60 text-[10px]">Directe (moi)</p>
+                              <p className="font-semibold">{totalDirecte.toLocaleString('fr-FR')} €</p>
+                            </div>
+                            <div>
+                              <p className="opacity-60 text-[10px]">Réseau (équipe)</p>
+                              <p className="font-semibold">{totalReseau.toLocaleString('fr-FR')} €</p>
+                            </div>
+                            {totalPerdu > 0 && (
+                              <div className="ml-auto text-right">
+                                <p className="text-red-200 text-[10px]">Non attribué</p>
+                                <p className="font-semibold text-red-200">{totalPerdu.toLocaleString('fr-FR')} €</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     <div className="grid grid-cols-3 gap-2">
                       <div className="bg-green-50 rounded-xl p-3 text-center">
                         <CheckCircle className="h-4 w-4 text-green-600 mx-auto mb-1" />
@@ -709,6 +742,15 @@ export default function Finance() {
                         <p className="text-[10px] text-red-500">Inconnu</p>
                       </div>
                     </div>
+
+                    {unmatched > 0 && (
+                      <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 rounded-xl border border-red-200">
+                        <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-red-700">
+                          <span className="font-semibold">{unmatched} ligne{unmatched > 1 ? 's' : ''} non reconnue{unmatched > 1 ? 's' : ''}</span> — associe-les manuellement ci-dessous ou elles ne seront pas importées.
+                        </p>
+                      </div>
+                    )}
 
                     <div className="max-h-60 overflow-y-auto space-y-1">
                       {matchResults.map((r, i) => (
