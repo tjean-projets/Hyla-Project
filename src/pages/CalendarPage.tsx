@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, APPOINTMENT_TYPE_LABELS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, MapPin, Clock, CalendarCheck, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { Plus, MapPin, Clock, CalendarCheck, ChevronLeft, ChevronRight, CalendarDays, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -114,6 +114,33 @@ export default function CalendarPage() {
     enabled: !!effectiveId,
   });
 
+  const { data: calTasks = [] } = useQuery({
+    queryKey: ['calendar-tasks', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase
+        .from('tasks')
+        .select('*, contacts(first_name, last_name)')
+        .eq('user_id', effectiveId)
+        .not('due_date', 'is', null)
+        .in('status', ['a_faire', 'en_cours'])
+        .order('due_date', { ascending: true });
+      return data || [];
+    },
+    enabled: !!effectiveId,
+  });
+
+  const completeTask = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('tasks').update({ status: 'terminee' }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendar-tasks'] });
+      toast({ title: 'Tâche terminée !' });
+    },
+  });
+
   const createApt = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
@@ -189,9 +216,15 @@ export default function CalendarPage() {
     return appointments.filter((a: any) => a.date?.slice(0, 10) === d);
   }
 
+  function getDayTasks(year: number, month: number, day: number) {
+    const d = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return calTasks.filter((t: any) => t.due_date?.slice(0, 10) === d);
+  }
+
   // ── Selected day data ──
   const selectedDayStr = `${selectedDay.getFullYear()}-${String(selectedDay.getMonth() + 1).padStart(2, '0')}-${String(selectedDay.getDate()).padStart(2, '0')}`;
   const selectedDayApts = appointments.filter((a: any) => a.date?.slice(0, 10) === selectedDayStr);
+  const selectedDayTasks = calTasks.filter((t: any) => t.due_date?.slice(0, 10) === selectedDayStr);
   const selectedDayLabel = selectedDay.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   // ── List view helpers ──
@@ -318,7 +351,8 @@ export default function CalendarPage() {
                   const isToday    = dayStr === todayDateStr;
                   const isSelected = inMonth && dayStr === selectedDayStr;
                   const dayApts    = inMonth ? getDayApts(calMonth.getFullYear(), calMonth.getMonth(), dayNum) : [];
-                  const hasApts    = dayApts.length > 0;
+                  const dayTasks   = inMonth ? getDayTasks(calMonth.getFullYear(), calMonth.getMonth(), dayNum) : [];
+                  const hasApts    = dayApts.length > 0 || dayTasks.length > 0;
 
                   let displayNum = dayNum;
                   if (!inMonth) {
@@ -350,10 +384,13 @@ export default function CalendarPage() {
                       </span>
                       {hasApts && (
                         <div className="flex flex-wrap gap-0.5 justify-center mt-1 px-0.5">
-                          {dayApts.slice(0, 3).map((apt: any, i: number) => (
+                          {dayApts.slice(0, 2).map((apt: any, i: number) => (
                             <span key={i} className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_COLORS[apt.type] || TYPE_COLORS.autre)} />
                           ))}
-                          {dayApts.length > 3 && <span className="text-[8px] text-muted-foreground">+{dayApts.length - 3}</span>}
+                          {dayTasks.slice(0, 2).map((_: any, i: number) => (
+                            <span key={'t' + i} className="w-1.5 h-1.5 rounded-sm flex-shrink-0 bg-teal-500" />
+                          ))}
+                          {(dayApts.length + dayTasks.length) > 4 && <span className="text-[8px] text-muted-foreground">+{dayApts.length + dayTasks.length - 4}</span>}
                         </div>
                       )}
                     </div>
@@ -368,9 +405,45 @@ export default function CalendarPage() {
               <div className="px-4 py-3 border-b border-border">
                 <p className="text-xs font-bold text-foreground capitalize">{selectedDayLabel}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {selectedDayApts.length === 0 ? 'Aucun événement' : `${selectedDayApts.length} événement${selectedDayApts.length > 1 ? 's' : ''}`}
+                  {(selectedDayApts.length + selectedDayTasks.length) === 0
+                    ? 'Aucun événement'
+                    : `${selectedDayApts.length} RDV · ${selectedDayTasks.length} tâche${selectedDayTasks.length > 1 ? 's' : ''}`}
                 </p>
               </div>
+
+              {/* Tasks du jour */}
+              {selectedDayTasks.length > 0 && (
+                <div className="border-b border-border">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-teal-50/50 dark:bg-teal-950/20">
+                    <CheckSquare className="h-3.5 w-3.5 text-teal-600" />
+                    <span className="text-[11px] font-semibold text-teal-700 dark:text-teal-400">Tâches ({selectedDayTasks.length})</span>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {selectedDayTasks.map((task: any) => (
+                      <div key={task.id} className="flex items-center gap-3 px-4 py-3">
+                        <button
+                          onClick={() => completeTask.mutate(task.id)}
+                          className="flex-shrink-0 text-teal-500 hover:text-teal-700 transition-colors"
+                          title="Marquer comme terminée"
+                        >
+                          <Square className="h-4 w-4" />
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{task.title}</p>
+                          {task.contacts && (
+                            <p className="text-[10px] text-muted-foreground">
+                              {task.contacts.first_name} {task.contacts.last_name}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-400 flex-shrink-0">
+                          {task.type || 'tâche'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Events */}
               {selectedDayApts.length > 0 ? (
@@ -444,13 +517,13 @@ export default function CalendarPage() {
                     );
                   })}
                 </div>
-              ) : (
+              ) : selectedDayTasks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
                   <CalendarDays className="h-8 w-8 text-muted-foreground/30 mb-2" />
                   <p className="text-sm text-muted-foreground">Aucun événement ce jour</p>
                   <p className="text-xs text-muted-foreground/60 mt-1">Clique sur "Nouveau" pour en créer un</p>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         )}

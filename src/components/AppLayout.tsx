@@ -746,17 +746,17 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
       <header className={cn(
         'sticky top-0 z-40 md:hidden bg-card border-b border-border'
       )}>
-        <div className="flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-2.5">
+        <div className="flex h-14 items-center justify-between px-4 gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <img
               src="/Logo%20Hyla%20Assistant.jpeg"
               alt="Hyla"
-              className="h-8 w-8 rounded-xl object-cover shadow-md shadow-blue-500/20"
+              className="h-8 w-8 rounded-xl object-cover shadow-md shadow-blue-500/20 flex-shrink-0"
             />
-            <h1 className={cn('text-sm font-semibold text-foreground')}>{title}</h1>
+            <h1 className={cn('text-sm font-semibold text-foreground truncate')}>{title}</h1>
           </div>
-          <div className="flex items-center gap-1">
-            {actions && <div className="flex items-center gap-2">{actions}</div>}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {actions && <div className="flex items-center gap-1">{actions}</div>}
             <GlobalSearch isDark={isDark} />
             <NotificationCenter user={user} profile={profile} isDark={isDark} />
             <button

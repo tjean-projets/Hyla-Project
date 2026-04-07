@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import * as XLSX from 'xlsx';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
@@ -170,6 +171,42 @@ export default function Commissions() {
       </div></body></html>`);
     printWindow.document.close();
     printWindow.print();
+  };
+
+  // ── Export Excel (.xlsx) ──
+  const exportPersonalXLSX = () => {
+    const validComms = filteredCommissions.filter((c: any) => c.status === 'validee');
+    if (validComms.length === 0) return;
+
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1 — Détail des commissions
+    const rows = validComms.map((c: any) => ({
+      Période: new Date(c.period + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
+      Type: c.type === 'directe' ? 'Directe' : 'Réseau',
+      'Montant (€)': c.amount,
+      Membre: c.team_members ? `${c.team_members.first_name} ${c.team_members.last_name}` : 'Moi',
+      Notes: c.notes || '',
+    }));
+    const ws1 = XLSX.utils.json_to_sheet(rows);
+    ws1['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Commissions');
+
+    // Sheet 2 — Résumé mensuel
+    const summaryRows = months.map(m => ({
+      Mois: m.name,
+      'Directes (€)': m.Directes,
+      'Réseau (€)': m.Réseau,
+      'Total (€)': m.Directes + m.Réseau,
+    }));
+    const ws2 = XLSX.utils.json_to_sheet(summaryRows);
+    ws2['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Résumé mensuel');
+
+    const periodLabel = selectedMonth === 'all'
+      ? selectedYear
+      : `${MONTHS_FR[parseInt(selectedMonth) - 1]}_${selectedYear}`;
+    XLSX.writeFile(wb, `commissions_${periodLabel}.xlsx`);
   };
 
   // ── Export comptable CSV ──
@@ -418,9 +455,14 @@ export default function Commissions() {
             <p className="text-[10px] text-muted-foreground mt-3">
               Les commissions Hyla (directes + réseau) sont des prestations de services commerciales (BIC). Taux de cotisations URSSAF : 21,1% du CA déclaré.
             </p>
-            <button onClick={exportComptableCSV} className="w-full mt-3 py-2 flex items-center justify-center gap-2 text-xs font-semibold border border-border rounded-xl text-muted-foreground hover:bg-muted transition-colors">
-              <Download className="h-3.5 w-3.5" /> Exporter le récap comptable (CSV)
-            </button>
+            <div className="flex gap-2 mt-3">
+              <button onClick={exportComptableCSV} className="flex-1 py-2 flex items-center justify-center gap-1.5 text-xs font-semibold border border-border rounded-xl text-muted-foreground hover:bg-muted transition-colors">
+                <Download className="h-3.5 w-3.5" /> CSV
+              </button>
+              <button onClick={exportPersonalXLSX} className="flex-1 py-2 flex items-center justify-center gap-1.5 text-xs font-semibold border border-emerald-200 rounded-xl text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors">
+                <Download className="h-3.5 w-3.5" /> Excel (.xlsx)
+              </button>
+            </div>
           </div>
         )}
 

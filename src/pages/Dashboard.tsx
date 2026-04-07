@@ -16,6 +16,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useState } from 'react';
 import OnboardingGuide from '@/components/OnboardingGuide';
+import GettingStartedWidget from '@/components/GettingStartedWidget';
 import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
 import { SkeletonKPI, SkeletonTable } from '@/components/ui/skeleton-card';
 
@@ -429,6 +430,9 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {/* ── Guide de démarrage ── */}
+        <GettingStartedWidget />
 
         {/* ── Barème rapide ── */}
         <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
