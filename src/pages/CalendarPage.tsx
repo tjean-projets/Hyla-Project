@@ -197,9 +197,13 @@ export default function CalendarPage() {
 
   // ── Stats ──
   const todayStr    = new Date().toISOString().slice(0, 10);
-  const todayCount  = appointments.filter((a: any) => a.date?.slice(0, 10) === todayStr).length;
+  const todayCount  = appointments.filter((a: any) => a.date?.slice(0, 10) === todayStr).length
+                    + calTasks.filter((t: any) => t.due_date?.slice(0, 10) === todayStr).length;
   const thisWeek    = appointments.filter((a: any) => {
     const diff = (new Date(a.date).getTime() - Date.now()) / 86400000;
+    return diff >= 0 && diff <= 7;
+  }).length + calTasks.filter((t: any) => {
+    const diff = (new Date(t.due_date).getTime() - Date.now()) / 86400000;
     return diff >= 0 && diff <= 7;
   }).length;
 
@@ -571,10 +575,51 @@ export default function CalendarPage() {
               </div>
             )}
 
-            {appointments.length === 0 && (
+            {/* Tâches à venir en vue liste */}
+            {calTasks.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <CheckSquare className="h-4 w-4 text-teal-500" />
+                  <h3 className="text-sm font-bold text-foreground">Tâches à échéance</h3>
+                </div>
+                <div className="space-y-2">
+                  {calTasks.map((task: any) => (
+                    <div key={task.id} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                      <div className="flex">
+                        <div className="w-1.5 bg-teal-500 flex-shrink-0" />
+                        <div className="flex-1 p-4 flex items-center gap-3">
+                          <button
+                            onClick={() => completeTask.mutate(task.id)}
+                            className="flex-shrink-0 text-teal-500 hover:text-teal-700 transition-colors"
+                          >
+                            <Square className="h-4 w-4" />
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-foreground">{task.title}</p>
+                            {task.contacts && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {task.contacts.first_name} {task.contacts.last_name}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(task.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {appointments.length === 0 && calTasks.length === 0 && (
               <div className="text-center py-16">
                 <CalendarCheck className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">Aucun rendez-vous</p>
+                <p className="text-sm text-muted-foreground">Aucun événement</p>
               </div>
             )}
           </>
