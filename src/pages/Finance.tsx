@@ -608,9 +608,10 @@ export default function Finance() {
             <Dialog open={showImport} onOpenChange={(open) => {
               setShowImport(open);
               if (!open) {
-                // Reset flow when closing
-                setFlow({ step: 'upload', rawData: [], columns: [], mapping: { name_col: '', amount_col: '', id_col: '' }, period: flow.period, fileName: '' });
+                setFlow({ step: 'upload', rawData: [], columns: [], mapping: { name_col: '', firstname_col: '', amount_col: '', id_col: '' }, period: flow.period, fileName: '' });
                 setMatchResults([]);
+                setDuplicateWarning(false);
+                setShowOutOfTeam(false);
               }
             }}>
               <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4" onOpenAutoFocus={(e) => e.preventDefault()}>
