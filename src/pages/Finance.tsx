@@ -68,6 +68,8 @@ export default function Finance() {
   const [activeTab, setActiveTab] = useState<TabId>('imports');
   const [showImport, setShowImport] = useState(false);
   const [showOutOfTeam, setShowOutOfTeam] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState(false);
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
   const [invoicePeriod, setInvoicePeriod] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -117,52 +119,13 @@ export default function Finance() {
     enabled: !!effectiveId,
   });
 
-  // Fetch team members recursively (including sub-members from linked accounts)
+  // Fetch full team tree via single recursive SQL query (replaces N+1 loop)
   const { data: allTreeMembers = [] } = useQuery({
     queryKey: ['team-tree-members', effectiveId],
     queryFn: async () => {
       if (!effectiveId) return [];
-
-      // Start with direct team members
-      const { data: direct } = await supabase
-        .from('team_members')
-        .select('*')
-        .eq('user_id', effectiveId);
-
-      if (!direct) return [];
-
-      const allMembers: any[] = direct.map(m => ({ ...m, _depth: 1, _owner_user_id: effectiveId }));
-
-      // For each member with linked_user_id, fetch their team_members too
-      const linkedUserIds = direct
-        .filter(m => m.linked_user_id)
-        .map(m => m.linked_user_id!);
-
-      for (const linkedId of linkedUserIds) {
-        const { data: subMembers } = await supabase
-          .from('team_members')
-          .select('*')
-          .eq('user_id', linkedId);
-
-        if (subMembers) {
-          for (const sm of subMembers) {
-            allMembers.push({ ...sm, _depth: 2, _owner_user_id: linkedId });
-
-            // Go one more level deep if needed
-            if (sm.linked_user_id) {
-              const { data: subSub } = await supabase
-                .from('team_members')
-                .select('*')
-                .eq('user_id', sm.linked_user_id);
-              if (subSub) {
-                allMembers.push(...subSub.map(s => ({ ...s, _depth: 3, _owner_user_id: sm.linked_user_id })));
-              }
-            }
-          }
-        }
-      }
-
-      return allMembers;
+      const { data } = await supabase.rpc('get_team_tree', { p_user_id: effectiveId });
+      return data || [];
     },
     enabled: !!effectiveId,
   });
@@ -329,9 +292,61 @@ export default function Finance() {
   }, [flow, allTreeMembers, profile]);
 
   // ── Save import ──
+  const handleValidate = async (forceReplace = false) => {
+    if (!user) return;
+    if (!forceReplace) {
+      setCheckingDuplicate(true);
+      const { data: existing } = await supabase
+        .from('commission_imports')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('period', flow.period);
+      setCheckingDuplicate(false);
+      if (existing && existing.length > 0) {
+        setDuplicateWarning(true);
+        return;
+      }
+    }
+    setDuplicateWarning(false);
+    saveImport.mutate(forceReplace);
+  };
+
   const saveImport = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (forceReplace: boolean) => {
       if (!user) throw new Error('Non connecté');
+
+      // Si remplacement : supprimer l'import précédent + toutes ses commissions
+      if (forceReplace) {
+        const { data: oldImports } = await supabase
+          .from('commission_imports')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('period', flow.period);
+
+        if (oldImports?.length) {
+          const oldIds = oldImports.map(i => i.id);
+          // Supprimer commissions manager
+          await supabase.from('commissions')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('period', flow.period)
+            .eq('source', 'import');
+          // Supprimer commissions cascadées aux membres liés
+          const linkedIds = allTreeMembers
+            .filter((m: any) => m.linked_user_id)
+            .map((m: any) => m.linked_user_id as string);
+          for (const linkedId of linkedIds) {
+            await supabase.from('commissions')
+              .delete()
+              .eq('user_id', linkedId)
+              .eq('period', flow.period)
+              .eq('source', 'import');
+          }
+          // Supprimer lignes et imports
+          await supabase.from('commission_import_rows').delete().in('import_id', oldIds);
+          await supabase.from('commission_imports').delete().in('id', oldIds);
+        }
+      }
 
       const { data: importRecord, error: importError } = await supabase
         .from('commission_imports')
@@ -390,10 +405,10 @@ export default function Finance() {
 
         // If the member is also a manager with their own sub-team,
         // cascade network commissions to them for their sub-members' sales
-        if (linkedUserId && member._depth === 1) {
+        if (linkedUserId && member.depth === 1) {
           // Find sub-members (depth 2+) that belong to this linked member
           const subMemberResults = matchResults.filter(
-            sr => sr.matched_member?._owner_user_id === linkedUserId
+            sr => sr.matched_member?.owner_user_id === linkedUserId
               && sr.matched_member?.id !== member.id
               && !sr.is_owner_row
               && sr.match_status !== 'non_reconnu'
@@ -816,22 +831,49 @@ export default function Finance() {
                       })}
                     </div>
 
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setFlow({ ...flow, step: 'mapping' })}
-                        disabled={saveImport.isPending}
-                        className="flex-1 py-3 bg-muted text-foreground font-semibold rounded-xl disabled:opacity-50"
-                      >
-                        Retour
-                      </button>
-                      <button
-                        onClick={() => saveImport.mutate()}
-                        disabled={saveImport.isPending}
-                        className="flex-[2] py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
-                      >
-                        {saveImport.isPending ? 'Traitement...' : 'Valider et consolider'}
-                      </button>
-                    </div>
+                    {duplicateWarning ? (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-amber-800">
+                            <span className="font-semibold">Un import existe déjà pour {flow.period}.</span><br />
+                            Le remplacer effacera les commissions précédemment importées pour cette période, y compris celles cascadées à ton équipe.
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setDuplicateWarning(false)}
+                            className="flex-1 py-2 bg-muted text-foreground text-xs font-semibold rounded-lg"
+                          >
+                            Annuler
+                          </button>
+                          <button
+                            onClick={() => handleValidate(true)}
+                            disabled={saveImport.isPending}
+                            className="flex-[2] py-2 bg-amber-600 text-white text-xs font-semibold rounded-lg disabled:opacity-50"
+                          >
+                            {saveImport.isPending ? 'Remplacement...' : 'Remplacer l\'import existant'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setFlow({ ...flow, step: 'mapping' })}
+                          disabled={saveImport.isPending || checkingDuplicate}
+                          className="flex-1 py-3 bg-muted text-foreground font-semibold rounded-xl disabled:opacity-50"
+                        >
+                          Retour
+                        </button>
+                        <button
+                          onClick={() => handleValidate(false)}
+                          disabled={saveImport.isPending || checkingDuplicate}
+                          className="flex-[2] py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
+                        >
+                          {checkingDuplicate ? 'Vérification...' : saveImport.isPending ? 'Traitement...' : 'Valider et consolider'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
