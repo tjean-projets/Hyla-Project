@@ -53,7 +53,7 @@ function InviteLinkSection({ inviteCode, fullName }: { inviteCode?: string | nul
   if (!inviteCode) return null;
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-5">
+    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-4 sm:p-5">
       <div className="flex items-center gap-2 mb-1">
         <Link2 className="h-4 w-4 text-blue-600" />
         <h3 className="text-base font-semibold text-foreground">Lien d'invitation</h3>
@@ -124,7 +124,7 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
   if (!inviteCode) return null;
 
   return (
-    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100 p-5">
+    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100 p-4 sm:p-5">
       <div className="flex items-center gap-2 mb-1">
         <Users className="h-4 w-4 text-green-600" />
         <h3 className="text-base font-semibold text-foreground">Page de contact</h3>
@@ -396,7 +396,7 @@ export default function SettingsPage() {
         {isImpersonating && (
           <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
             <Eye className="h-4 w-4 text-amber-600 flex-shrink-0" />
-            <p className="text-sm text-amber-800 font-medium">
+            <p className="text-sm text-amber-800 font-medium break-words">
               Vue en lecture — profil de <strong>{profile?.full_name || 'ce partenaire'}</strong>. Les modifications ne sont pas disponibles en mode impersonation.
             </p>
           </div>
@@ -404,7 +404,7 @@ export default function SettingsPage() {
 
         {/* Abonnement */}
         {!isImpersonating && (
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <CreditCard className="h-4 w-4 text-muted-foreground" />
               <h3 className="text-base font-semibold text-foreground">Mon abonnement</h3>
@@ -435,7 +435,7 @@ export default function SettingsPage() {
                   )}.
                 </p>
                 <p className="text-xs text-muted-foreground">Choisis ton plan pour continuer à accéder à toutes les fonctionnalités après la période d'essai.</p>
-                <div className="flex gap-3 mt-2">
+                <div className="flex flex-col sm:flex-row gap-3 mt-2">
                   <button
                     onClick={() => goToCheckout('conseillere')}
                     className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl active:scale-[0.98] transition-transform"
@@ -476,7 +476,7 @@ export default function SettingsPage() {
             {plan === 'expired' && (
               <div className="space-y-3">
                 <p className="text-sm text-red-600 font-medium">Ton accès a expiré. Souscris à un plan pour réactiver l'application.</p>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={() => goToCheckout('conseillere')}
                     className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl active:scale-[0.98] transition-transform"
@@ -496,7 +496,7 @@ export default function SettingsPage() {
         )}
 
         {/* Profile */}
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
           <h3 className="text-base font-semibold text-foreground mb-4">{isImpersonating ? 'Profil du partenaire' : 'Mon profil'}</h3>
           <div className="space-y-4">
             {/* ID Hyla Assistant */}
@@ -578,7 +578,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Theme Toggle */}
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
           <h3 className="text-base font-semibold text-foreground mb-4">Apparence</h3>
           <div className="flex items-center justify-between">
             <div>
@@ -596,7 +596,7 @@ export default function SettingsPage() {
 
         {/* Challenges */}
         {!isImpersonating && (
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
             <h3 className="text-base font-semibold text-foreground mb-1">Mes challenges</h3>
             <p className="text-xs text-muted-foreground mb-4">
               Date de départ de tes challenges Hyla (Compte à Rebours &amp; Rookie). Par défaut, la date de création de ton compte est utilisée.
@@ -625,7 +625,7 @@ export default function SettingsPage() {
 
         {/* Mes objectifs personnels */}
         {!isImpersonating && (
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-1">
               <Target className="h-4 w-4 text-blue-600" />
               <h3 className="text-base font-semibold text-foreground">Mes objectifs personnels</h3>
@@ -670,7 +670,7 @@ export default function SettingsPage() {
 
         {/* Niveau Hyla */}
         {!isImpersonating && (
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="h-4 w-4 text-violet-600" />
               <h3 className="text-base font-semibold text-foreground">Mon niveau Hyla</h3>
@@ -759,7 +759,7 @@ export default function SettingsPage() {
         <ContactLinksSection inviteCode={profile?.invite_code} userId={effectiveUserId} />
 
         {/* Form Builder */}
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-1">
             <FileText className="h-4 w-4 text-blue-600" />
             <h3 className="text-base font-semibold text-foreground">Formulaire objectifs</h3>
@@ -845,7 +845,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Mobile Nav Customization */}
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-1">
             <Smartphone className="h-4 w-4 text-blue-600" />
             <h3 className="text-base font-semibold text-foreground">Barre de navigation</h3>
@@ -975,7 +975,7 @@ export default function SettingsPage() {
           )}
         </div>
         {/* Purge Data — hidden when impersonating */}
-        {!isImpersonating && <div className="bg-card rounded-2xl shadow-sm border border-red-100 p-5">
+        {!isImpersonating && <div className="bg-card rounded-2xl shadow-sm border border-red-100 p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle className="h-4 w-4 text-red-500" />
             <h3 className="text-base font-semibold text-red-600">Zone dangereuse</h3>

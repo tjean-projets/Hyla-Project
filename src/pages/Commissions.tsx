@@ -353,7 +353,7 @@ export default function Commissions() {
                     {isExpanded && (
                       <div className="px-4 pb-4 border-t border-border pt-3">
                         {m.commissions.length > 0 ? (
-                          <table className="w-full text-xs">
+                          <div className="overflow-x-auto"><table className="w-full text-xs">
                             <thead><tr className="text-muted-foreground"><th className="text-left pb-2">Période</th><th className="text-right pb-2">Montant</th></tr></thead>
                             <tbody className="divide-y divide-border">
                               {m.commissions.map((c: any) => (
@@ -363,7 +363,7 @@ export default function Commissions() {
                                 </tr>
                               ))}
                             </tbody>
-                          </table>
+                          </table></div>
                         ) : <p className="text-xs text-muted-foreground text-center">Aucune commission cette année</p>}
                       </div>
                     )}
@@ -409,7 +409,7 @@ export default function Commissions() {
         </div>
 
         {/* ── Graphique ── */}
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4">Évolution mensuelle</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={months}>
@@ -428,7 +428,7 @@ export default function Commissions() {
 
         {/* ── Déclaration micro-entreprise ── */}
         {total > 0 && (
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-3">
               <FileText className="h-4 w-4 text-orange-500" />
               <h3 className="text-sm font-semibold text-foreground">Déclaration micro-entreprise</h3>
@@ -480,7 +480,7 @@ export default function Commissions() {
 
         {/* ── Top contributeurs ── */}
         {memberList.length > 0 && (
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <Trophy className="h-4 w-4 text-yellow-500" />
               <h3 className="text-sm font-semibold text-foreground">Top contributeurs réseau</h3>
@@ -563,7 +563,7 @@ export default function Commissions() {
 
         {/* ── Prime de gestion de groupe ── */}
         {myLevel !== 'vendeur' && (
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <Users className="h-4 w-4 text-emerald-600" />
               <h3 className="text-sm font-semibold text-foreground">Prime de gestion de groupe</h3>
@@ -598,7 +598,7 @@ export default function Commissions() {
             <span className="text-xs font-semibold text-foreground">Commissions confirmées</span>
             <span className="text-[10px] text-emerald-600 font-medium ml-1">Source : Import TRV Hyla</span>
           </div>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="bg-muted border-b border-border">
               <tr>
                 <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Période</th>
@@ -640,7 +640,7 @@ export default function Commissions() {
                 </td></tr>
               )}
             </tbody>
-          </table>
+          </table></div>
         </div>
         </>
         )}
@@ -648,7 +648,7 @@ export default function Commissions() {
 
       {/* ── Export PDF Dialog ── */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-[#3b82f6]" />

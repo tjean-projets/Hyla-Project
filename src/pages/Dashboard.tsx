@@ -417,7 +417,7 @@ export default function Dashboard() {
 
         {/* ── Challenge detail popup ── */}
         <Dialog open={!!showChallenge} onOpenChange={(open) => { if (!open) setShowChallenge(null); }}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
             {showChallenge === 'countdown' && (
               <>
                 <DialogHeader>
@@ -510,16 +510,16 @@ export default function Dashboard() {
         {/* ── KPIs essentiels ── */}
         {kpisLoading ? (
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <SkeletonKPI />
               <SkeletonKPI />
-              <SkeletonKPI />
+              <div className="sm:col-span-2"><SkeletonKPI /></div>
             </div>
             <SkeletonKPI />
           </div>
         ) : (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* CA du mois */}
             <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
               <div className="flex items-center justify-between mb-1">
@@ -540,7 +540,7 @@ export default function Dashboard() {
               <p className="text-xl font-bold text-foreground">{nbSignees}</p>
             </div>
             {/* Équipe */}
-            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
+            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border sm:col-span-2">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-[10px] font-semibold uppercase text-muted-foreground">Équipe</p>
                 <Users className="h-4 w-4 text-blue-500" />
@@ -681,14 +681,14 @@ export default function Dashboard() {
         {/* ── Prochain niveau Hyla ── */}
         {nextLevel && (
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div>
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase text-muted-foreground">Progression niveau</p>
-                <p className="text-sm font-bold text-foreground mt-0.5">
+                <p className="text-sm font-bold text-foreground mt-0.5 break-words">
                   {HYLA_LEVELS[myLevelIdx]?.label} → <span className="text-violet-600">{nextLevel.label}</span>
                 </p>
               </div>
-              <span className="text-sm font-bold text-violet-600">{conditionsMet}/{conditionsTotal}</span>
+              <span className="text-sm font-bold text-violet-600 flex-shrink-0">{conditionsMet}/{conditionsTotal}</span>
             </div>
 
             {/* Barre de progression globale */}

@@ -268,7 +268,7 @@ function MemberForm({
         <div><Label>Prénom *</Label><Input className="h-11" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required /></div>
         <div><Label>Nom *</Label><Input className="h-11" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required /></div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div><Label>Téléphone</Label><Input className="h-11" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
         <div><Label>Email</Label><Input className="h-11" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
       </div>
@@ -757,7 +757,7 @@ function InviteLinkDialog({ open, onOpenChange, inviteCode }: { open: boolean; o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-4 w-4 text-blue-600" />
@@ -825,7 +825,7 @@ function ManagerStatsPanel({ userId, memberName, open, onOpenChange }: { userId:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Eye className="h-4 w-4 text-blue-600" />
@@ -990,16 +990,16 @@ function FicheMembre({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-md p-0 overflow-hidden">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md p-0 overflow-hidden">
         {/* Header gradient */}
         <div className="bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6] px-6 pt-6 pb-8">
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center">
               <span className="text-white font-bold text-xl">{member.first_name.charAt(0)}{member.last_name.charAt(0)}</span>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-white">{member.first_name} {member.last_name}</h2>
-              <div className="flex items-center gap-2 mt-1">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-bold text-white truncate">{member.first_name} {member.last_name}</h2>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
                 <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-lg">{tierLabel}</span>
                 {member.internal_id && (
                   <span className="text-xs font-mono bg-white/10 text-white/70 px-2 py-0.5 rounded-lg">{member.internal_id}</span>
@@ -1013,18 +1013,18 @@ function FicheMembre({
         </div>
 
         {/* Stats grid */}
-        <div className="px-6 -mt-4">
+        <div className="px-4 sm:px-6 -mt-4">
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-card rounded-xl shadow-sm border p-3 text-center">
-              <p className="text-lg font-bold text-foreground">{totalCommissions.toLocaleString('fr-FR')}€</p>
+            <div className="bg-card rounded-xl shadow-sm border p-2 sm:p-3 text-center">
+              <p className="text-base sm:text-lg font-bold text-foreground truncate">{totalCommissions.toLocaleString('fr-FR')}€</p>
               <p className="text-[10px] text-muted-foreground">Commissions</p>
             </div>
-            <div className="bg-card rounded-xl shadow-sm border p-3 text-center">
-              <p className="text-lg font-bold text-foreground">{dealsSignes}</p>
+            <div className="bg-card rounded-xl shadow-sm border p-2 sm:p-3 text-center">
+              <p className="text-base sm:text-lg font-bold text-foreground">{dealsSignes}</p>
               <p className="text-[10px] text-muted-foreground">Ventes signées</p>
             </div>
-            <div className="bg-card rounded-xl shadow-sm border p-3 text-center">
-              <p className="text-lg font-bold text-foreground">{dealsEnCours}</p>
+            <div className="bg-card rounded-xl shadow-sm border p-2 sm:p-3 text-center">
+              <p className="text-base sm:text-lg font-bold text-foreground">{dealsEnCours}</p>
               <p className="text-[10px] text-muted-foreground">En cours</p>
             </div>
           </div>
@@ -1704,7 +1704,7 @@ export default function NetworkPage() {
       }
     >
       <Dialog open={showForm} onOpenChange={(open) => { if (!open) handleCloseForm(); else setShowForm(true); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingMember ? 'Modifier le membre' : 'Nouveau membre'}</DialogTitle>
           </DialogHeader>
@@ -1719,7 +1719,7 @@ export default function NetworkPage() {
 
       {/* Objectifs dialog */}
       <Dialog open={!!objectifsMember} onOpenChange={(open) => { if (!open) setObjectifsMember(null); }}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Target className="h-4 w-4 text-blue-600" />
@@ -1734,7 +1734,7 @@ export default function NetworkPage() {
 
       {/* Hyla Assistant dialog */}
       <Dialog open={!!assistantMember} onOpenChange={(open) => { if (!open) setAssistantMember(null); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-violet-600" />
@@ -1801,8 +1801,8 @@ export default function NetworkPage() {
             <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
               <p className="text-[10px] font-semibold uppercase text-muted-foreground">Managers</p>
               <p className="text-2xl font-bold text-amber-500 mt-1">{members.filter((m: any) => m.level >= 2).length}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {members.filter((m: any) => ['manager','chef_groupe','chef_agence','distributeur','elite_bronze','elite_argent','elite_or'].includes((m as any).hyla_level)).length} managers+ · {members.filter((m: any) => !['manager','chef_groupe','chef_agence','distributeur','elite_bronze','elite_argent','elite_or'].includes((m as any).hyla_level)).length} vendeurs
+              <p className="text-[10px] text-muted-foreground truncate">
+                {members.filter((m: any) => ['manager','chef_groupe','chef_agence','distributeur','elite_bronze','elite_argent','elite_or'].includes((m as any).hyla_level)).length} mgrs · {members.filter((m: any) => !['manager','chef_groupe','chef_agence','distributeur','elite_bronze','elite_argent','elite_or'].includes((m as any).hyla_level)).length} vendeurs
               </p>
             </div>
             <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
@@ -1828,9 +1828,9 @@ export default function NetworkPage() {
           return (
             <div className="flex items-center gap-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl px-4 py-3 mb-2">
               <Trophy className="h-5 w-5 text-amber-500 flex-shrink-0" />
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-foreground">Top performer ce mois</p>
-                <p className="text-sm text-amber-700 dark:text-amber-300 font-semibold">{(topMember as any).first_name} {(topMember as any).last_name} — {byUser[topUserId]} vente{byUser[topUserId] > 1 ? 's' : ''}</p>
+                <p className="text-sm text-amber-700 dark:text-amber-300 font-semibold truncate">{(topMember as any).first_name} {(topMember as any).last_name} — {byUser[topUserId]} vente{byUser[topUserId] > 1 ? 's' : ''}</p>
               </div>
             </div>
           );
@@ -1903,7 +1903,7 @@ export default function NetworkPage() {
                   </div>
 
                   {/* Action buttons */}
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex flex-wrap gap-2 mt-3">
                     <button
                       onClick={(e) => { e.stopPropagation(); setObjectifsMember(member); }}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 active:scale-[0.97] transition-colors"
@@ -2056,10 +2056,10 @@ export default function NetworkPage() {
                     const medals = ['🥇', '🥈', '🥉'];
                     return (
                       <div key={entry.member.id} className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="flex items-center gap-1.5 font-medium text-foreground">
-                            <span>{medals[i] || `${i + 1}.`}</span>
-                            {entry.member.first_name} {entry.member.last_name}
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <span className="flex items-center gap-1.5 font-medium text-foreground min-w-0">
+                            <span className="flex-shrink-0">{medals[i] || `${i + 1}.`}</span>
+                            <span className="truncate">{entry.member.first_name} {entry.member.last_name}</span>
                           </span>
                           <span className={`font-bold ${pct >= 100 ? 'text-emerald-600' : 'text-foreground'}`}>
                             {activeChallenge.objective_type === 'ca'
@@ -2094,7 +2094,7 @@ export default function NetworkPage() {
 
         {/* Dialog création challenge */}
         <Dialog open={showChallengeForm} onOpenChange={setShowChallengeForm}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-amber-500" />
@@ -2121,7 +2121,7 @@ export default function NetworkPage() {
                   rows={2}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label>Objectif</Label>
                   <Select value={challengeForm.objective_type} onValueChange={(v) => setChallengeForm({ ...challengeForm, objective_type: v })}>
@@ -2145,7 +2145,7 @@ export default function NetworkPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label>Date de début</Label>
                   <Input type="date" value={challengeForm.start_date} onChange={(e) => setChallengeForm({ ...challengeForm, start_date: e.target.value })} className="h-11" required />
