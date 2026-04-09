@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, CONTACT_STATUS_LABELS, CONTACT_STATUS_COLORS, PRIORITY_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Network, Trash2, Settings, Download, CalendarPlus, ClipboardList, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Trash2, Settings, Download, CalendarPlus, ClipboardList, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -37,21 +37,16 @@ function matchScore(a: string, b: string): number {
   return Math.round((matches / maxLen) * 100);
 }
 
-function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, onAddToNetwork }: {
+function ContactForm({ onSuccess, stages, initialData, onDelete }: {
   onSuccess: () => void;
   stages: Tables<'pipeline_stages'>[];
   initialData?: Contact | null;
   onDelete?: () => void;
-  teamMembers?: any[];
-  onAddToNetwork?: (contact: Contact) => void;
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEdit = !!initialData;
-
-  // Check if this contact is already in the network
-  const isInNetwork = isEdit && teamMembers?.some(m => m.contact_id === initialData?.id);
 
   // ── Form state — doit être déclaré AVANT le useEffect qui l'utilise ──
   const [form, setForm] = useState({
@@ -387,22 +382,6 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
           </button>
         </div>
       )}
-      {isEdit && !isInNetwork && onAddToNetwork && (
-        <button
-          type="button"
-          onClick={() => onAddToNetwork(initialData)}
-          className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl"
-        >
-          <Network className="h-4 w-4" />
-          Ajouter à l'équipe
-        </button>
-      )}
-      {isEdit && isInNetwork && (
-        <div className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-50 text-emerald-600 font-medium rounded-xl border border-emerald-200">
-          <Network className="h-4 w-4" />
-          Déjà dans l'équipe
-        </div>
-      )}
       {isEdit && (
         <button
           type="button"
@@ -477,65 +456,6 @@ export default function Contacts() {
     },
     enabled: !!effectiveId,
   });
-
-  // Fetch team_members to know which contacts are already in the network
-  // Clé différente de NetworkPage pour éviter les conflits de cache (select partiel vs select *)
-  const { data: teamMembers = [] } = useQuery({
-    queryKey: ['team-members-contacts', effectiveId],
-    queryFn: async () => {
-      if (!effectiveId) return [];
-      const { data } = await supabase
-        .from('team_members')
-        .select('id, contact_id, first_name, last_name')
-        .eq('user_id', effectiveId);
-      return data || [];
-    },
-    enabled: !!effectiveId,
-  });
-
-  const addToNetwork = useMutation({
-    mutationFn: async (contact: Contact) => {
-      if (!user) throw new Error('Non connecté');
-      const ownerId = effectiveId || user.id;
-      // Hyla ID unique (HYL-XXXXX) — boucle avec sécurité max 20 essais
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      let hylaId = '';
-      for (let attempt = 0; attempt < 20; attempt++) {
-        hylaId = 'HYL-' + Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-        const { data: dup } = await supabase.from('team_members').select('id').eq('internal_id', hylaId).maybeSingle();
-        if (!dup) break;
-      }
-
-      // Pas de slug : le slug sert uniquement à la page d'inscription publique
-      // La contrainte unique (slug WHERE NOT NULL) ne s'applique pas si slug = null
-      const { error } = await supabase.from('team_members').insert({
-        user_id: ownerId,
-        contact_id: contact.id,
-        first_name: contact.first_name,
-        last_name: contact.last_name,
-        phone: contact.phone || null,
-        email: contact.email || null,
-        level: 1,
-        joined_at: new Date().toISOString().split('T')[0],
-        matching_names: [`${contact.first_name} ${contact.last_name}`.toLowerCase()],
-        status: 'actif',
-        internal_id: hylaId,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-members', effectiveId] });
-      queryClient.invalidateQueries({ queryKey: ['team-members-contacts', effectiveId] });
-      queryClient.invalidateQueries({ queryKey: ['team-count'] });
-      queryClient.invalidateQueries({ queryKey: ['stats-members'] });
-      toast({ title: 'Membre ajouté à l\'équipe' });
-      setEditingContact(null);
-    },
-    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
-  });
-
-  // Set of contact_ids that are already in the network
-  const networkContactIds = new Set(teamMembers.filter(m => m.contact_id).map(m => m.contact_id));
 
   const filtered = contacts.filter((c) => {
     const matchesSearch = !search || `${c.first_name} ${c.last_name} ${c.email || ''} ${c.phone || ''}`.toLowerCase().includes(search.toLowerCase());
@@ -658,9 +578,6 @@ export default function Contacts() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-foreground">{contact.first_name} {contact.last_name}</span>
-                        {networkContactIds.has(contact.id) && (
-                          <Network className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
-                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
@@ -745,9 +662,6 @@ export default function Contacts() {
                         <div className="flex items-center gap-2">
                           <GripVertical className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />
                           <p className="font-medium text-sm text-foreground">{contact.first_name} {contact.last_name}</p>
-                          {networkContactIds.has(contact.id) && (
-                            <Network className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
-                          )}
                         </div>
                         {contact.phone && <p className="text-xs text-muted-foreground mt-1 ml-5">{contact.phone}</p>}
                         <div className="flex items-center gap-2 mt-2 ml-5">
@@ -807,8 +721,6 @@ export default function Contacts() {
               stages={stages}
               onSuccess={() => setEditingContact(null)}
               onDelete={() => setEditingContact(null)}
-              teamMembers={teamMembers}
-              onAddToNetwork={(contact) => addToNetwork.mutate(contact)}
             />
           )}
         </DialogContent>
