@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { usePlan } from '@/hooks/usePlan';
 import { PaywallScreen } from '@/components/PaywallScreen';
-import { supabase, IMPORT_STATUS_LABELS, IMPORT_STATUS_COLORS } from '@/lib/supabase';
+import { supabase, IMPORT_STATUS_LABELS, IMPORT_STATUS_COLORS, getRecrueCommission, getPersonalSaleCommission } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, XCircle, CalendarRange, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -326,11 +326,10 @@ export default function Imports() {
   const computeTRVMatching = useCallback((rawData: Record<string, string>[]): MatchRow[] => {
     const ownerNames = settings?.owner_matching_names || [];
 
-    // Taux Hyla — commissions par vente de recrue directe (niveau Manager)
-    const TAUX_RECRUE_DIRECTE = 120; // Manager : 120€/vente de recrue
-    // Taux personnels (ventes propres du manager) : échelle glissante mensuelle
-    const tauxPersonnel = (nieme: number) =>
-      nieme <= 1 ? 300 : nieme === 2 ? 350 : nieme === 3 ? 400 : nieme <= 7 ? 450 : 500;
+    // Taux Hyla — commission recrue directe selon le niveau de l'utilisateur
+    const TAUX_RECRUE_DIRECTE = getRecrueCommission(settings?.hyla_level || 'manager');
+    // Taux personnels (ventes propres) : échelle glissante mensuelle via helper centralisé
+    const tauxPersonnel = (nieme: number) => getPersonalSaleCommission(nieme);
 
     let ownerSaleCount = 0; // compteur pour l'échelle glissante des ventes perso
 

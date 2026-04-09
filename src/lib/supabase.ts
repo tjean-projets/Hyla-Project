@@ -121,20 +121,163 @@ export const IMPORT_STATUS_COLORS: Record<ImportStatus, string> = {
 };
 
 // ── Barème Hyla ──
-// Commissions ventes personnelles (paliers par mois)
+
+// Commissions ventes personnelles — échelle glissante par vente dans le mois
+// (les valeurs cumulées sont calculées dynamiquement par getHylaCommission)
 export const HYLA_COMMISSION_SCALE = [
-  { machines: 1, commission: 300, label: '1 Hyla' },
-  { machines: 2, commission: 700, label: '2 Hyla' },
-  { machines: 3, commission: 1200, label: '3 Hyla' },
-  { machines: 4, commission: 1800, label: '4 Hyla' },
-  { machines: 6, commission: 2700, label: '6 Hyla' },
-  { machines: 8, commission: 4000, label: '8 Hyla' },
+  { machines: 1, commission: 300,  label: '1 vente' },
+  { machines: 2, commission: 650,  label: '2 ventes' },   // 300+350
+  { machines: 3, commission: 1050, label: '3 ventes' },   // 650+400
+  { machines: 4, commission: 1500, label: '4 ventes' },   // 1050+450
+  { machines: 5, commission: 1950, label: '5 ventes' },   // 1500+450
+  { machines: 6, commission: 2400, label: '6 ventes' },   // 1950+450
+  { machines: 7, commission: 2850, label: '7 ventes' },   // 2400+450
+  { machines: 8, commission: 3350, label: '8 ventes' },   // 2850+500
 ];
 
-// Commission réseau par tier
+/** Retourne la commission cumulée estimée pour N ventes perso dans le mois */
+export function getHylaCommission(machinesSold: number): number {
+  if (machinesSold <= 0) return 0;
+  // Calcul exact via l'échelle glissante
+  let total = 0;
+  for (let i = 1; i <= machinesSold; i++) {
+    total += i === 1 ? 300 : i === 2 ? 350 : i === 3 ? 400 : i <= 7 ? 450 : 500;
+  }
+  return total;
+}
+
+/** Commission pour la Nième vente perso du mois (échelle glissante) */
+export function getPersonalSaleCommission(rank: number): number {
+  if (rank <= 1) return 300;
+  if (rank === 2) return 350;
+  if (rank === 3) return 400;
+  if (rank <= 7) return 450;
+  return 500;
+}
+
+// ── 6 niveaux Hyla + Elite en 3 sous-niveaux ──
+export type HylaLevel =
+  | 'vendeur'
+  | 'manager'
+  | 'chef_groupe'
+  | 'chef_agence'
+  | 'distributeur'
+  | 'elite_bronze'
+  | 'elite_argent'
+  | 'elite_or';
+
+export const HYLA_LEVELS: {
+  value: HylaLevel;
+  label: string;
+  shortLabel: string;
+  recruteCommission: number;   // €/vente de recrue directe
+  quotaMois: number;           // ventes perso requises/mois pour la prime groupe
+  conditions: string;
+  color: string;
+}[] = [
+  {
+    value: 'vendeur',
+    label: 'Vendeur commerçant',
+    shortLabel: 'Vendeur',
+    recruteCommission: 100,
+    quotaMois: 0,
+    conditions: 'Aucune condition — niveau de départ',
+    color: 'from-slate-400 to-slate-500',
+  },
+  {
+    value: 'manager',
+    label: 'Manager',
+    shortLabel: 'Manager',
+    recruteCommission: 120,
+    quotaMois: 15,
+    conditions: '3 vendeurs directs actifs minimum',
+    color: 'from-pink-500 to-rose-400',
+  },
+  {
+    value: 'chef_groupe',
+    label: 'Chef de groupe',
+    shortLabel: 'Chef groupe',
+    recruteCommission: 140,
+    quotaMois: 30,
+    conditions: '4 vendeurs directs + 1 indirect actifs min.',
+    color: 'from-orange-500 to-amber-400',
+  },
+  {
+    value: 'chef_agence',
+    label: "Chef d'agence",
+    shortLabel: "Chef d'agence",
+    recruteCommission: 160,
+    quotaMois: 60,
+    conditions: "4 vendeurs directs + 1 lignée (manager) min.",
+    color: 'from-yellow-500 to-amber-400',
+  },
+  {
+    value: 'distributeur',
+    label: 'Distributeur',
+    shortLabel: 'Distributeur',
+    recruteCommission: 180,
+    quotaMois: 90,
+    conditions: '2 lignées (managers) minimum',
+    color: 'from-emerald-500 to-green-400',
+  },
+  {
+    value: 'elite_bronze',
+    label: 'Elite Manager Bronze',
+    shortLabel: 'Elite Bronze',
+    recruteCommission: 200,
+    quotaMois: 120,
+    conditions: '3 lignées (managers) minimum',
+    color: 'from-amber-700 to-amber-600',
+  },
+  {
+    value: 'elite_argent',
+    label: 'Elite Manager Argent',
+    shortLabel: 'Elite Argent',
+    recruteCommission: 225,
+    quotaMois: 120,
+    conditions: '3 lignées min. • qualification Elite Bronze/Argent',
+    color: 'from-slate-400 to-slate-300',
+  },
+  {
+    value: 'elite_or',
+    label: 'Elite Manager Or',
+    shortLabel: 'Elite Or',
+    recruteCommission: 250,
+    quotaMois: 120,
+    conditions: '3 lignées min. • qualification Elite Or',
+    color: 'from-yellow-400 to-yellow-300',
+  },
+];
+
+/** Retourne la commission recrue directe pour un niveau donné */
+export function getRecrueCommission(level: HylaLevel | string): number {
+  return HYLA_LEVELS.find(l => l.value === level)?.recruteCommission ?? 120;
+}
+
+/** Retourne la prime de gestion de groupe (€/machine/mois) selon niveau + volume équipe */
+export function getGroupPrime(level: HylaLevel | string, teamSalesCount: number): number {
+  if (teamSalesCount < 15) return 0;
+  type Range = { min: number; max: number | null; prime: number };
+  const ranges: Record<string, Range[]> = {
+    manager:     [{ min: 15, max: null, prime: 30 }],
+    chef_groupe: [{ min: 15, max: 29, prime: 30 }, { min: 30, max: null, prime: 50 }],
+    chef_agence: [{ min: 15, max: 29, prime: 30 }, { min: 30, max: 59, prime: 50 }, { min: 60, max: null, prime: 70 }],
+    distributeur:[{ min: 15, max: 29, prime: 30 }, { min: 30, max: 59, prime: 50 }, { min: 60, max: 89, prime: 70 }, { min: 90, max: null, prime: 85 }],
+    elite:       [{ min: 15, max: 29, prime: 30 }, { min: 30, max: 59, prime: 50 }, { min: 60, max: 89, prime: 70 }, { min: 90, max: 119, prime: 85 }, { min: 120, max: null, prime: 100 }],
+  };
+  const key = level.startsWith('elite_') ? 'elite' : (level as string);
+  const levelRanges = ranges[key];
+  if (!levelRanges) return 0;
+  for (let i = levelRanges.length - 1; i >= 0; i--) {
+    if (teamSalesCount >= levelRanges[i].min) return levelRanges[i].prime;
+  }
+  return 0;
+}
+
+/** Commission réseau (legacy — garde la rétrocompatibilité) */
 export const HYLA_NETWORK_COMMISSION = {
-  conseillere: { recrue_directe: 100, reseau: 0 },   // Conseillère : 100€/vente recrue directe, pas de réseau
-  manager:     { recrue_directe: 120, reseau: 30 },   // Manager : 120€/vente recrue directe + 30€/vente réseau
+  conseillere: { recrue_directe: 100, reseau: 0 },
+  manager:     { recrue_directe: 120, reseau: 30 },
 };
 
 // Challenges
@@ -154,19 +297,15 @@ export const HYLA_PRODUCTS = [
   { label: 'Autre', price: null },
 ];
 
-// Niveaux réseau Hyla
+// Niveaux réseau Hyla (legacy — garde la rétrocompatibilité avec NetworkPage)
 export const HYLA_NETWORK_TIERS = [
-  { min: 0, label: 'Conseillère', description: 'Recommande le Hyla autour de soi • 100€/vente recrue directe' },
-  { min: 4, label: 'Manager', description: '4+ partenaires • 120€/vente recrue directe • 30€/vente réseau' },
+  { min: 0, label: 'Vendeur commerçant', description: '100€/vente recrue directe' },
+  { min: 3, label: 'Manager', description: '3 vendeurs directs • 120€/vente recrue • prime groupe dès 15 ventes équipe' },
+  { min: 4, label: 'Chef de groupe', description: '4 vendeurs directs • 140€/vente recrue' },
+  { min: 5, label: "Chef d'agence", description: "4 vendeurs + 1 lignée • 160€/vente recrue" },
+  { min: 6, label: 'Distributeur', description: '2 lignées • 180€/vente recrue' },
+  { min: 7, label: 'Elite Manager', description: '3 lignées • 200-250€/vente recrue' },
 ];
-
-export function getHylaCommission(machinesSold: number): number {
-  const scale = [...HYLA_COMMISSION_SCALE].reverse();
-  for (const s of scale) {
-    if (machinesSold >= s.machines) return s.commission;
-  }
-  return 0;
-}
 
 // ── Partner / Lead types (360courtage) ──
 

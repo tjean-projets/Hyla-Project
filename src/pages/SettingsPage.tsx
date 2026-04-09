@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { AppLayout, ALL_MOBILE_TABS } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
+import { supabase, HYLA_LEVELS, type HylaLevel } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint, Eye, Target, CreditCard } from 'lucide-react';
+import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint, Eye, Target, CreditCard, TrendingUp } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -224,6 +224,8 @@ export default function SettingsPage() {
   const [monthlySalesTarget, setMonthlySalesTarget] = useState('');
   const [monthlyCaTarget, setMonthlyCaTarget] = useState('');
   const [savingObjectives, setSavingObjectives] = useState(false);
+  const [hylaLevel, setHylaLevel] = useState<HylaLevel>('manager');
+  const [savingLevel, setSavingLevel] = useState(false);
 
   // Mobile nav customization
   const getInitialTabs = () => {
@@ -272,7 +274,7 @@ export default function SettingsPage() {
       if (!effectiveUserId) return null;
       const { data } = await supabase
         .from('user_settings')
-        .select('monthly_sales_target, monthly_ca_target')
+        .select('monthly_sales_target, monthly_ca_target, hyla_level')
         .eq('user_id', effectiveUserId)
         .maybeSingle();
       return data;
@@ -284,6 +286,9 @@ export default function SettingsPage() {
     if (userSettings) {
       setMonthlySalesTarget(String((userSettings as any).monthly_sales_target ?? ''));
       setMonthlyCaTarget(String((userSettings as any).monthly_ca_target ?? ''));
+      if ((userSettings as any).hyla_level) {
+        setHylaLevel((userSettings as any).hyla_level as HylaLevel);
+      }
     }
   }, [userSettings]);
 
@@ -344,6 +349,22 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['profile-date'] });
       queryClient.invalidateQueries({ queryKey: ['profile-date-dash'] });
       toast({ title: 'Date sauvegardée', description: 'Tes challenges sont recalculés à partir de cette date.' });
+    }
+  };
+
+  const saveLevel = async (level: HylaLevel) => {
+    if (!user) return;
+    setSavingLevel(true);
+    const { error } = await supabase
+      .from('user_settings')
+      .upsert({ user_id: user.id, hyla_level: level, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    setSavingLevel(false);
+    if (error) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } else {
+      setHylaLevel(level);
+      queryClient.invalidateQueries({ queryKey: ['user-settings'] });
+      toast({ title: 'Niveau mis à jour', description: `Niveau ${HYLA_LEVELS.find(l => l.value === level)?.label} enregistré.` });
     }
   };
 
@@ -643,6 +664,51 @@ export default function SettingsPage() {
                 <Save className="h-4 w-4" />
                 {savingObjectives ? 'Enregistrement...' : 'Sauvegarder'}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Niveau Hyla */}
+        {!isImpersonating && (
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="h-4 w-4 text-violet-600" />
+              <h3 className="text-base font-semibold text-foreground">Mon niveau Hyla</h3>
+              {savingLevel && <span className="ml-auto text-xs text-muted-foreground animate-pulse">Enregistrement...</span>}
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Ton niveau détermine ta commission par vente de recrue directe et ta prime de gestion de groupe. Il sera utilisé dans tous les calculs de l'outil.
+            </p>
+            <div className="grid grid-cols-1 gap-2">
+              {HYLA_LEVELS.map((lvl) => (
+                <button
+                  key={lvl.value}
+                  onClick={() => saveLevel(lvl.value)}
+                  disabled={savingLevel}
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
+                    hylaLevel === lvl.value
+                      ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/30'
+                      : 'border-border bg-card hover:border-violet-300'
+                  }`}
+                >
+                  <div className={`h-2.5 w-2.5 rounded-full bg-gradient-to-br ${lvl.color} flex-shrink-0`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-semibold ${hylaLevel === lvl.value ? 'text-violet-700 dark:text-violet-300' : 'text-foreground'}`}>
+                      {lvl.label}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground truncate">{lvl.conditions}</p>
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    <p className={`text-sm font-bold ${hylaLevel === lvl.value ? 'text-violet-600' : 'text-muted-foreground'}`}>
+                      {lvl.recruteCommission}€
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">/ recrue</p>
+                  </div>
+                  {hylaLevel === lvl.value && (
+                    <Check className="h-4 w-4 text-violet-600 flex-shrink-0" />
+                  )}
+                </button>
+              ))}
             </div>
           </div>
         )}
