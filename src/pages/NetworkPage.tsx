@@ -1412,15 +1412,19 @@ export default function NetworkPage() {
     setSubMemberToEdit(null);
   };
 
-  const { data: members = [], isLoading } = useQuery({
+  const { data: members = [], isLoading, error: membersError } = useQuery({
     queryKey: ['team-members', effectiveId],
     queryFn: async () => {
       if (!effectiveId) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('team_members')
         .select('*')
         .eq('user_id', effectiveId)
         .order('level', { ascending: true });
+      if (error) {
+        console.error('[NetworkPage] team_members query error:', error);
+        throw error;
+      }
       if (!data) return [];
       // Fetch linked profiles to get role
       const linkedIds = data.filter(m => m.linked_user_id).map(m => m.linked_user_id!);
@@ -1781,11 +1785,17 @@ export default function NetworkPage() {
                 </div>
               );
             })}
-            {filtered.length === 0 && (
+            {membersError && (
+              <div className="text-center py-8 px-4 bg-red-50 rounded-xl border border-red-200">
+                <p className="text-sm font-semibold text-red-700">Erreur de chargement</p>
+                <p className="text-xs text-red-500 mt-1">{(membersError as any)?.message || String(membersError)}</p>
+              </div>
+            )}
+            {!membersError && filtered.length === 0 && (
               <div className="text-center py-16">
                 <Users className="h-10 w-10 text-gray-300 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">
-                  {isLoading ? 'Chargement...' : 'Aucun membre dans le réseau'}
+                  {isLoading ? 'Chargement...' : 'Aucun membre dans l\'équipe'}
                 </p>
               </div>
             )}
