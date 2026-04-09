@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { usePlan } from '@/hooks/usePlan';
 import { PaywallScreen } from '@/components/PaywallScreen';
-import { supabase, HYLA_NETWORK_TIERS, HYLA_NETWORK_COMMISSION } from '@/lib/supabase';
+import { supabase, HYLA_NETWORK_TIERS, HYLA_NETWORK_COMMISSION, HYLA_LEVELS, getRecrueCommission } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Users, UserPlus, Star, Trophy, Crown, Award, ChevronUp, Zap, Trash2, Target, Copy, Mail, Edit3, CheckCircle, Clock, Sparkles, Link2, Share2, Eye, EyeOff, AlertTriangle, ChevronDown, ChevronRight, Network, DollarSign, ShoppingCart, UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,29 @@ function getTier(count: number) {
   return [...TIERS].reverse().find(t => count >= t.min) || TIERS[0];
 }
 
+const LEVEL_UI: Record<string, { color: string; text: string; icon: typeof Award }> = {
+  vendeur:      { color: 'from-slate-400 to-slate-500',   text: 'text-slate-300',   icon: Award },
+  manager:      { color: 'from-pink-500 to-rose-400',     text: 'text-pink-300',    icon: Star },
+  chef_groupe:  { color: 'from-orange-500 to-amber-400',  text: 'text-orange-300',  icon: Trophy },
+  chef_agence:  { color: 'from-yellow-500 to-amber-400',  text: 'text-yellow-300',  icon: Crown },
+  distributeur: { color: 'from-emerald-500 to-green-400', text: 'text-emerald-300', icon: Crown },
+  elite_bronze: { color: 'from-yellow-400 to-yellow-300', text: 'text-yellow-200',  icon: Crown },
+  elite_argent: { color: 'from-yellow-400 to-yellow-300', text: 'text-yellow-200',  icon: Crown },
+  elite_or:     { color: 'from-yellow-400 to-yellow-300', text: 'text-yellow-200',  icon: Crown },
+};
+
+function getMemberLevel(hyla_level: string) {
+  const lvl = HYLA_LEVELS.find(l => l.value === hyla_level);
+  const ui = LEVEL_UI[hyla_level] || LEVEL_UI['vendeur'];
+  return {
+    label: lvl?.label || 'Vendeur',
+    shortLabel: lvl?.shortLabel || 'Vendeur',
+    color: ui.color,
+    text: ui.text,
+    icon: ui.icon,
+  };
+}
+
 function MemberForm({
   onSuccess,
   members,
@@ -57,7 +80,7 @@ function MemberForm({
 
   const [form, setForm] = useState({
     first_name: '', last_name: '', internal_id: '', phone: '', email: '',
-    sponsor_id: '', role: 'conseillere', joined_at: '', notes: '',
+    sponsor_id: '', role: 'conseillere', joined_at: '', notes: '', hyla_level: 'vendeur',
   });
 
   useEffect(() => {
@@ -72,6 +95,7 @@ function MemberForm({
         role: initialData.level >= 2 ? 'manager' : 'conseillere',
         joined_at: initialData.joined_at || '',
         notes: initialData.notes || '',
+        hyla_level: (initialData as any).hyla_level || (initialData.level >= 2 ? 'manager' : 'vendeur'),
       });
     }
   }, [initialData]);
@@ -87,7 +111,8 @@ function MemberForm({
         phone: form.phone || null,
         email: form.email || null,
         sponsor_id: form.sponsor_id || null,
-        level: form.role === 'manager' ? 2 : 1,
+        hyla_level: form.hyla_level,
+        level: ['manager','chef_groupe','chef_agence','distributeur','elite_bronze','elite_argent','elite_or'].includes(form.hyla_level) ? 2 : 1,
         joined_at: form.joined_at || null,
         notes: form.notes || null,
         matching_names: [`${form.first_name} ${form.last_name}`.toLowerCase()],
@@ -250,12 +275,15 @@ function MemberForm({
       <div className="grid grid-cols-2 gap-3">
         <div><Label>ID interne</Label><Input className="h-11" value={form.internal_id} onChange={(e) => setForm({ ...form, internal_id: e.target.value })} placeholder="Matricule Hyla" /></div>
         <div>
-          <Label>Rôle</Label>
-          <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+          <Label>Niveau Hyla</Label>
+          <Select value={form.hyla_level} onValueChange={(v) => setForm({ ...form, hyla_level: v })}>
             <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="conseillere">Conseiller(ère)</SelectItem>
-              <SelectItem value="manager">Manager</SelectItem>
+              {HYLA_LEVELS.map((lvl) => (
+                <SelectItem key={lvl.value} value={lvl.value}>
+                  {lvl.label} — {lvl.recruteCommission}€/recrue
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -955,7 +983,7 @@ function FicheMembre({
   const dealsSignes = deals.filter((d: any) => d.status === 'signee').length;
   const dealsEnCours = deals.filter((d: any) => d.status === 'en_cours' || d.status === 'en_attente').length;
 
-  const tier = member.level >= 2 ? 'Manager' : 'Conseillère';
+  const tierLabel = HYLA_LEVELS.find(l => l.value === (member as any).hyla_level)?.label || (member.level >= 2 ? 'Manager' : 'Vendeur');
   const joined = member.joined_at
     ? new Date(member.joined_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     : 'Non renseigné';
@@ -972,7 +1000,7 @@ function FicheMembre({
             <div>
               <h2 className="text-lg font-bold text-white">{member.first_name} {member.last_name}</h2>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-lg">{tier}</span>
+                <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-lg">{tierLabel}</span>
                 {member.internal_id && (
                   <span className="text-xs font-mono bg-white/10 text-white/70 px-2 py-0.5 rounded-lg">{member.internal_id}</span>
                 )}
@@ -1636,7 +1664,9 @@ export default function NetworkPage() {
             <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
               <p className="text-[10px] font-semibold uppercase text-muted-foreground">Managers</p>
               <p className="text-2xl font-bold text-amber-500 mt-1">{members.filter((m: any) => m.level >= 2).length}</p>
-              <p className="text-[10px] text-muted-foreground">{members.filter((m: any) => m.level === 1).length} conseillères</p>
+              <p className="text-[10px] text-muted-foreground">
+                {members.filter((m: any) => ['manager','chef_groupe','chef_agence','distributeur','elite_bronze','elite_argent','elite_or'].includes((m as any).hyla_level)).length} managers+ · {members.filter((m: any) => !['manager','chef_groupe','chef_agence','distributeur','elite_bronze','elite_argent','elite_or'].includes((m as any).hyla_level)).length} vendeurs
+              </p>
             </div>
             <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
               <p className="text-[10px] font-semibold uppercase text-muted-foreground">Ventes réseau / mois</p>
@@ -1693,7 +1723,7 @@ export default function NetworkPage() {
         {showMemberList && (
           <div className="space-y-2">
             {filtered.map((member) => {
-              const tier = getTier(member.level);
+              const tier = getMemberLevel((member as any).hyla_level || (member.level >= 2 ? 'manager' : 'vendeur'));
               const TierIcon = tier.icon;
               return (
                 <div
@@ -1711,6 +1741,11 @@ export default function NetworkPage() {
                       <div className="flex items-center gap-1.5">
                         <p className="text-sm font-semibold text-foreground truncate">{member.first_name} {member.last_name}</p>
                         <TierIcon className={`h-3.5 w-3.5 flex-shrink-0 ${tier.text}`} />
+                        {(member as any).hyla_level && (member as any).hyla_level !== 'vendeur' && (
+                          <span className="text-[9px] font-semibold bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 px-1.5 py-0.5 rounded">
+                            {HYLA_LEVELS.find(l => l.value === (member as any).hyla_level)?.shortLabel}
+                          </span>
+                        )}
                         {member.internal_id && (
                           <span className="text-[9px] font-mono bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{member.internal_id}</span>
                         )}

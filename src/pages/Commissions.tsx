@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
-import { supabase, COMMISSION_TYPE_LABELS, getHylaCommission } from '@/lib/supabase';
+import { supabase, COMMISSION_TYPE_LABELS, getHylaCommission, getGroupPrime, HYLA_LEVELS } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, Zap, Trophy, Star, ArrowUp, DollarSign, Users, ChevronDown, ChevronRight, FileText, Download, Check, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -68,6 +68,18 @@ export default function Commissions() {
     },
     enabled: !!effectiveId,
   });
+
+  // ── User hyla_level from user_settings ──
+  const { data: userSettings } = useQuery({
+    queryKey: ['user-settings-commissions', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return null;
+      const { data } = await supabase.from('user_settings').select('hyla_level').eq('user_id', effectiveId).maybeSingle();
+      return data;
+    },
+    enabled: !!effectiveId,
+  });
+  const myLevel = (userSettings as any)?.hyla_level || 'manager';
 
   // Filter by month if selected
   const filteredCommissions = selectedMonth === 'all'
@@ -541,6 +553,36 @@ export default function Commissions() {
                       </p>
                       <p className="text-[10px] text-muted-foreground">Estimé</p>
                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Prime de gestion de groupe ── */}
+        {myLevel !== 'vendeur' && (
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="h-4 w-4 text-emerald-600" />
+              <h3 className="text-sm font-semibold text-foreground">Prime de gestion de groupe</h3>
+              <span className="ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300">
+                {HYLA_LEVELS.find(l => l.value === myLevel)?.label}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Par machine vendue dans le mois, selon le volume total de ventes de votre équipe.
+            </p>
+            <div className="grid grid-cols-1 gap-2">
+              {[15,30,60,90,120].map(threshold => {
+                const prime = getGroupPrime(myLevel, threshold);
+                if (prime === 0) return null;
+                const nextThreshold = [15,30,60,90,120].find(t => t > threshold);
+                const label = nextThreshold ? `${threshold} – ${nextThreshold - 1} ventes équipe` : `${threshold}+ ventes équipe`;
+                return (
+                  <div key={threshold} className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border">
+                    <span className="text-xs text-foreground">{label}</span>
+                    <span className="text-sm font-bold text-emerald-600">+{prime} €<span className="text-[10px] font-normal text-muted-foreground ml-1">/ machine</span></span>
                   </div>
                 );
               })}
