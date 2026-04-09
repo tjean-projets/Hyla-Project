@@ -453,7 +453,14 @@ export default function Imports() {
     mutationFn: async (results: MatchRow[]) => {
       if (!user) throw new Error('Non connecté');
 
-      const byPeriod = results.reduce((acc, r) => {
+      // On ne garde que les lignes qui concernent ce manager ou son équipe
+      // Les "non_reconnu" (autres managers du fichier national) sont complètement ignorées
+      const relevant = results.filter(r => r.is_owner_row || r.match_status !== 'non_reconnu');
+      if (relevant.length === 0) {
+        throw new Error('Aucune vente trouvée pour votre équipe dans ce fichier TRV.');
+      }
+
+      const byPeriod = relevant.reduce((acc, r) => {
         const p = r.period;
         if (!acc[p]) acc[p] = [];
         acc[p].push(r);
