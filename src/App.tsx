@@ -31,6 +31,8 @@ const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const PublicProfilePage = lazy(() => import("./pages/PublicProfilePage"));
 const SocialPage = lazy(() => import("./pages/SocialPage"));
 const PublicSurveyPage = lazy(() => import("./pages/PublicSurveyPage"));
+const FormationPage = lazy(() => import("./pages/FormationPage"));
+const MapPage = lazy(() => import("./pages/MapPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Partner pages lazy-loadées
@@ -99,6 +101,8 @@ function AppRoutes() {
         <Route path="/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
+        <Route path="/formation" element={<ProtectedRoute><FormationPage /></ProtectedRoute>} />
+        <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
 
         {/* Partner routes */}

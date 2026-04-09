@@ -17,6 +17,8 @@ import {
   MoreHorizontal,
   Shield,
   Share2,
+  GraduationCap,
+  MapPin,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -584,6 +586,8 @@ const sidebarLinks = [
   { to: '/deals', icon: ShoppingBag, label: 'Ventes' },
   { to: '/network', icon: Network, label: 'Équipes' },
   { to: '/social', icon: Share2, label: 'Social' },
+  { to: '/formation', icon: GraduationCap, label: 'Formation' },
+  { to: '/map', icon: MapPin, label: 'Carte' },
   { to: '/commissions', icon: TrendingUp, label: 'Commissions' },
   { to: '/tasks', icon: CheckSquare, label: 'Tâches' },
   { to: '/calendar', icon: Calendar, label: 'Calendrier' },
