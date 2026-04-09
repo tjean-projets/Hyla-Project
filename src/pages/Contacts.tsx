@@ -594,7 +594,7 @@ export default function Contacts() {
     >
       {/* New contact dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4" onOpenAutoFocus={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Nouveau contact</DialogTitle></DialogHeader>
           <ContactForm onSuccess={() => setShowForm(false)} stages={stages} teamMembers={teamMembers} />
         </DialogContent>
@@ -807,7 +807,7 @@ export default function Contacts() {
 
       {/* Edit contact dialog */}
       <Dialog open={!!editingContact} onOpenChange={(open) => { if (!open) setEditingContact(null); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4" onOpenAutoFocus={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Modifier le contact</DialogTitle></DialogHeader>
           {editingContact && (
             <ContactForm
