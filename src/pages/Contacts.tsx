@@ -524,8 +524,8 @@ export default function Contacts() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-members'] }); // invalide Contacts + NetworkPage
-      queryClient.invalidateQueries({ queryKey: ['team-members-contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members', effectiveId] });
+      queryClient.invalidateQueries({ queryKey: ['team-members-contacts', effectiveId] });
       queryClient.invalidateQueries({ queryKey: ['team-count'] });
       queryClient.invalidateQueries({ queryKey: ['stats-members'] });
       toast({ title: 'Membre ajouté à l\'équipe' });
