@@ -183,7 +183,7 @@ export default function Imports() {
 
   // ── TRV import state ──
   const [showTRVImport, setShowTRVImport] = useState(false);
-  const [trvStep, setTrvStep] = useState<'upload' | 'matching' | 'done'>('upload');
+  const [trvStep, setTrvStep] = useState<'upload' | 'processing' | 'done'>('upload');
   const [trvFileName, setTrvFileName] = useState('');
   const [trvResults, setTrvResults] = useState<MatchRow[]>([]);
 
@@ -315,9 +315,9 @@ export default function Imports() {
   }, [flow, teamMembers, settings]);
 
   // ── TRV matching ──
-  const runTRVMatching = useCallback((rawData: Record<string, string>[]) => {
+  const computeTRVMatching = useCallback((rawData: Record<string, string>[]): MatchRow[] => {
     const ownerNames = settings?.owner_matching_names || [];
-    const results: MatchRow[] = rawData.map((row) => {
+    return rawData.map((row) => {
       const rowName = row['VENDEUR'] || '';
       const amount = parseFloat(row['MONTANT'] || '0') || 0;
       const period = row['PÉRIODE'] || '';
@@ -344,14 +344,14 @@ export default function Imports() {
           (bestMatch?.confidence || 0) >= 60 ? 'manuel' : 'non_reconnu',
       };
     });
-    setTrvResults(results);
-    setTrvStep('matching');
   }, [teamMembers, settings]);
 
-  // ── TRV file upload handler ──
+  // ── TRV file upload handler — parse + match + save automatiquement ──
   const handleTRVUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setTrvFileName(file.name);
+    setTrvStep('processing');
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
@@ -359,16 +359,19 @@ export default function Imports() {
         const rows = parseTRVCsv(text);
         if (rows.length === 0) {
           toast({ title: 'Aucune ligne valide trouvée dans ce fichier', variant: 'destructive' });
+          setTrvStep('upload');
           return;
         }
-        setTrvFileName(file.name);
-        runTRVMatching(rows);
+        const results = computeTRVMatching(rows);
+        setTrvResults(results);
+        saveTRVImport.mutate(results);
       } catch {
         toast({ title: 'Erreur de lecture du fichier TRV', variant: 'destructive' });
+        setTrvStep('upload');
       }
     };
     reader.readAsText(file, 'UTF-8');
-  }, [runTRVMatching, toast]);
+  }, [computeTRVMatching, saveTRVImport, toast]);
 
   // ── Save import — groups by period, creates one import record per unique period ──
   const saveImport = useMutation({
@@ -432,10 +435,10 @@ export default function Imports() {
 
   // ── Save TRV import ──
   const saveTRVImport = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (results: MatchRow[]) => {
       if (!user) throw new Error('Non connecté');
 
-      const byPeriod = trvResults.reduce((acc, r) => {
+      const byPeriod = results.reduce((acc, r) => {
         const p = r.period;
         if (!acc[p]) acc[p] = [];
         acc[p].push(r);
@@ -795,129 +798,79 @@ export default function Imports() {
         </Dialog>
 
         {/* TRV Import dialog */}
-        <Dialog open={showTRVImport} onOpenChange={setShowTRVImport}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <Dialog open={showTRVImport} onOpenChange={(open) => { if (!open && trvStep !== 'processing') setShowTRVImport(false); }}>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {trvStep === 'upload' && 'Importer un TRV Hyla'}
-                {trvStep === 'matching' && `Matching TRV — ${trvFileName}`}
+                {trvStep === 'processing' && 'Import en cours…'}
                 {trvStep === 'done' && 'Import TRV terminé'}
               </DialogTitle>
             </DialogHeader>
 
-            {/* TRV Step 1: Upload */}
+            {/* Étape 1 : sélection du fichier */}
             {trvStep === 'upload' && (
               <div className="space-y-4">
                 <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-700 dark:text-blue-300">
-                  <strong>Format Hyla TRV</strong> — la colonne VENDEUR (NOM PRÉNOM) est automatiquement reconnue et inversée pour le matching.
+                  Sélectionnez le fichier CSV TRV Hyla. L'import se fait <strong>automatiquement</strong> — noms vendeurs (NOM PRÉNOM) reconnus et associés à vos membres d'équipe.
                 </div>
                 <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
                   <FileSpreadsheet className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground mb-3">Sélectionnez un fichier TRV Hyla (.csv)</p>
+                  <p className="text-sm text-muted-foreground mb-3">Fichier TRV Hyla (.csv)</p>
                   <Input type="file" accept=".csv" onChange={handleTRVUpload} className="max-w-xs mx-auto" />
                 </div>
               </div>
             )}
 
-            {/* TRV Step 2: Matching */}
-            {trvStep === 'matching' && (
-              <div className="space-y-4">
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-3 text-center">
-                    <CheckCircle className="h-5 w-5 text-green-600 mx-auto mb-1" />
-                    <p className="text-lg font-bold text-green-700 dark:text-green-400">{trvAutoMatched}</p>
-                    <p className="text-xs text-green-600 dark:text-green-500">Auto-matchées</p>
-                  </div>
-                  <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 text-center">
-                    <AlertTriangle className="h-5 w-5 text-amber-600 mx-auto mb-1" />
-                    <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{trvManualNeeded}</p>
-                    <p className="text-xs text-amber-600 dark:text-amber-500">À confirmer</p>
-                  </div>
-                  <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-3 text-center">
-                    <XCircle className="h-5 w-5 text-red-500 mx-auto mb-1" />
-                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{trvUnmatched}</p>
-                    <p className="text-xs text-red-500 dark:text-red-400">Non reconnues</p>
-                  </div>
-                </div>
-
-                {/* Detected periods */}
-                {trvDetectedPeriods.length > 0 && (
-                  <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3">
-                    <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">
-                      {trvDetectedPeriods.length} période{trvDetectedPeriods.length > 1 ? 's' : ''} détectée{trvDetectedPeriods.length > 1 ? 's' : ''}
-                      {trvDetectedPeriods.length > 1 && ' — un import sera créé par mois'}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {trvDetectedPeriods.map(p => (
-                        <span key={p} className="text-[11px] bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full font-medium">
-                          {p} ({trvResults.filter(r => r.period === p).length} lignes)
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Rows list */}
-                <div className="max-h-60 overflow-y-auto space-y-1.5">
-                  {trvResults.map((r, i) => (
-                    <div key={i} className={`flex items-center justify-between p-2.5 rounded-lg text-sm gap-2 ${
-                      r.match_status === 'auto' ? 'bg-green-50 dark:bg-green-950/20' :
-                      r.match_status === 'manuel' ? 'bg-amber-50 dark:bg-amber-950/20' :
-                      'bg-red-50 dark:bg-red-950/20'
-                    }`}>
-                      <div className="flex-1 min-w-0">
-                        <span className="font-medium text-foreground">{r.raw_data['VENDEUR_ORIGINAL'] || r.row_name}</span>
-                        {r.is_owner_row && <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded">Moi</span>}
-                        {r.matched_member && !r.is_owner_row && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            → {r.matched_member.first_name} {r.matched_member.last_name} ({r.match_confidence}%)
-                          </span>
-                        )}
-                        {r.raw_data['CLIENT'] && (
-                          <span className="ml-2 text-xs text-muted-foreground">· {r.raw_data['CLIENT']}</span>
-                        )}
-                        {r.raw_data['PACK'] && (
-                          <span className="ml-2 text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{r.raw_data['PACK']}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-[10px] text-[#3b82f6] bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 rounded font-medium">
-                          {r.period}
-                        </span>
-                        <span className="font-semibold text-foreground">{r.amount.toLocaleString('fr-FR')} €</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <Button
-                  onClick={() => saveTRVImport.mutate()}
-                  disabled={saveTRVImport.isPending}
-                  className="w-full bg-[#3b82f6] hover:bg-[#3b82f6]/90"
-                >
-                  {saveTRVImport.isPending
-                    ? 'Traitement...'
-                    : trvDetectedPeriods.length > 1
-                      ? `Valider — ${trvDetectedPeriods.length} imports (${trvResults.length} lignes)`
-                      : 'Valider et consolider'
-                  }
-                </Button>
+            {/* Étape 2 : traitement automatique */}
+            {trvStep === 'processing' && (
+              <div className="text-center py-10 space-y-4">
+                <div className="h-12 w-12 rounded-full border-4 border-[#3b82f6] border-t-transparent animate-spin mx-auto" />
+                <p className="text-sm font-medium text-foreground">Analyse et import de {trvFileName}…</p>
+                <p className="text-xs text-muted-foreground">Matching des vendeurs en cours</p>
               </div>
             )}
 
-            {/* TRV Step 3: Done */}
+            {/* Étape 3 : résumé */}
             {trvStep === 'done' && (
-              <div className="text-center py-6">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                <p className="text-lg font-semibold text-foreground">Import TRV terminé</p>
-                {trvDetectedPeriods.length > 1 && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {trvDetectedPeriods.length} périodes importées — {trvResults.length} lignes consolidées.
-                  </p>
+              <div className="space-y-5 py-2">
+                <div className="text-center">
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                  <p className="text-lg font-semibold text-foreground">Import terminé !</p>
+                  <p className="text-sm text-muted-foreground mt-1">{trvResults.length} ventes importées depuis {trvFileName}</p>
+                </div>
+
+                {/* Stats matching */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-3 text-center">
+                    <CheckCircle className="h-4 w-4 text-green-600 mx-auto mb-1" />
+                    <p className="text-lg font-bold text-green-700 dark:text-green-400">{trvAutoMatched}</p>
+                    <p className="text-xs text-green-600 dark:text-green-500">Reconnues</p>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 text-center">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 mx-auto mb-1" />
+                    <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{trvManualNeeded}</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-500">Partielles</p>
+                  </div>
+                  <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-3 text-center">
+                    <XCircle className="h-4 w-4 text-red-500 mx-auto mb-1" />
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{trvUnmatched}</p>
+                    <p className="text-xs text-red-500 dark:text-red-400">Non trouvées</p>
+                  </div>
+                </div>
+
+                {/* Périodes détectées */}
+                {trvDetectedPeriods.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {trvDetectedPeriods.map(p => (
+                      <span key={p} className="text-[11px] bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full font-medium">
+                        {p} — {trvResults.filter(r => r.period === p).length} ventes
+                      </span>
+                    ))}
+                  </div>
                 )}
-                <p className="text-sm text-muted-foreground mt-1">Les commissions ont été consolidées dans votre tableau de bord.</p>
-                <Button onClick={() => setShowTRVImport(false)} className="mt-4">Fermer</Button>
+
+                <Button onClick={() => setShowTRVImport(false)} className="w-full">Fermer</Button>
               </div>
             )}
           </DialogContent>
