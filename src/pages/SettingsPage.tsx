@@ -674,42 +674,82 @@ export default function SettingsPage() {
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="h-4 w-4 text-violet-600" />
               <h3 className="text-base font-semibold text-foreground">Mon niveau Hyla</h3>
-              {savingLevel && <span className="ml-auto text-xs text-muted-foreground animate-pulse">Enregistrement...</span>}
+              <span className="ml-auto text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Attribué par Hyla</span>
             </div>
             <p className="text-xs text-muted-foreground mb-4">
-              Ton niveau détermine ta commission par vente de recrue directe et ta prime de gestion de groupe. Il sera utilisé dans tous les calculs de l'outil.
+              Ton niveau est attribué par Hyla lorsque les conditions sont remplies sur 3 mois consécutifs. Il calibre tous les calculs de commissions dans l'outil.
             </p>
-            <div className="grid grid-cols-1 gap-2">
-              {HYLA_LEVELS.map((lvl) => (
-                <button
-                  key={lvl.value}
-                  onClick={() => saveLevel(lvl.value)}
-                  disabled={savingLevel}
-                  className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
-                    hylaLevel === lvl.value
-                      ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/30'
-                      : 'border-border bg-card hover:border-violet-300'
-                  }`}
-                >
-                  <div className={`h-2.5 w-2.5 rounded-full bg-gradient-to-br ${lvl.color} flex-shrink-0`} />
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-semibold ${hylaLevel === lvl.value ? 'text-violet-700 dark:text-violet-300' : 'text-foreground'}`}>
-                      {lvl.label}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground truncate">{lvl.conditions}</p>
-                  </div>
-                  <div className="flex-shrink-0 text-right">
-                    <p className={`text-sm font-bold ${hylaLevel === lvl.value ? 'text-violet-600' : 'text-muted-foreground'}`}>
-                      {lvl.recruteCommission}€
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">/ recrue</p>
-                  </div>
-                  {hylaLevel === lvl.value && (
+
+            {/* Niveau actuel — mis en avant */}
+            {(() => {
+              const current = HYLA_LEVELS.find(l => l.value === hylaLevel);
+              const currentIdx = HYLA_LEVELS.findIndex(l => l.value === hylaLevel);
+              const next = HYLA_LEVELS[currentIdx + 1] || null;
+              return (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-violet-500 bg-violet-50 dark:bg-violet-950/30">
+                    <div className={`h-3 w-3 rounded-full bg-gradient-to-br ${current?.color} flex-shrink-0`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-violet-700 dark:text-violet-300">{current?.label}</p>
+                      <p className="text-[11px] text-violet-500">{current?.conditions}</p>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <p className="text-base font-bold text-violet-600">{current?.recruteCommission}€</p>
+                      <p className="text-[9px] text-violet-400">/ recrue</p>
+                    </div>
                     <Check className="h-4 w-4 text-violet-600 flex-shrink-0" />
+                  </div>
+
+                  {/* Niveaux suivants — grisés */}
+                  {HYLA_LEVELS.filter((_, i) => i > currentIdx).map((lvl) => (
+                    <div key={lvl.value} className="flex items-center gap-3 p-3 rounded-xl border border-border opacity-50">
+                      <div className={`h-2.5 w-2.5 rounded-full bg-gradient-to-br ${lvl.color} flex-shrink-0`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground">{lvl.label}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{lvl.conditions}</p>
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-sm font-bold text-muted-foreground">{lvl.recruteCommission}€</p>
+                        <p className="text-[10px] text-muted-foreground">/ recrue</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Message prochain niveau */}
+                  {next && (
+                    <p className="text-[11px] text-muted-foreground text-center pt-1">
+                      Prochain niveau : <span className="font-semibold text-violet-600">{next.label}</span> — vois ta progression sur le Dashboard
+                    </p>
                   )}
-                </button>
-              ))}
-            </div>
+
+                  {/* Override admin */}
+                  {savingLevel && <p className="text-xs text-muted-foreground animate-pulse text-center">Enregistrement...</p>}
+                  <details className="mt-2">
+                    <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                      ⚙ Forcer le niveau manuellement (admin)
+                    </summary>
+                    <div className="mt-2 grid grid-cols-1 gap-1.5 pt-2 border-t border-border">
+                      {HYLA_LEVELS.map((lvl) => (
+                        <button
+                          key={lvl.value}
+                          onClick={() => saveLevel(lvl.value)}
+                          disabled={savingLevel || hylaLevel === lvl.value}
+                          className={`flex items-center gap-2 p-2 rounded-lg text-left text-xs transition-all ${
+                            hylaLevel === lvl.value
+                              ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 font-semibold'
+                              : 'hover:bg-muted text-muted-foreground disabled:opacity-40'
+                          }`}
+                        >
+                          <div className={`h-2 w-2 rounded-full bg-gradient-to-br ${lvl.color} flex-shrink-0`} />
+                          {lvl.label}
+                          {hylaLevel === lvl.value && <Check className="h-3 w-3 ml-auto text-violet-600" />}
+                        </button>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+              );
+            })()}
           </div>
         )}
 

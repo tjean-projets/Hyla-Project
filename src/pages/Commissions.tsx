@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, COMMISSION_TYPE_LABELS, getHylaCommission, getGroupPrime, HYLA_LEVELS } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Zap, Trophy, Star, ArrowUp, DollarSign, Users, ChevronDown, ChevronRight, FileText, Download, Check, Clock } from 'lucide-react';
+import { TrendingUp, Zap, Trophy, Star, ArrowUp, DollarSign, Users, ChevronDown, ChevronRight, FileText, Download, Check, Clock, CheckCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -512,15 +512,16 @@ export default function Commissions() {
           </div>
         )}
 
-        {/* ── Commissions en cours (estimées) ── */}
+        {/* ── Commissions attendues (depuis saisies manuelles) ── */}
         {pending.length > 0 && (
           <div className="bg-amber-50/50 dark:bg-amber-950/10 rounded-2xl border border-amber-200 dark:border-amber-800 overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-amber-200 dark:border-amber-800">
               <Clock className="h-4 w-4 text-amber-600" />
-              <h3 className="text-sm font-semibold text-foreground">En cours · estimées</h3>
+              <h3 className="text-sm font-semibold text-foreground">Com attendues</h3>
               <span className="ml-1 inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 text-[10px] font-bold">
                 {pending.length}
               </span>
+              <span className="ml-auto text-[10px] text-amber-600 font-medium">Depuis vos saisies · en attente import TRV</span>
             </div>
             <div className="divide-y divide-amber-200 dark:divide-amber-800">
               {pending.map((p: any) => {
@@ -590,8 +591,13 @@ export default function Commissions() {
           </div>
         )}
 
-        {/* ── Tableau détail ── */}
+        {/* ── Tableau détail — commissions confirmées (import TRV) ── */}
         <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
+            <Check className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="text-xs font-semibold text-foreground">Commissions confirmées</span>
+            <span className="text-[10px] text-emerald-600 font-medium ml-1">Source : Import TRV Hyla</span>
+          </div>
           <table className="w-full text-sm">
             <thead className="bg-muted border-b border-border">
               <tr>
