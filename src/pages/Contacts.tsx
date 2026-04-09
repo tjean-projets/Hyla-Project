@@ -479,8 +479,9 @@ export default function Contacts() {
   });
 
   // Fetch team_members to know which contacts are already in the network
+  // Clé différente de NetworkPage pour éviter les conflits de cache (select partiel vs select *)
   const { data: teamMembers = [] } = useQuery({
-    queryKey: ['team-members', effectiveId],
+    queryKey: ['team-members-contacts', effectiveId],
     queryFn: async () => {
       if (!effectiveId) return [];
       const { data } = await supabase
@@ -523,7 +524,8 @@ export default function Contacts() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-members', effectiveId] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] }); // invalide Contacts + NetworkPage
+      queryClient.invalidateQueries({ queryKey: ['team-members-contacts'] });
       queryClient.invalidateQueries({ queryKey: ['team-count'] });
       queryClient.invalidateQueries({ queryKey: ['stats-members'] });
       toast({ title: 'Membre ajouté à l\'équipe' });
