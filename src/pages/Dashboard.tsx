@@ -101,6 +101,57 @@ export default function Dashboard() {
     enabled: !!effectiveId,
   });
 
+  const { data: myManagerChallenge } = useQuery({
+    queryKey: ['my-manager-challenge', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return null;
+      // Chercher si ce user est un membre direct (1ère ligne) chez un manager
+      // La RLS de team_challenges permet déjà de lire si on est membre direct
+      const { data } = await supabase
+        .from('team_challenges')
+        .select('*, team_members!inner(linked_user_id, sponsor_id)')
+        .eq('status', 'actif')
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!effectiveId,
+    staleTime: 60000,
+  });
+
+  const { data: myChallengeProg } = useQuery({
+    queryKey: ['my-challenge-progress', myManagerChallenge?.id, effectiveId],
+    queryFn: async () => {
+      if (!myManagerChallenge || !effectiveId) return 0;
+      if (myManagerChallenge.objective_type === 'ventes') {
+        const { count } = await supabase.from('deals')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', effectiveId)
+          .eq('status', 'signee')
+          .gte('signed_at', myManagerChallenge.start_date)
+          .lte('signed_at', myManagerChallenge.end_date);
+        return count || 0;
+      } else if (myManagerChallenge.objective_type === 'ca') {
+        const { data: dealsData } = await supabase.from('deals')
+          .select('amount')
+          .eq('user_id', effectiveId)
+          .eq('status', 'signee')
+          .gte('signed_at', myManagerChallenge.start_date)
+          .lte('signed_at', myManagerChallenge.end_date);
+        return (dealsData || []).reduce((s: number, d: any) => s + (d.amount || 0), 0);
+      } else if (myManagerChallenge.objective_type === 'recrues') {
+        const { count } = await supabase.from('team_members')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', effectiveId)
+          .gte('joined_at', myManagerChallenge.start_date)
+          .lte('joined_at', myManagerChallenge.end_date);
+        return count || 0;
+      }
+      return 0;
+    },
+    enabled: !!myManagerChallenge && !!effectiveId,
+  });
+
   const { data: teamMembers = [] } = useQuery({
     queryKey: ['team-members-dash', effectiveId],
     queryFn: async () => {
@@ -568,6 +619,62 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ── Challenge manager ── */}
+        {myManagerChallenge && (
+          <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-4 text-white">
+            <div className="flex items-center gap-2 mb-3">
+              <Trophy className="h-5 w-5" />
+              <span className="text-sm font-bold uppercase tracking-wide">Challenge en cours</span>
+              {(() => {
+                const daysLeft = Math.max(0, Math.ceil((new Date(myManagerChallenge.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+                return <span className="ml-auto text-xs opacity-80">{daysLeft}j restant{daysLeft > 1 ? 's' : ''}</span>;
+              })()}
+            </div>
+            <p className="font-bold text-base mb-0.5">{myManagerChallenge.title}</p>
+            {myManagerChallenge.description && (
+              <p className="text-xs opacity-80 mb-3">{myManagerChallenge.description}</p>
+            )}
+            {/* Progression */}
+            {(() => {
+              const prog = myChallengeProg || 0;
+              const target = myManagerChallenge.target_value;
+              const pct = Math.min(100, Math.round((prog / target) * 100));
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-end justify-between">
+                    <span className="text-3xl font-black">
+                      {myManagerChallenge.objective_type === 'ca'
+                        ? `${prog.toLocaleString('fr-FR')} €`
+                        : prog}
+                    </span>
+                    <span className="text-sm opacity-80">
+                      / {myManagerChallenge.objective_type === 'ca'
+                        ? `${target.toLocaleString('fr-FR')} €`
+                        : target}{' '}
+                      {myManagerChallenge.objective_type === 'ventes' ? 'ventes' : myManagerChallenge.objective_type === 'ca' ? '' : 'recrues'}
+                    </span>
+                  </div>
+                  <div className="h-3 rounded-full bg-white/20 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-white transition-all duration-700"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  {pct >= 100 && (
+                    <p className="text-center text-sm font-bold bg-white/20 rounded-xl py-1.5">
+                      🎉 Objectif atteint !
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+            {/* Récompense */}
+            {myManagerChallenge.reward && (
+              <p className="text-xs opacity-70 mt-3">🏆 {myManagerChallenge.reward}</p>
+            )}
           </div>
         )}
 

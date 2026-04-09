@@ -1438,6 +1438,16 @@ export default function NetworkPage() {
   const [showSubMemberConfirm, setShowSubMemberConfirm] = useState(false);
   const [promoteMember, setPromoteMember] = useState<TeamMember | null>(null);
   const [showMemberList, setShowMemberList] = useState(true);
+  const [showChallengeForm, setShowChallengeForm] = useState(false);
+  const [challengeForm, setChallengeForm] = useState({
+    title: '',
+    description: '',
+    objective_type: 'ventes',
+    target_value: '5',
+    start_date: new Date().toISOString().slice(0, 10),
+    end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    reward: '',
+  });
 
   const toggleTeamExpand = (memberId: string) => {
     setExpandedTeamIds(prev => {
@@ -1515,6 +1525,89 @@ export default function NetworkPage() {
     staleTime: 60000,
   });
 
+  const { data: activeChallenge, refetch: refetchChallenge } = useQuery({
+    queryKey: ['team-challenge', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return null;
+      const { data } = await supabase
+        .from('team_challenges')
+        .select('*')
+        .eq('user_id', effectiveId)
+        .eq('status', 'actif')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!effectiveId,
+  });
+
+  const { data: challengeProgress = [] } = useQuery({
+    queryKey: ['challenge-progress', activeChallenge?.id, effectiveId],
+    queryFn: async () => {
+      if (!activeChallenge || !effectiveId) return [];
+      // Membres directs actifs (1ère ligne seulement)
+      const directMembers = members.filter((m: any) => !m.sponsor_id && m.status === 'actif');
+      if (directMembers.length === 0) return [];
+
+      const results = await Promise.all(directMembers.map(async (m: any) => {
+        let progress = 0;
+        // Si le membre a un compte lié → chercher ses deals
+        if (m.linked_user_id) {
+          if (activeChallenge.objective_type === 'ventes') {
+            const { count } = await supabase.from('deals')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', m.linked_user_id)
+              .eq('status', 'signee')
+              .gte('signed_at', activeChallenge.start_date)
+              .lte('signed_at', activeChallenge.end_date);
+            progress = count || 0;
+          } else if (activeChallenge.objective_type === 'ca') {
+            const { data: deals } = await supabase.from('deals')
+              .select('amount')
+              .eq('user_id', m.linked_user_id)
+              .eq('status', 'signee')
+              .gte('signed_at', activeChallenge.start_date)
+              .lte('signed_at', activeChallenge.end_date);
+            progress = (deals || []).reduce((s: number, d: any) => s + (d.amount || 0), 0);
+          } else if (activeChallenge.objective_type === 'recrues') {
+            const { count } = await supabase.from('team_members')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', m.linked_user_id)
+              .gte('joined_at', activeChallenge.start_date)
+              .lte('joined_at', activeChallenge.end_date);
+            progress = count || 0;
+          }
+        } else {
+          // Pas de compte lié → chercher deals avec sold_by = member.id
+          if (activeChallenge.objective_type === 'ventes') {
+            const { count } = await supabase.from('deals')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', effectiveId)
+              .eq('sold_by', m.id)
+              .eq('status', 'signee')
+              .gte('signed_at', activeChallenge.start_date)
+              .lte('signed_at', activeChallenge.end_date);
+            progress = count || 0;
+          } else if (activeChallenge.objective_type === 'ca') {
+            const { data: deals } = await supabase.from('deals')
+              .select('amount')
+              .eq('user_id', effectiveId)
+              .eq('sold_by', m.id)
+              .eq('status', 'signee')
+              .gte('signed_at', activeChallenge.start_date)
+              .lte('signed_at', activeChallenge.end_date);
+            progress = (deals || []).reduce((s: number, d: any) => s + (d.amount || 0), 0);
+          }
+        }
+        return { member: m, progress };
+      }));
+      return results.sort((a, b) => b.progress - a.progress);
+    },
+    enabled: !!activeChallenge && members.length > 0,
+    staleTime: 30000,
+  });
+
   const filtered = members.filter(m =>
     !search || `${m.first_name} ${m.last_name} ${m.internal_id || ''}`.toLowerCase().includes(search.toLowerCase())
   );
@@ -1533,6 +1626,50 @@ export default function NetworkPage() {
   const handleOpenEdit = (member: TeamMember) => {
     setFichemembre(member);
   };
+
+  const createChallenge = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('Non connecté');
+      // Terminer le challenge actif si existant
+      if (activeChallenge) {
+        await supabase.from('team_challenges').update({ status: 'terminé' }).eq('id', activeChallenge.id);
+      }
+      const { error } = await supabase.from('team_challenges').insert({
+        user_id: user.id,
+        title: challengeForm.title,
+        description: challengeForm.description || null,
+        objective_type: challengeForm.objective_type,
+        target_value: parseInt(challengeForm.target_value) || 5,
+        start_date: challengeForm.start_date,
+        end_date: challengeForm.end_date,
+        reward: challengeForm.reward || null,
+        status: 'actif',
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-challenge'] });
+      queryClient.invalidateQueries({ queryKey: ['challenge-progress'] });
+      setShowChallengeForm(false);
+      setChallengeForm({ title: '', description: '', objective_type: 'ventes', target_value: '5', start_date: new Date().toISOString().slice(0, 10), end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), reward: '' });
+      toast({ title: 'Challenge créé !' });
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  const stopChallenge = useMutation({
+    mutationFn: async () => {
+      if (!activeChallenge) return;
+      const { error } = await supabase.from('team_challenges').update({ status: 'terminé' }).eq('id', activeChallenge.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-challenge'] });
+      queryClient.invalidateQueries({ queryKey: ['challenge-progress'] });
+      toast({ title: 'Challenge terminé' });
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
 
   const { canAccess, isTrial, trialDaysLeft } = usePlan();
 
@@ -1853,6 +1990,195 @@ export default function NetworkPage() {
             )}
           </div>
         )}
+
+        {/* ── Challenge d'équipe ── */}
+        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+            <Trophy className="h-4 w-4 text-amber-500" />
+            <h3 className="text-sm font-semibold text-foreground">Challenge équipe</h3>
+            <span className="text-[10px] text-muted-foreground ml-1">1ère ligne uniquement</span>
+            <button
+              onClick={() => setShowChallengeForm(true)}
+              className="ml-auto text-[11px] font-semibold text-[#3b82f6] hover:text-[#3b82f6]/80 transition-colors flex items-center gap-1"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {activeChallenge ? 'Nouveau' : 'Créer'}
+            </button>
+          </div>
+
+          {!activeChallenge ? (
+            <div className="px-4 py-8 text-center">
+              <Trophy className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Aucun challenge actif</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Créez un challenge pour motiver votre 1ère ligne</p>
+            </div>
+          ) : (
+            <div className="p-4 space-y-4">
+              {/* Header challenge */}
+              <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl p-4 text-white">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-base">{activeChallenge.title}</p>
+                    {activeChallenge.description && (
+                      <p className="text-xs opacity-80 mt-0.5">{activeChallenge.description}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => stopChallenge.mutate()}
+                    disabled={stopChallenge.isPending}
+                    className="text-[10px] bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg transition-colors flex-shrink-0"
+                  >
+                    Terminer
+                  </button>
+                </div>
+                <div className="flex items-center gap-3 mt-3 text-xs opacity-90">
+                  <span>🎯 {activeChallenge.target_value} {activeChallenge.objective_type === 'ventes' ? 'ventes' : activeChallenge.objective_type === 'ca' ? '€ CA' : 'recrues'}</span>
+                  <span>📅 {new Date(activeChallenge.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} → {new Date(activeChallenge.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
+                  {activeChallenge.reward && <span>🏆 {activeChallenge.reward}</span>}
+                </div>
+                {/* Jours restants */}
+                {(() => {
+                  const daysLeft = Math.max(0, Math.ceil((new Date(activeChallenge.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+                  return daysLeft > 0 ? (
+                    <p className="text-[11px] opacity-70 mt-2">{daysLeft} jour{daysLeft > 1 ? 's' : ''} restant{daysLeft > 1 ? 's' : ''}</p>
+                  ) : (
+                    <p className="text-[11px] opacity-70 mt-2 font-bold">Challenge terminé !</p>
+                  );
+                })()}
+              </div>
+
+              {/* Leaderboard */}
+              {challengeProgress.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">Classement</p>
+                  {challengeProgress.map((entry: any, i: number) => {
+                    const pct = Math.min(100, Math.round((entry.progress / activeChallenge.target_value) * 100));
+                    const medals = ['🥇', '🥈', '🥉'];
+                    return (
+                      <div key={entry.member.id} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="flex items-center gap-1.5 font-medium text-foreground">
+                            <span>{medals[i] || `${i + 1}.`}</span>
+                            {entry.member.first_name} {entry.member.last_name}
+                          </span>
+                          <span className={`font-bold ${pct >= 100 ? 'text-emerald-600' : 'text-foreground'}`}>
+                            {activeChallenge.objective_type === 'ca'
+                              ? `${entry.progress.toLocaleString('fr-FR')} €`
+                              : entry.progress}
+                            {' / '}
+                            {activeChallenge.objective_type === 'ca'
+                              ? `${activeChallenge.target_value.toLocaleString('fr-FR')} €`
+                              : activeChallenge.target_value}
+                            {pct >= 100 && ' ✓'}
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ${
+                              pct >= 100 ? 'bg-emerald-500' : i === 0 ? 'bg-amber-500' : 'bg-[#3b82f6]'
+                            }`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {members.filter((m: any) => !m.sponsor_id && m.status === 'actif').length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">Aucun membre direct actif</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Dialog création challenge */}
+        <Dialog open={showChallengeForm} onOpenChange={setShowChallengeForm}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-amber-500" />
+                Nouveau challenge
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={(e) => { e.preventDefault(); createChallenge.mutate(); }} className="space-y-4">
+              <div>
+                <Label>Titre *</Label>
+                <Input
+                  value={challengeForm.title}
+                  onChange={(e) => setChallengeForm({ ...challengeForm, title: e.target.value })}
+                  placeholder="Ex: 5 ventes avant fin du mois !"
+                  className="h-11"
+                  required
+                />
+              </div>
+              <div>
+                <Label>Description (optionnel)</Label>
+                <Textarea
+                  value={challengeForm.description}
+                  onChange={(e) => setChallengeForm({ ...challengeForm, description: e.target.value })}
+                  placeholder="Détails, règles, encouragements..."
+                  rows={2}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Objectif</Label>
+                  <Select value={challengeForm.objective_type} onValueChange={(v) => setChallengeForm({ ...challengeForm, objective_type: v })}>
+                    <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ventes">Nombre de ventes</SelectItem>
+                      <SelectItem value="ca">Chiffre d'affaires (€)</SelectItem>
+                      <SelectItem value="recrues">Recrues</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Cible</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={challengeForm.target_value}
+                    onChange={(e) => setChallengeForm({ ...challengeForm, target_value: e.target.value })}
+                    className="h-11"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Date de début</Label>
+                  <Input type="date" value={challengeForm.start_date} onChange={(e) => setChallengeForm({ ...challengeForm, start_date: e.target.value })} className="h-11" required />
+                </div>
+                <div>
+                  <Label>Date de fin</Label>
+                  <Input type="date" value={challengeForm.end_date} onChange={(e) => setChallengeForm({ ...challengeForm, end_date: e.target.value })} className="h-11" required />
+                </div>
+              </div>
+              <div>
+                <Label>Récompense 🏆</Label>
+                <Input
+                  value={challengeForm.reward}
+                  onChange={(e) => setChallengeForm({ ...challengeForm, reward: e.target.value })}
+                  placeholder="Ex: Bouteille de champagne, bon Amazon 50€..."
+                  className="h-11"
+                />
+              </div>
+              {activeChallenge && (
+                <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 p-3 text-xs text-amber-700">
+                  ⚠ Un challenge actif sera automatiquement terminé à la création du nouveau.
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={createChallenge.isPending || !challengeForm.title}
+                className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-xl disabled:opacity-50 active:scale-[0.98] transition-transform"
+              >
+                {createChallenge.isPending ? 'Création...' : 'Lancer le challenge 🚀'}
+              </button>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* ── Organigramme ── */}
         {effectiveId && <DownlineSection currentUserId={effectiveId} members={members} />}
