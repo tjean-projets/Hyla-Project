@@ -52,22 +52,29 @@ function parseTRVCsv(text: string): Record<string, string>[] {
     const rawDate = (cells[3] || '').trim();
     const dm = rawDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (!dm) continue;
-    const [, , month, year] = dm;
+    const [, day, month, year] = dm;
     const period = `${year}-${month}`;
+    const soldAt = `${year}-${month}-${day}`; // date ISO de la vente
     // Reconstruct vendeur: NOM PRÉNOM → PRÉNOM NOM
     const parts = rawVendeur.split(/\s+/);
     const prenom = parts.slice(1).join(' ');
     const nom = parts[0];
     const vendeurNorm = prenom ? `${prenom} ${nom}` : nom;
-    // Col 15: prix
+    // Col 15: prix de vente (montant client)
     const prixRaw = (cells[15] || '').replace(/["\u201c\u201d]/g, '').trim();
     const montant = prixRaw.replace(',', '.').replace(/[^\d.]/g, '');
     rows.push({
       VENDEUR: vendeurNorm,
       VENDEUR_ORIGINAL: rawVendeur,
-      MONTANT: montant || '0',
+      MONTANT: montant || '0',    // prix de vente (ce que le client paie)
       PÉRIODE: period,
+      DATE: soldAt,               // date ISO de la vente
       CLIENT: (cells[4] || '').trim(),
+      TÉLÉPHONE: (cells[8] || '').replace(/\s/g, '').trim(),
+      EMAIL: (cells[9] || '').trim().toLowerCase(),
+      ADRESSE: (cells[5] || '').trim(),
+      CP: (cells[6] || '').trim(),
+      VILLE: (cells[7] || '').trim(),
       PACK: (cells[13] || '').trim(),
       FINANCEMENT: (cells[16] || '').trim(),
       N_DOSSIER: (cells[18] || '').trim(),
@@ -186,6 +193,7 @@ export default function Imports() {
   const [trvStep, setTrvStep] = useState<'upload' | 'processing' | 'done'>('upload');
   const [trvFileName, setTrvFileName] = useState('');
   const [trvResults, setTrvResults] = useState<MatchRow[]>([]);
+  const [trvImportStats, setTrvImportStats] = useState({ contactsCreated: 0, dealsCreated: 0 });
 
   const { data: imports = [], isLoading: importsLoading } = useQuery({
     queryKey: ['commission-imports', user?.id],
@@ -317,9 +325,14 @@ export default function Imports() {
   // ── TRV matching ──
   const computeTRVMatching = useCallback((rawData: Record<string, string>[]): MatchRow[] => {
     const ownerNames = settings?.owner_matching_names || [];
-    // Taux Hyla : manager 120€ vente directe, 30€ réseau ; conseillère 100€ directe
-    const TAUX_DIRECT_MANAGER = 120;
-    const TAUX_RESEAU_MANAGER = 30;
+
+    // Taux Hyla — commissions par vente de recrue directe (niveau Manager)
+    const TAUX_RECRUE_DIRECTE = 120; // Manager : 120€/vente de recrue
+    // Taux personnels (ventes propres du manager) : échelle glissante mensuelle
+    const tauxPersonnel = (nieme: number) =>
+      nieme <= 1 ? 300 : nieme === 2 ? 350 : nieme === 3 ? 400 : nieme <= 7 ? 450 : 500;
+
+    let ownerSaleCount = 0; // compteur pour l'échelle glissante des ventes perso
 
     return rawData.map((row) => {
       const rowName = row['VENDEUR'] || '';
@@ -340,18 +353,18 @@ export default function Imports() {
         (bestMatch?.confidence || 0) >= 85 ? 'auto' :
         (bestMatch?.confidence || 0) >= 60 ? 'manuel' : 'non_reconnu';
 
-      // On n'importe que les lignes qui concernent ce manager ou son équipe
-      // Les "non_reconnu" appartiennent à d'autres managers → ignorées (montant 0)
-      const commission = isOwner
-        ? TAUX_DIRECT_MANAGER          // vente directe du manager
-        : matchStatus !== 'non_reconnu'
-          ? TAUX_RESEAU_MANAGER        // vente d'un membre → com réseau pour le manager
-          : 0;                          // hors équipe → ignoré
+      let commission = 0;
+      if (isOwner) {
+        ownerSaleCount++;
+        commission = tauxPersonnel(ownerSaleCount); // 300→500€ selon le rang mensuel
+      } else if (matchStatus !== 'non_reconnu') {
+        commission = TAUX_RECRUE_DIRECTE; // 120€ par vente d'une recrue directe
+      }
 
       return {
         raw_data: row,
         row_name: rowName,
-        amount: commission,
+        amount: commission, // montant commission (pas prix de vente)
         period,
         is_owner_row: isOwner,
         matched_member: bestMatch && bestMatch.confidence >= 60 ? bestMatch.member : null,
@@ -502,16 +515,141 @@ export default function Imports() {
 
         await supabase.rpc('consolidate_import_commissions', { p_import_id: importRecord.id });
       }
+
+      // ── Étape 2 : Contacts + Deals ──────────────────────────────────────────
+      // Pré-charger la 1ère étape pipeline du manager
+      const { data: managerStages } = await supabase
+        .from('pipeline_stages').select('id').eq('user_id', user.id)
+        .order('position').limit(1);
+      const managerStageId = managerStages?.[0]?.id || null;
+
+      // Pré-charger les 1ères étapes des membres liés (avec compte CRM)
+      const linkedIds = [...new Set(
+        relevant.filter(r => r.matched_member?.linked_user_id).map(r => r.matched_member.linked_user_id as string)
+      )];
+      const memberStageMap: Record<string, string | null> = {};
+      for (const uid of linkedIds) {
+        const { data: st } = await supabase
+          .from('pipeline_stages').select('id').eq('user_id', uid)
+          .order('position').limit(1);
+        memberStageMap[uid] = st?.[0]?.id || null;
+      }
+
+      let contactsCreated = 0;
+      let dealsCreated = 0;
+
+      for (const row of relevant) {
+        const r = row.raw_data;
+
+        // ── Détermine le propriétaire du contact/deal ──
+        const targetUserId: string = row.is_owner_row
+          ? user.id
+          : (row.matched_member?.linked_user_id || user.id);
+        const soldBy: string | null = (!row.is_owner_row && !row.matched_member?.linked_user_id)
+          ? (row.matched_member?.id || null)
+          : null;
+        const stageId = targetUserId === user.id
+          ? managerStageId
+          : (memberStageMap[targetUserId] || null);
+
+        // ── Parse client (format NOM PRÉNOM → PRÉNOM NOM) ──
+        const clientRaw = (r['CLIENT'] || '').trim();
+        if (!clientRaw) continue;
+        const cParts = clientRaw.split(/\s+/);
+        const clientLastName = cParts[0] || '';
+        const clientFirstName = cParts.slice(1).join(' ') || clientLastName;
+        const finalFirstName = cParts.length > 1 ? clientFirstName : clientLastName;
+        const finalLastName = cParts.length > 1 ? clientLastName : '';
+
+        const clientPhone = r['TÉLÉPHONE'] || null;
+        const clientEmail = r['EMAIL'] || null;
+        const clientAddress = [r['ADRESSE'], r['CP'], r['VILLE']].filter(Boolean).join(', ') || null;
+
+        // ── Trouve ou crée le contact ──
+        let contactId: string | null = null;
+        let found = false;
+
+        if (clientEmail) {
+          const { data: c } = await supabase.from('contacts').select('id, status')
+            .eq('user_id', targetUserId).ilike('email', clientEmail).maybeSingle();
+          if (c) { contactId = c.id; found = true;
+            if (c.status === 'prospect') await supabase.from('contacts').update({ status: 'cliente' }).eq('id', c.id);
+          }
+        }
+        if (!contactId && clientPhone) {
+          const { data: c } = await supabase.from('contacts').select('id, status')
+            .eq('user_id', targetUserId).eq('phone', clientPhone).maybeSingle();
+          if (c) { contactId = c.id; found = true;
+            if (c.status === 'prospect') await supabase.from('contacts').update({ status: 'cliente' }).eq('id', c.id);
+          }
+        }
+        if (!contactId) {
+          const { data: c } = await supabase.from('contacts').insert({
+            user_id: targetUserId,
+            first_name: finalFirstName,
+            last_name: finalLastName,
+            phone: clientPhone,
+            email: clientEmail,
+            address: clientAddress,
+            status: 'cliente' as any,
+            source: 'Import TRV',
+            pipeline_stage_id: stageId,
+          }).select('id').single();
+          if (c) { contactId = c.id; if (!found) contactsCreated++; }
+        }
+
+        if (!contactId) continue;
+
+        // ── Parse financement ──
+        const fin = r['FINANCEMENT'] || '';
+        const isMensualites = /alma|sofinco|floa|cofidis/i.test(fin);
+        const paymentType = isMensualites ? 'mensualites' : 'comptant';
+        const monthMatch = fin.match(/(\d{2,})\s*[xXmM]/);
+        const paymentMonths = isMensualites && monthMatch ? parseInt(monthMatch[1]) : null;
+
+        // ── Parse montant vente ──
+        const saleAmount = parseFloat((r['MONTANT'] || '0').replace(',', '.')) || 0;
+        const soldAt = r['DATE'] || null;
+        const pack = r['PACK'] || 'Hyla';
+        const nDossier = r['N_DOSSIER'] || '';
+
+        // ── Anti-doublon : même contact + même montant + même date ──
+        const { data: existing } = await supabase.from('deals').select('id')
+          .eq('user_id', targetUserId).eq('contact_id', contactId)
+          .eq('amount', saleAmount).eq('status', 'signee')
+          .maybeSingle();
+        if (existing) continue;
+
+        // ── Crée le deal ──
+        const { error: dealErr } = await supabase.from('deals').insert({
+          user_id: targetUserId,
+          contact_id: contactId,
+          amount: saleAmount,
+          status: 'signee' as any,
+          product: pack,
+          sold_at: soldAt,
+          payment_type: paymentType as any,
+          payment_months: paymentMonths,
+          sold_by: soldBy,
+          notes: [nDossier ? `N° dossier : ${nDossier}` : '', fin ? `Financement : ${fin}` : '']
+            .filter(Boolean).join(' | ') || null,
+        });
+        if (!dealErr) dealsCreated++;
+      }
+
+      return { contactsCreated, dealsCreated };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
       queryClient.invalidateQueries({ queryKey: ['commissions'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['stats-commissions'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      setTrvImportStats(data || { contactsCreated: 0, dealsCreated: 0 });
       setTrvStep('done');
-      toast({ title: 'Import TRV traité avec succès' });
     },
-    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+    onError: (e: Error) => toast({ title: 'Erreur import TRV', description: e.message, variant: 'destructive' }),
   });
 
   const autoMatched = matchResults.filter(r => r.match_status === 'auto').length;
@@ -864,7 +1002,7 @@ export default function Imports() {
                   <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
                   <p className="text-lg font-semibold text-foreground">Import terminé !</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Total commissions : <span className="font-bold text-foreground">{trvTotalCom.toLocaleString('fr-FR')} €</span>
+                    Commissions générées : <span className="font-bold text-foreground">{trvTotalCom.toLocaleString('fr-FR')} €</span>
                   </p>
                 </div>
 
@@ -872,18 +1010,32 @@ export default function Imports() {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 text-center">
                     <p className="text-lg font-bold text-blue-700 dark:text-blue-400">{trvDirectes}</p>
-                    <p className="text-xs text-blue-600 dark:text-blue-500">Ventes directes</p>
-                    <p className="text-[10px] text-blue-400 mt-0.5">120 € / vente</p>
+                    <p className="text-xs text-blue-600 dark:text-blue-500">Ventes perso</p>
+                    <p className="text-[10px] text-blue-400 mt-0.5">300→500 €</p>
                   </div>
                   <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-3 text-center">
                     <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{trvReseau}</p>
                     <p className="text-xs text-emerald-600 dark:text-emerald-500">Ventes équipe</p>
-                    <p className="text-[10px] text-emerald-400 mt-0.5">30 € / vente</p>
+                    <p className="text-[10px] text-emerald-400 mt-0.5">120 € / vente</p>
                   </div>
                   <div className="bg-muted rounded-lg p-3 text-center">
                     <p className="text-lg font-bold text-muted-foreground">{trvIgnorees}</p>
-                    <p className="text-xs text-muted-foreground">Hors équipe</p>
+                    <p className="text-xs text-muted-foreground">Ignorées</p>
                     <p className="text-[10px] text-muted-foreground/60 mt-0.5">autres managers</p>
+                  </div>
+                </div>
+
+                {/* Stats contacts + deals */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-violet-50 dark:bg-violet-950/30 rounded-lg p-3 text-center">
+                    <p className="text-lg font-bold text-violet-700 dark:text-violet-400">{trvImportStats.contactsCreated}</p>
+                    <p className="text-xs text-violet-600 dark:text-violet-500">Contacts créés</p>
+                    <p className="text-[10px] text-violet-400 mt-0.5">statut Cliente</p>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 text-center">
+                    <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{trvImportStats.dealsCreated}</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-500">Ventes créées</p>
+                    <p className="text-[10px] text-amber-400 mt-0.5">signées + financement</p>
                   </div>
                 </div>
 
