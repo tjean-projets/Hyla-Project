@@ -193,7 +193,7 @@ export default function Imports() {
   const [trvStep, setTrvStep] = useState<'upload' | 'processing' | 'done'>('upload');
   const [trvFileName, setTrvFileName] = useState('');
   const [trvResults, setTrvResults] = useState<MatchRow[]>([]);
-  const [trvImportStats, setTrvImportStats] = useState({ contactsCreated: 0, dealsCreated: 0 });
+  const [trvImportStats, setTrvImportStats] = useState<{ contactsCreated: number; dealsCreated: number; transitions: string[] }>({ contactsCreated: 0, dealsCreated: 0, transitions: [] });
 
   const { data: imports = [], isLoading: importsLoading } = useQuery({
     queryKey: ['commission-imports', user?.id],
@@ -637,7 +637,40 @@ export default function Imports() {
         if (!dealErr) dealsCreated++;
       }
 
-      return { contactsCreated, dealsCreated };
+      // ── Étape 3 : Détection transitions Cliente → Vendeuse ───────────────
+      // Tous les noms VENDEUR du TRV (y compris hors équipe) comparés aux contacts
+      const transitions: string[] = [];
+
+      const uniqueVendeurs: Map<string, string> = new Map();
+      for (const r of results) {
+        if (!r.row_name) continue;
+        const key = normalizeStr(r.row_name);
+        if (!uniqueVendeurs.has(key)) uniqueVendeurs.set(key, r.raw_data['VENDEUR_ORIGINAL'] || r.row_name);
+      }
+
+      // Charger les contacts prospect/cliente du manager (candidats à la transition)
+      const { data: candidateContacts } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, status')
+        .eq('user_id', user.id)
+        .in('status', ['prospect', 'cliente']);
+
+      if (candidateContacts && candidateContacts.length > 0) {
+        for (const [normV] of uniqueVendeurs) {
+          for (const contact of candidateContacts) {
+            const cNorm = normalizeStr(`${contact.first_name} ${contact.last_name}`);
+            if (matchScore(normV, cNorm) >= 85) {
+              await supabase.from('contacts')
+                .update({ status: 'recrue' })
+                .eq('id', contact.id);
+              transitions.push(`${contact.first_name} ${contact.last_name}`);
+              break;
+            }
+          }
+        }
+      }
+
+      return { contactsCreated, dealsCreated, transitions };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
@@ -646,7 +679,7 @@ export default function Imports() {
       queryClient.invalidateQueries({ queryKey: ['stats-commissions'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
-      setTrvImportStats(data || { contactsCreated: 0, dealsCreated: 0 });
+      setTrvImportStats(data || { contactsCreated: 0, dealsCreated: 0, transitions: [] });
       setTrvStep('done');
     },
     onError: (e: Error) => toast({ title: 'Erreur import TRV', description: e.message, variant: 'destructive' }),
@@ -663,7 +696,7 @@ export default function Imports() {
   const trvAutoMatched = trvResults.filter(r => r.match_status === 'auto').length;
   const trvManualNeeded = trvResults.filter(r => r.match_status === 'manuel').length;
   const trvUnmatched = trvResults.filter(r => r.match_status === 'non_reconnu').length;
-  const trvTotalCom = trvDirectes * 120 + trvReseau * 30;
+  const trvTotalCom = trvResults.filter(r => r.match_status !== 'non_reconnu').reduce((s, r) => s + r.amount, 0);
   const trvDetectedPeriods = [...new Set(trvResults.map(r => r.period).filter(Boolean))].sort();
 
   // Unique periods detected in multi-period mode
@@ -1038,6 +1071,20 @@ export default function Imports() {
                     <p className="text-[10px] text-amber-400 mt-0.5">signées + financement</p>
                   </div>
                 </div>
+
+                {/* Transitions cliente → vendeuse */}
+                {trvImportStats.transitions.length > 0 && (
+                  <div className="rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800 p-3">
+                    <p className="text-xs font-semibold text-violet-700 dark:text-violet-300 mb-2">
+                      🎯 {trvImportStats.transitions.length} cliente{trvImportStats.transitions.length > 1 ? 's' : ''} devenue{trvImportStats.transitions.length > 1 ? 's' : ''} vendeuse{trvImportStats.transitions.length > 1 ? 's' : ''} !
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {trvImportStats.transitions.map((name, i) => (
+                        <span key={i} className="text-[11px] bg-violet-100 dark:bg-violet-900/50 text-violet-800 dark:text-violet-200 px-2 py-0.5 rounded-full font-medium">{name}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Matching quality */}
                 {(trvManualNeeded > 0 || trvUnmatched > 0) && (
