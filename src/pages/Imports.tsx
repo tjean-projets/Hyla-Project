@@ -15,6 +15,67 @@ import { useToast } from '@/hooks/use-toast';
 import { SkeletonTable } from '@/components/ui/skeleton-card';
 import * as XLSX from 'xlsx';
 
+// ── CSV line parser (handles quoted fields with commas inside) ──
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"' || ch === '\u201c' || ch === '\u201d') {
+      inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+// ── TRV Hyla CSV parser ──
+function parseTRVCsv(text: string): Record<string, string>[] {
+  const lines = text.split(/\r?\n/);
+  const rows: Record<string, string>[] = [];
+  for (const line of lines) {
+    const cells = parseCSVLine(line);
+    if (cells.length < 4) continue;
+    // Col 1: row number
+    const rawNum = (cells[1] || '').replace(/[´`'\u2019\u0060]/g, '').trim();
+    if (!/^\d+$/.test(rawNum)) continue;
+    // Col 2: VENDEUR — strip * prefix
+    const rawVendeur = (cells[2] || '').replace(/^\*+\s*/, '').trim();
+    if (!rawVendeur || rawVendeur.length < 3) continue;
+    // Col 3: date DD/MM/YYYY
+    const rawDate = (cells[3] || '').trim();
+    const dm = rawDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!dm) continue;
+    const [, , month, year] = dm;
+    const period = `${year}-${month}`;
+    // Reconstruct vendeur: NOM PRÉNOM → PRÉNOM NOM
+    const parts = rawVendeur.split(/\s+/);
+    const prenom = parts.slice(1).join(' ');
+    const nom = parts[0];
+    const vendeurNorm = prenom ? `${prenom} ${nom}` : nom;
+    // Col 15: prix
+    const prixRaw = (cells[15] || '').replace(/["\u201c\u201d]/g, '').trim();
+    const montant = prixRaw.replace(',', '.').replace(/[^\d.]/g, '');
+    rows.push({
+      VENDEUR: vendeurNorm,
+      VENDEUR_ORIGINAL: rawVendeur,
+      MONTANT: montant || '0',
+      PÉRIODE: period,
+      CLIENT: (cells[4] || '').trim(),
+      PACK: (cells[13] || '').trim(),
+      FINANCEMENT: (cells[16] || '').trim(),
+      N_DOSSIER: (cells[18] || '').trim(),
+    });
+  }
+  return rows;
+}
+
 // ── Fuzzy name matching ──
 function normalizeStr(s: string): string {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -119,6 +180,12 @@ export default function Imports() {
     fileName: '',
   });
   const [matchResults, setMatchResults] = useState<MatchRow[]>([]);
+
+  // ── TRV import state ──
+  const [showTRVImport, setShowTRVImport] = useState(false);
+  const [trvStep, setTrvStep] = useState<'upload' | 'matching' | 'done'>('upload');
+  const [trvFileName, setTrvFileName] = useState('');
+  const [trvResults, setTrvResults] = useState<MatchRow[]>([]);
 
   const { data: imports = [], isLoading: importsLoading } = useQuery({
     queryKey: ['commission-imports', user?.id],
@@ -247,6 +314,62 @@ export default function Imports() {
     setFlow(prev => ({ ...prev, step: 'matching' }));
   }, [flow, teamMembers, settings]);
 
+  // ── TRV matching ──
+  const runTRVMatching = useCallback((rawData: Record<string, string>[]) => {
+    const ownerNames = settings?.owner_matching_names || [];
+    const results: MatchRow[] = rawData.map((row) => {
+      const rowName = row['VENDEUR'] || '';
+      const amount = parseFloat(row['MONTANT'] || '0') || 0;
+      const period = row['PÉRIODE'] || '';
+      const isOwner = ownerNames.some((n: string) => matchScore(n, rowName) >= 85);
+      let bestMatch: { member: any; confidence: number } | null = null;
+      for (const member of teamMembers) {
+        const fullName = `${member.first_name} ${member.last_name}`;
+        const names = [fullName, ...(member.matching_names || [])];
+        for (const name of names) {
+          const score = matchScore(name, rowName);
+          if (score > (bestMatch?.confidence || 0)) bestMatch = { member, confidence: score };
+        }
+      }
+      return {
+        raw_data: row,
+        row_name: rowName,
+        amount,
+        period,
+        is_owner_row: isOwner,
+        matched_member: bestMatch && bestMatch.confidence >= 60 ? bestMatch.member : null,
+        match_confidence: bestMatch?.confidence || 0,
+        match_status: isOwner ? 'auto' :
+          (bestMatch?.confidence || 0) >= 85 ? 'auto' :
+          (bestMatch?.confidence || 0) >= 60 ? 'manuel' : 'non_reconnu',
+      };
+    });
+    setTrvResults(results);
+    setTrvStep('matching');
+  }, [teamMembers, settings]);
+
+  // ── TRV file upload handler ──
+  const handleTRVUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const text = evt.target?.result as string;
+        const rows = parseTRVCsv(text);
+        if (rows.length === 0) {
+          toast({ title: 'Aucune ligne valide trouvée dans ce fichier', variant: 'destructive' });
+          return;
+        }
+        setTrvFileName(file.name);
+        runTRVMatching(rows);
+      } catch {
+        toast({ title: 'Erreur de lecture du fichier TRV', variant: 'destructive' });
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  }, [runTRVMatching, toast]);
+
   // ── Save import — groups by period, creates one import record per unique period ──
   const saveImport = useMutation({
     mutationFn: async () => {
@@ -307,9 +430,74 @@ export default function Imports() {
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
 
+  // ── Save TRV import ──
+  const saveTRVImport = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('Non connecté');
+
+      const byPeriod = trvResults.reduce((acc, r) => {
+        const p = r.period;
+        if (!acc[p]) acc[p] = [];
+        acc[p].push(r);
+        return acc;
+      }, {} as Record<string, MatchRow[]>);
+
+      const periods = Object.keys(byPeriod).sort();
+
+      for (const p of periods) {
+        const rows = byPeriod[p];
+
+        const { data: importRecord, error: importError } = await supabase
+          .from('commission_imports')
+          .insert({
+            user_id: user.id,
+            file_name: periods.length > 1 ? `${trvFileName} — ${p}` : trvFileName,
+            period: p,
+            column_mapping: { source: 'TRV_HYLA' } as any,
+            status: 'en_cours',
+          })
+          .select()
+          .single();
+
+        if (importError || !importRecord) throw importError || new Error(`Échec création import pour ${p}`);
+
+        const dbRows = rows.map(r => ({
+          import_id: importRecord.id,
+          raw_data: r.raw_data as any,
+          matched_member_id: r.matched_member?.id || null,
+          is_owner_row: r.is_owner_row,
+          match_confidence: r.match_confidence,
+          match_status: r.match_status as any,
+          amount: r.amount,
+          details: r.row_name,
+        }));
+
+        const { error: rowsError } = await supabase.from('commission_import_rows').insert(dbRows);
+        if (rowsError) throw rowsError;
+
+        await supabase.rpc('consolidate_import_commissions', { p_import_id: importRecord.id });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
+      queryClient.invalidateQueries({ queryKey: ['commissions'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['stats-commissions'] });
+      setTrvStep('done');
+      toast({ title: 'Import TRV traité avec succès' });
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
   const autoMatched = matchResults.filter(r => r.match_status === 'auto').length;
   const manualNeeded = matchResults.filter(r => r.match_status === 'manuel').length;
   const unmatched = matchResults.filter(r => r.match_status === 'non_reconnu').length;
+
+  // TRV stats
+  const trvAutoMatched = trvResults.filter(r => r.match_status === 'auto').length;
+  const trvManualNeeded = trvResults.filter(r => r.match_status === 'manuel').length;
+  const trvUnmatched = trvResults.filter(r => r.match_status === 'non_reconnu').length;
+  const trvDetectedPeriods = [...new Set(trvResults.map(r => r.period).filter(Boolean))].sort();
 
   // Unique periods detected in multi-period mode
   const detectedPeriods = flow.isMultiPeriod
@@ -341,10 +529,19 @@ export default function Imports() {
     <AppLayout
       title="Imports"
       actions={
-        <Button onClick={() => { resetFlow(); setShowImport(true); }} className="bg-[#3b82f6] hover:bg-[#3b82f6]/90">
-          <Upload className="h-4 w-4 mr-2" />
-          Nouvel import
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => { setTrvStep('upload'); setTrvResults([]); setTrvFileName(''); setShowTRVImport(true); }}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            TRV Hyla
+          </Button>
+          <Button onClick={() => { resetFlow(); setShowImport(true); }} className="bg-[#3b82f6] hover:bg-[#3b82f6]/90">
+            <Upload className="h-4 w-4 mr-2" />
+            Nouvel import
+          </Button>
+        </div>
       }
     >
       <div className="space-y-6">
@@ -592,6 +789,135 @@ export default function Imports() {
                 )}
                 <p className="text-sm text-muted-foreground mt-1">Les commissions ont été consolidées dans votre tableau de bord.</p>
                 <Button onClick={() => setShowImport(false)} className="mt-4">Fermer</Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* TRV Import dialog */}
+        <Dialog open={showTRVImport} onOpenChange={setShowTRVImport}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {trvStep === 'upload' && 'Importer un TRV Hyla'}
+                {trvStep === 'matching' && `Matching TRV — ${trvFileName}`}
+                {trvStep === 'done' && 'Import TRV terminé'}
+              </DialogTitle>
+            </DialogHeader>
+
+            {/* TRV Step 1: Upload */}
+            {trvStep === 'upload' && (
+              <div className="space-y-4">
+                <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-700 dark:text-blue-300">
+                  <strong>Format Hyla TRV</strong> — la colonne VENDEUR (NOM PRÉNOM) est automatiquement reconnue et inversée pour le matching.
+                </div>
+                <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
+                  <FileSpreadsheet className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground mb-3">Sélectionnez un fichier TRV Hyla (.csv)</p>
+                  <Input type="file" accept=".csv" onChange={handleTRVUpload} className="max-w-xs mx-auto" />
+                </div>
+              </div>
+            )}
+
+            {/* TRV Step 2: Matching */}
+            {trvStep === 'matching' && (
+              <div className="space-y-4">
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-3 text-center">
+                    <CheckCircle className="h-5 w-5 text-green-600 mx-auto mb-1" />
+                    <p className="text-lg font-bold text-green-700 dark:text-green-400">{trvAutoMatched}</p>
+                    <p className="text-xs text-green-600 dark:text-green-500">Auto-matchées</p>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 text-center">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 mx-auto mb-1" />
+                    <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{trvManualNeeded}</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-500">À confirmer</p>
+                  </div>
+                  <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-3 text-center">
+                    <XCircle className="h-5 w-5 text-red-500 mx-auto mb-1" />
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{trvUnmatched}</p>
+                    <p className="text-xs text-red-500 dark:text-red-400">Non reconnues</p>
+                  </div>
+                </div>
+
+                {/* Detected periods */}
+                {trvDetectedPeriods.length > 0 && (
+                  <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3">
+                    <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">
+                      {trvDetectedPeriods.length} période{trvDetectedPeriods.length > 1 ? 's' : ''} détectée{trvDetectedPeriods.length > 1 ? 's' : ''}
+                      {trvDetectedPeriods.length > 1 && ' — un import sera créé par mois'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {trvDetectedPeriods.map(p => (
+                        <span key={p} className="text-[11px] bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full font-medium">
+                          {p} ({trvResults.filter(r => r.period === p).length} lignes)
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Rows list */}
+                <div className="max-h-60 overflow-y-auto space-y-1.5">
+                  {trvResults.map((r, i) => (
+                    <div key={i} className={`flex items-center justify-between p-2.5 rounded-lg text-sm gap-2 ${
+                      r.match_status === 'auto' ? 'bg-green-50 dark:bg-green-950/20' :
+                      r.match_status === 'manuel' ? 'bg-amber-50 dark:bg-amber-950/20' :
+                      'bg-red-50 dark:bg-red-950/20'
+                    }`}>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-foreground">{r.raw_data['VENDEUR_ORIGINAL'] || r.row_name}</span>
+                        {r.is_owner_row && <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded">Moi</span>}
+                        {r.matched_member && !r.is_owner_row && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            → {r.matched_member.first_name} {r.matched_member.last_name} ({r.match_confidence}%)
+                          </span>
+                        )}
+                        {r.raw_data['CLIENT'] && (
+                          <span className="ml-2 text-xs text-muted-foreground">· {r.raw_data['CLIENT']}</span>
+                        )}
+                        {r.raw_data['PACK'] && (
+                          <span className="ml-2 text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{r.raw_data['PACK']}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-[10px] text-[#3b82f6] bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 rounded font-medium">
+                          {r.period}
+                        </span>
+                        <span className="font-semibold text-foreground">{r.amount.toLocaleString('fr-FR')} €</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  onClick={() => saveTRVImport.mutate()}
+                  disabled={saveTRVImport.isPending}
+                  className="w-full bg-[#3b82f6] hover:bg-[#3b82f6]/90"
+                >
+                  {saveTRVImport.isPending
+                    ? 'Traitement...'
+                    : trvDetectedPeriods.length > 1
+                      ? `Valider — ${trvDetectedPeriods.length} imports (${trvResults.length} lignes)`
+                      : 'Valider et consolider'
+                  }
+                </Button>
+              </div>
+            )}
+
+            {/* TRV Step 3: Done */}
+            {trvStep === 'done' && (
+              <div className="text-center py-6">
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                <p className="text-lg font-semibold text-foreground">Import TRV terminé</p>
+                {trvDetectedPeriods.length > 1 && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {trvDetectedPeriods.length} périodes importées — {trvResults.length} lignes consolidées.
+                  </p>
+                )}
+                <p className="text-sm text-muted-foreground mt-1">Les commissions ont été consolidées dans votre tableau de bord.</p>
+                <Button onClick={() => setShowTRVImport(false)} className="mt-4">Fermer</Button>
               </div>
             )}
           </DialogContent>
