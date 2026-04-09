@@ -601,7 +601,11 @@ function ObjectifsPanel({ member, userId }: { member: TeamMember; userId: string
     window.open(`mailto:${email}?subject=${subject}&body=${body}`);
   };
 
-  if (isLoading) return <div className="py-8 text-center text-muted-foreground text-sm">Chargement...</div>;
+  if (isLoading) return (
+    <div className="py-10 flex justify-center">
+      <div className="h-6 w-6 rounded-full border-2 border-[#3b82f6]/30 border-t-[#3b82f6] animate-spin" />
+    </div>
+  );
 
   if (!objective) {
     return (
@@ -801,7 +805,9 @@ function ManagerStatsPanel({ userId, memberName, open, onOpenChange }: { userId:
           </DialogTitle>
         </DialogHeader>
         {isLoading ? (
-          <div className="py-8 text-center text-muted-foreground text-sm">Chargement...</div>
+          <div className="py-10 flex justify-center">
+            <div className="h-6 w-6 rounded-full border-2 border-[#3b82f6]/30 border-t-[#3b82f6] animate-spin" />
+          </div>
         ) : stats ? (
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-blue-50 rounded-xl p-4 text-center">
@@ -1243,8 +1249,8 @@ function SubTeamTree({
 
   if (isLoading) {
     return (
-      <div className="pl-4 py-2">
-        <p className="text-[11px] text-muted-foreground animate-pulse">Chargement de l'équipe...</p>
+      <div className="pl-4 py-3 flex items-center gap-2">
+        <div className="h-3.5 w-3.5 rounded-full border-2 border-[#3b82f6]/30 border-t-[#3b82f6] animate-spin" />
       </div>
     );
   }
@@ -1802,7 +1808,11 @@ export default function NetworkPage() {
               <div className="text-center py-16">
                 <Users className="h-10 w-10 text-gray-300 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">
-                  {isLoading ? 'Chargement...' : 'Aucun membre dans l\'équipe'}
+                  {isLoading ? (
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-4 w-4 rounded-full border-2 border-[#3b82f6]/30 border-t-[#3b82f6] animate-spin inline-block" />
+                    </span>
+                  ) : 'Aucun membre dans l\'équipe'}
                 </p>
               </div>
             )}

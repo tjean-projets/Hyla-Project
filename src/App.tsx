@@ -44,32 +44,27 @@ const PartnerWallet = lazy(() => import("./pages/partner/Wallet"));
 
 const queryClient = new QueryClient();
 
-function PageLoader() {
+function AppSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-3">
-        <img src="/Logo%20Hyla%20Assistant.jpeg" alt="Hyla" className="h-10 w-10 rounded-xl object-cover animate-pulse" />
-        <div className="text-sm text-muted-foreground animate-pulse">Chargement...</div>
+      <div className="flex flex-col items-center gap-4">
+        <div className="relative">
+          <img src="/Logo%20Hyla%20Assistant.jpeg" alt="Hyla" className="h-12 w-12 rounded-2xl object-cover shadow-lg" />
+          <div className="absolute -inset-1.5 rounded-[18px] border-2 border-[#3b82f6]/30 border-t-[#3b82f6] animate-spin" />
+        </div>
       </div>
     </div>
   );
 }
 
+function PageLoader() {
+  return <AppSpinner />;
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-[#1e3a5f] to-[#2c5282] flex items-center justify-center">
-            <span className="text-white font-bold text-sm">H</span>
-          </div>
-          <div className="animate-pulse text-gray-400 text-sm">Chargement...</div>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <AppSpinner />;
 
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
@@ -78,13 +73,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { user, isLoading } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-pulse text-gray-400 text-sm">Chargement...</div>
-      </div>
-    );
-  }
+  if (isLoading) return <AppSpinner />;
 
   return (
     <Suspense fallback={<PageLoader />}>
