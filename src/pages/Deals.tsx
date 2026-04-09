@@ -40,6 +40,9 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
   const [form, setForm] = useState({
     contact_id: '', amount: '', product: '', deal_type: '', status: 'en_cours' as Deal['status'], notes: '', sold_by: '',
     loss_reason: '', loss_reason_category: '',
+    payment_type: 'comptant' as 'comptant' | 'mensualites',
+    payment_months: '',
+    bank_fees_offered: false,
   });
 
   useEffect(() => {
@@ -54,6 +57,9 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
         sold_by: initialData.sold_by || '',
         loss_reason: initialData.loss_reason || '',
         loss_reason_category: initialData.loss_reason_category || '',
+        payment_type: initialData.payment_type || 'comptant',
+        payment_months: initialData.payment_months?.toString() || '',
+        bank_fees_offered: initialData.bank_fees_offered || false,
       });
     }
   }, [initialData]);
@@ -76,6 +82,12 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
       const wasSignedBefore = isEdit && initialData.signed_at;
       let dealId = isEdit ? initialData.id : null;
 
+      const paymentFields = {
+        payment_type: form.payment_type,
+        payment_months: form.payment_type === 'mensualites' ? (parseInt(form.payment_months) || null) : null,
+        bank_fees_offered: form.payment_type === 'mensualites' ? form.bank_fees_offered : false,
+      };
+
       if (isEdit) {
         const updateData: any = {
           contact_id: form.contact_id || null,
@@ -87,6 +99,7 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           sold_by: form.sold_by || null,
           loss_reason: form.status === 'annulee' ? (form.loss_reason || null) : null,
           loss_reason_category: form.status === 'annulee' ? (form.loss_reason_category || null) : null,
+          ...paymentFields,
         };
         if (form.status === 'signee' && !initialData.signed_at) {
           updateData.signed_at = new Date().toISOString();
@@ -106,6 +119,7 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           signed_at: form.status === 'signee' ? new Date().toISOString() : null,
           loss_reason: form.status === 'annulee' ? (form.loss_reason || null) : null,
           loss_reason_category: form.status === 'annulee' ? (form.loss_reason_category || null) : null,
+          ...paymentFields,
         }).select('id').single();
         if (error) throw error;
         dealId = newDeal?.id;
@@ -226,6 +240,82 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           <p className="text-[10px] text-muted-foreground mt-1">Permet d'estimer les commissions réseau avant l'import</p>
         </div>
       )}
+      {/* ── Mode de paiement ── */}
+      <div className="space-y-2.5">
+        <Label>Mode de paiement</Label>
+        <div className="flex gap-2">
+          {(['comptant', 'mensualites'] as const).map(type => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setForm({ ...form, payment_type: type, payment_months: '', bank_fees_offered: false })}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
+                form.payment_type === type
+                  ? 'bg-[#3b82f6] text-white border-[#3b82f6]'
+                  : 'bg-card text-muted-foreground border-border hover:border-blue-300'
+              }`}
+            >
+              {type === 'comptant' ? '💳 Comptant' : '📅 Mensualités'}
+            </button>
+          ))}
+        </div>
+        {form.payment_type === 'mensualites' && (
+          <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-800 rounded-xl p-3 space-y-3">
+            <div>
+              <Label className="text-xs text-blue-800 dark:text-blue-300">Durée (mois) *</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <Input
+                  type="number"
+                  min={10}
+                  max={72}
+                  placeholder="ex : 36"
+                  value={form.payment_months}
+                  onChange={e => setForm({ ...form, payment_months: e.target.value })}
+                  className="h-10 w-28 text-sm"
+                />
+                <div className="flex gap-1 flex-wrap">
+                  {[12, 24, 36, 48, 60, 72].map(m => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setForm({ ...form, payment_months: m.toString() })}
+                      className={`text-[11px] px-2 py-1 rounded-lg font-medium transition-colors ${
+                        form.payment_months === m.toString()
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white dark:bg-blue-900 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 hover:bg-blue-100'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">Des frais bancaires s'appliquent sur les paiements en plusieurs fois</p>
+            </div>
+            <label className="flex items-center gap-2.5 cursor-pointer group">
+              <div
+                onClick={() => setForm({ ...form, bank_fees_offered: !form.bank_fees_offered })}
+                className={`h-5 w-5 rounded flex items-center justify-center border-2 transition-colors flex-shrink-0 ${
+                  form.bank_fees_offered
+                    ? 'bg-emerald-500 border-emerald-500'
+                    : 'border-blue-300 bg-white dark:bg-blue-950 group-hover:border-blue-500'
+                }`}
+              >
+                {form.bank_fees_offered && <span className="text-white text-[10px] font-bold">✓</span>}
+              </div>
+              <span className="text-xs text-blue-800 dark:text-blue-200 font-medium">
+                Frais bancaires offerts par la conseillère
+              </span>
+            </label>
+            {form.bank_fees_offered && (
+              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1.5 rounded-lg">
+                ✓ La conseillère prend en charge les frais bancaires — le client ne paie que le prix du produit
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
       <div>
         <Label>Notes</Label>
         <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
@@ -548,7 +638,17 @@ export default function Deals() {
                       {deal.contacts ? `${deal.contacts.first_name} ${deal.contacts.last_name}` : '—'}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{deal.product || '—'}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-foreground">{deal.amount.toLocaleString('fr-FR')} €</td>
+                    <td className="px-4 py-3 text-right">
+                      <span className="font-semibold text-foreground">{deal.amount.toLocaleString('fr-FR')} €</span>
+                      {(deal as any).payment_type === 'mensualites' && (
+                        <div className="flex items-center justify-end gap-1 mt-0.5">
+                          <span className="text-[10px] text-blue-500">
+                            {(deal as any).payment_months ? `${(deal as any).payment_months}×` : 'Mens.'}
+                          </span>
+                          {(deal as any).bank_fees_offered && <span className="text-[10px] text-emerald-500" title="Frais offerts">🎁</span>}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${DEAL_STATUS_COLORS[deal.status as keyof typeof DEAL_STATUS_COLORS]}`}>
                         {DEAL_STATUS_LABELS[deal.status as keyof typeof DEAL_STATUS_LABELS]}
