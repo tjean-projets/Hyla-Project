@@ -496,11 +496,6 @@ export default function Contacts() {
     mutationFn: async (contact: Contact) => {
       if (!user) throw new Error('Non connecté');
       const ownerId = effectiveId || user.id;
-      const baseSlug = `${contact.first_name}-${contact.last_name}`
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-      // Slug garanti unique : préfixe nom + 8 premiers chars de l'UUID contact
-      const slug = `${baseSlug}-${contact.id.slice(0, 8)}`;
       // Hyla ID unique (HYL-XXXXX) — boucle avec sécurité max 20 essais
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       let hylaId = '';
@@ -510,6 +505,8 @@ export default function Contacts() {
         if (!dup) break;
       }
 
+      // Pas de slug : le slug sert uniquement à la page d'inscription publique
+      // La contrainte unique (slug WHERE NOT NULL) ne s'applique pas si slug = null
       const { error } = await supabase.from('team_members').insert({
         user_id: ownerId,
         contact_id: contact.id,
@@ -520,7 +517,6 @@ export default function Contacts() {
         level: 1,
         joined_at: new Date().toISOString().split('T')[0],
         matching_names: [`${contact.first_name} ${contact.last_name}`.toLowerCase()],
-        slug,
         status: 'actif',
         internal_id: hylaId,
       });
