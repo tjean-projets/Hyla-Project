@@ -317,11 +317,15 @@ export default function Imports() {
   // ── TRV matching ──
   const computeTRVMatching = useCallback((rawData: Record<string, string>[]): MatchRow[] => {
     const ownerNames = settings?.owner_matching_names || [];
+    // Taux Hyla : manager 120€ vente directe, 30€ réseau ; conseillère 100€ directe
+    const TAUX_DIRECT_MANAGER = 120;
+    const TAUX_RESEAU_MANAGER = 30;
+
     return rawData.map((row) => {
       const rowName = row['VENDEUR'] || '';
-      const amount = parseFloat(row['MONTANT'] || '0') || 0;
       const period = row['PÉRIODE'] || '';
       const isOwner = ownerNames.some((n: string) => matchScore(n, rowName) >= 85);
+
       let bestMatch: { member: any; confidence: number } | null = null;
       for (const member of teamMembers) {
         const fullName = `${member.first_name} ${member.last_name}`;
@@ -331,17 +335,28 @@ export default function Imports() {
           if (score > (bestMatch?.confidence || 0)) bestMatch = { member, confidence: score };
         }
       }
+
+      const matchStatus: 'auto' | 'manuel' | 'non_reconnu' = isOwner ? 'auto' :
+        (bestMatch?.confidence || 0) >= 85 ? 'auto' :
+        (bestMatch?.confidence || 0) >= 60 ? 'manuel' : 'non_reconnu';
+
+      // On n'importe que les lignes qui concernent ce manager ou son équipe
+      // Les "non_reconnu" appartiennent à d'autres managers → ignorées (montant 0)
+      const commission = isOwner
+        ? TAUX_DIRECT_MANAGER          // vente directe du manager
+        : matchStatus !== 'non_reconnu'
+          ? TAUX_RESEAU_MANAGER        // vente d'un membre → com réseau pour le manager
+          : 0;                          // hors équipe → ignoré
+
       return {
         raw_data: row,
         row_name: rowName,
-        amount,
+        amount: commission,
         period,
         is_owner_row: isOwner,
         matched_member: bestMatch && bestMatch.confidence >= 60 ? bestMatch.member : null,
         match_confidence: bestMatch?.confidence || 0,
-        match_status: isOwner ? 'auto' :
-          (bestMatch?.confidence || 0) >= 85 ? 'auto' :
-          (bestMatch?.confidence || 0) >= 60 ? 'manuel' : 'non_reconnu',
+        match_status: matchStatus,
       };
     });
   }, [teamMembers, settings]);
@@ -497,9 +512,13 @@ export default function Imports() {
   const unmatched = matchResults.filter(r => r.match_status === 'non_reconnu').length;
 
   // TRV stats
+  const trvDirectes = trvResults.filter(r => r.is_owner_row).length;
+  const trvReseau = trvResults.filter(r => !r.is_owner_row && r.match_status !== 'non_reconnu').length;
+  const trvIgnorees = trvResults.filter(r => r.match_status === 'non_reconnu').length;
   const trvAutoMatched = trvResults.filter(r => r.match_status === 'auto').length;
   const trvManualNeeded = trvResults.filter(r => r.match_status === 'manuel').length;
   const trvUnmatched = trvResults.filter(r => r.match_status === 'non_reconnu').length;
+  const trvTotalCom = trvDirectes * 120 + trvReseau * 30;
   const trvDetectedPeriods = [...new Set(trvResults.map(r => r.period).filter(Boolean))].sort();
 
   // Unique periods detected in multi-period mode
@@ -837,34 +856,44 @@ export default function Imports() {
                 <div className="text-center">
                   <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
                   <p className="text-lg font-semibold text-foreground">Import terminé !</p>
-                  <p className="text-sm text-muted-foreground mt-1">{trvResults.length} ventes importées depuis {trvFileName}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Total commissions : <span className="font-bold text-foreground">{trvTotalCom.toLocaleString('fr-FR')} €</span>
+                  </p>
                 </div>
 
-                {/* Stats matching */}
+                {/* Stats commissions */}
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-3 text-center">
-                    <CheckCircle className="h-4 w-4 text-green-600 mx-auto mb-1" />
-                    <p className="text-lg font-bold text-green-700 dark:text-green-400">{trvAutoMatched}</p>
-                    <p className="text-xs text-green-600 dark:text-green-500">Reconnues</p>
+                  <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 text-center">
+                    <p className="text-lg font-bold text-blue-700 dark:text-blue-400">{trvDirectes}</p>
+                    <p className="text-xs text-blue-600 dark:text-blue-500">Ventes directes</p>
+                    <p className="text-[10px] text-blue-400 mt-0.5">120 € / vente</p>
                   </div>
-                  <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 text-center">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 mx-auto mb-1" />
-                    <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{trvManualNeeded}</p>
-                    <p className="text-xs text-amber-600 dark:text-amber-500">Partielles</p>
+                  <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-3 text-center">
+                    <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{trvReseau}</p>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-500">Ventes équipe</p>
+                    <p className="text-[10px] text-emerald-400 mt-0.5">30 € / vente</p>
                   </div>
-                  <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-3 text-center">
-                    <XCircle className="h-4 w-4 text-red-500 mx-auto mb-1" />
-                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{trvUnmatched}</p>
-                    <p className="text-xs text-red-500 dark:text-red-400">Non trouvées</p>
+                  <div className="bg-muted rounded-lg p-3 text-center">
+                    <p className="text-lg font-bold text-muted-foreground">{trvIgnorees}</p>
+                    <p className="text-xs text-muted-foreground">Hors équipe</p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">autres managers</p>
                   </div>
                 </div>
+
+                {/* Matching quality */}
+                {(trvManualNeeded > 0 || trvUnmatched > 0) && (
+                  <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-700 dark:text-amber-400 space-y-1">
+                    {trvManualNeeded > 0 && <p>⚠ {trvManualNeeded} vendeur{trvManualNeeded > 1 ? 's' : ''} reconnu{trvManualNeeded > 1 ? 's' : ''} avec faible confiance — vérifiez les noms dans votre équipe.</p>}
+                    {trvAutoMatched > 0 && <p>✓ {trvAutoMatched} vendeur{trvAutoMatched > 1 ? 's' : ''} reconnu{trvAutoMatched > 1 ? 's' : ''} automatiquement.</p>}
+                  </div>
+                )}
 
                 {/* Périodes détectées */}
                 {trvDetectedPeriods.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {trvDetectedPeriods.map(p => (
                       <span key={p} className="text-[11px] bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full font-medium">
-                        {p} — {trvResults.filter(r => r.period === p).length} ventes
+                        {p} — {trvResults.filter(r => r.period === p && r.match_status !== 'non_reconnu').length} ventes
                       </span>
                     ))}
                   </div>

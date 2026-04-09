@@ -1052,17 +1052,19 @@ interface OrgNode {
   children: OrgNode[];
 }
 
-function buildOrgTree(
-  members: TeamMember[],
-): OrgNode[] {
+function buildOrgTree(members: TeamMember[]): OrgNode[] {
+  // Index des IDs valides pour détecter les sponsor_id orphelins
+  const validIds = new Set(members.map(m => m.id));
   const byParent = new Map<string, TeamMember[]>();
   const roots: TeamMember[] = [];
 
   members.forEach(m => {
-    if (m.sponsor_id) {
+    // On ne met en sous-nœud que si le sponsor existe réellement dans la liste
+    if (m.sponsor_id && validIds.has(m.sponsor_id)) {
       if (!byParent.has(m.sponsor_id)) byParent.set(m.sponsor_id, []);
       byParent.get(m.sponsor_id)!.push(m);
     } else {
+      // Pas de sponsor documenté → niveau direct (même ligne)
       roots.push(m);
     }
   });
@@ -1072,7 +1074,7 @@ function buildOrgTree(
     return {
       id: m.id,
       name: `${m.first_name} ${m.last_name}`,
-      initials: `${m.first_name.charAt(0)}${m.last_name.charAt(0)}`,
+      initials: `${(m.first_name.charAt(0))}${(m.last_name.charAt(0))}`.toUpperCase(),
       status: m.status || 'actif',
       children,
     };
@@ -1143,43 +1145,57 @@ function DownlineSection({ currentUserId, members }: { currentUserId: string; me
         {orgTree.length > 0 && <div className="w-px h-5 bg-border mt-1.5" />}
       </div>
 
-      {/* Membres */}
+      {/* Membres — tous sur la même ligne de base, sous-hiérarchie uniquement si sponsor documenté */}
       {orgTree.length > 0 && (
         <>
+          {/* Ligne horizontale de connexion */}
           {orgTree.length > 1 && (
-            <div className="flex justify-center">
-              <div className="h-px bg-border w-full max-w-[80%]" />
+            <div className="flex justify-center mb-0">
+              <div className="h-px bg-border w-full max-w-[90%]" />
             </div>
           )}
-          <div className="flex flex-wrap justify-center gap-4 mt-0">
+          {/* Grille responsive : jusqu'à 50 membres, même niveau visuel */}
+          <div className="flex flex-wrap justify-center gap-3 mt-0 max-h-[320px] overflow-y-auto pr-1">
             {orgTree.map((node) => (
-              <div key={node.id} className="flex flex-col items-center w-20">
-                <div className="w-px h-4 bg-border mb-1.5" />
-                <div className="h-10 w-10 rounded-xl bg-violet-100 flex items-center justify-center mb-1">
-                  <span className="text-violet-700 font-bold text-[10px]">{node.initials}</span>
+              <div key={node.id} className="flex flex-col items-center" style={{ minWidth: 64, maxWidth: 80 }}>
+                <div className="w-px h-4 bg-border mb-1" />
+                <div className={`h-9 w-9 rounded-xl flex items-center justify-center mb-1 ${
+                  node.children.length > 0
+                    ? 'bg-amber-100 dark:bg-amber-900/40'
+                    : 'bg-violet-100 dark:bg-violet-900/30'
+                }`}>
+                  <span className={`font-bold text-[10px] ${
+                    node.children.length > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-violet-700 dark:text-violet-400'
+                  }`}>{node.initials}</span>
                 </div>
-                <p className="text-[11px] font-medium text-foreground text-center leading-tight">{node.name}</p>
-                <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full mt-1 ${
-                  node.status === 'actif' ? 'bg-emerald-50 text-emerald-700' : 'bg-muted text-muted-foreground'
+                <p className="text-[10px] font-medium text-foreground text-center leading-tight line-clamp-2">{node.name}</p>
+                <span className={`text-[8px] font-semibold px-1 py-0.5 rounded-full mt-0.5 ${
+                  node.status === 'actif' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-muted text-muted-foreground'
                 }`}>
                   {node.status === 'actif' ? 'Actif' : 'Inactif'}
                 </span>
+                {/* Sous-nœuds uniquement si hiérarchie réellement documentée (sponsor_id) */}
                 {node.children.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    <div className="w-px h-3 bg-border mx-auto" />
-                    {node.children.map((child) => (
-                      <div key={child.id} className="flex flex-col items-center">
-                        <div className="h-7 w-7 rounded-lg bg-blue-50 flex items-center justify-center mb-0.5">
-                          <span className="text-blue-600 font-bold text-[8px]">{child.initials}</span>
+                  <div className="mt-1.5 flex flex-col items-center gap-1">
+                    <div className="w-px h-2.5 bg-border" />
+                    <div className="flex flex-wrap justify-center gap-1">
+                      {node.children.map((child) => (
+                        <div key={child.id} title={child.name} className="flex flex-col items-center w-12">
+                          <div className="h-6 w-6 rounded-lg bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center mb-0.5">
+                            <span className="text-blue-600 dark:text-blue-400 font-bold text-[8px]">{child.initials}</span>
+                          </div>
+                          <p className="text-[8px] text-muted-foreground text-center leading-tight line-clamp-1">{child.name.split(' ')[0]}</p>
                         </div>
-                        <p className="text-[9px] text-muted-foreground text-center leading-tight">{child.name}</p>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
             ))}
           </div>
+          {orgTree.length >= 10 && (
+            <p className="text-center text-[10px] text-muted-foreground mt-2">{orgTree.length} membres directs</p>
+          )}
         </>
       )}
     </div>
