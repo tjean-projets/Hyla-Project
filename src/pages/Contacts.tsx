@@ -394,13 +394,13 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
           className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl"
         >
           <Network className="h-4 w-4" />
-          Ajouter au réseau
+          Ajouter à l'équipe
         </button>
       )}
       {isEdit && isInNetwork && (
         <div className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-50 text-emerald-600 font-medium rounded-xl border border-emerald-200">
           <Network className="h-4 w-4" />
-          Déjà dans le réseau
+          Déjà dans l'équipe
         </div>
       )}
       {isEdit && (
@@ -495,30 +495,23 @@ export default function Contacts() {
   const addToNetwork = useMutation({
     mutationFn: async (contact: Contact) => {
       if (!user) throw new Error('Non connecté');
+      const ownerId = effectiveId || user.id;
       const baseSlug = `${contact.first_name}-${contact.last_name}`
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-      // Find a unique slug by appending a suffix if needed
-      let slug = baseSlug;
-      let suffix = 1;
-      while (true) {
-        const { data: existing } = await supabase
-          .from('team_members').select('id').eq('slug', slug).maybeSingle();
-        if (!existing) break;
-        suffix++;
-        slug = `${baseSlug}-${suffix}`;
-      }
-      // Generate unique Hyla ID (HYL-XXXXX)
+      // Slug garanti unique : préfixe nom + 8 premiers chars de l'UUID contact
+      const slug = `${baseSlug}-${contact.id.slice(0, 8)}`;
+      // Hyla ID unique (HYL-XXXXX) — boucle avec sécurité max 20 essais
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       let hylaId = '';
-      do {
+      for (let attempt = 0; attempt < 20; attempt++) {
         hylaId = 'HYL-' + Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
         const { data: dup } = await supabase.from('team_members').select('id').eq('internal_id', hylaId).maybeSingle();
         if (!dup) break;
-      } while (true);
+      }
 
       const { error } = await supabase.from('team_members').insert({
-        user_id: user.id,
+        user_id: ownerId,
         contact_id: contact.id,
         first_name: contact.first_name,
         last_name: contact.last_name,
@@ -534,10 +527,10 @@ export default function Contacts() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members', effectiveId] });
       queryClient.invalidateQueries({ queryKey: ['team-count'] });
       queryClient.invalidateQueries({ queryKey: ['stats-members'] });
-      toast({ title: 'Membre ajouté au réseau' });
+      toast({ title: 'Membre ajouté à l\'équipe' });
       setEditingContact(null);
     },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
