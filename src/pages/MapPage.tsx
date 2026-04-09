@@ -1,11 +1,11 @@
-import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import iconUrl from 'leaflet/dist/images/marker-icon.png';
-import iconShadowUrl from 'leaflet/dist/images/marker-shadow.png';
 
 // Fix Leaflet default icon issue in Vite
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
-L.Icon.Default.mergeOptions({ iconUrl, shadowUrl: iconShadowUrl });
+L.Icon.Default.mergeOptions({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
