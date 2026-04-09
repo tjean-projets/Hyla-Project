@@ -16,6 +16,7 @@ import {
   X,
   MoreHorizontal,
   Shield,
+  Share2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -581,7 +582,8 @@ const sidebarLinks = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Accueil' },
   { to: '/contacts', icon: Users, label: 'Contacts' },
   { to: '/deals', icon: ShoppingBag, label: 'Ventes' },
-  { to: '/network', icon: Network, label: 'Réseau' },
+  { to: '/network', icon: Network, label: 'Équipes' },
+  { to: '/social', icon: Share2, label: 'Social' },
   { to: '/commissions', icon: TrendingUp, label: 'Commissions' },
   { to: '/tasks', icon: CheckSquare, label: 'Tâches' },
   { to: '/calendar', icon: Calendar, label: 'Calendrier' },

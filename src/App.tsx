@@ -29,6 +29,8 @@ const InscriptionPage = lazy(() => import("./pages/InscriptionPage"));
 const JoinPage = lazy(() => import("./pages/JoinPage"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const PublicProfilePage = lazy(() => import("./pages/PublicProfilePage"));
+const SocialPage = lazy(() => import("./pages/SocialPage"));
+const PublicSurveyPage = lazy(() => import("./pages/PublicSurveyPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Partner pages lazy-loadées
@@ -94,6 +96,7 @@ function AppRoutes() {
         <Route path="/inscription/:slug" element={<InscriptionPage />} />
         <Route path="/rejoindre/:inviteCode" element={<JoinPage />} />
         <Route path="/p/:inviteCode" element={<PublicProfilePage />} />
+        <Route path="/sondage/:surveyId" element={<PublicSurveyPage />} />
 
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
@@ -106,6 +109,7 @@ function AppRoutes() {
         <Route path="/imports" element={<Navigate to="/finance" replace />} />
         <Route path="/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
 
         {/* Partner routes */}
