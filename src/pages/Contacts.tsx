@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, CONTACT_STATUS_LABELS, CONTACT_STATUS_COLORS, PRIORITY_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Trash2, Settings, Download, CalendarPlus, ClipboardList, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Trash2, Settings, Download, CalendarPlus, ClipboardList, AlertTriangle, UserPlus, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -37,11 +37,13 @@ function matchScore(a: string, b: string): number {
   return Math.round((matches / maxLen) * 100);
 }
 
-function ContactForm({ onSuccess, stages, initialData, onDelete }: {
+function ContactForm({ onSuccess, stages, initialData, onDelete, isInTeam, onAddToTeam }: {
   onSuccess: () => void;
   stages: Tables<'pipeline_stages'>[];
   initialData?: Contact | null;
   onDelete?: () => void;
+  isInTeam?: boolean;
+  onAddToTeam?: (contact: Contact) => void;
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -382,6 +384,22 @@ function ContactForm({ onSuccess, stages, initialData, onDelete }: {
           </button>
         </div>
       )}
+      {isEdit && onAddToTeam && !isInTeam && (
+        <button
+          type="button"
+          onClick={() => onAddToTeam(initialData!)}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition-colors"
+        >
+          <UserPlus className="h-4 w-4" />
+          Recruter dans mon équipe
+        </button>
+      )}
+      {isEdit && isInTeam && (
+        <div className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-50 text-emerald-700 font-medium rounded-xl border border-emerald-200">
+          <CheckCircle2 className="h-4 w-4" />
+          Déjà dans ton équipe
+        </div>
+      )}
       {isEdit && (
         <button
           type="button"
@@ -455,6 +473,62 @@ export default function Contacts() {
       return data || [];
     },
     enabled: !!effectiveId,
+  });
+
+  // Fetch team_members pour savoir quels contacts sont déjà recrutés
+  // Clé distincte de NetworkPage pour éviter les conflits de cache React Query
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['team-members-contacts', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase
+        .from('team_members')
+        .select('id, contact_id')
+        .eq('user_id', effectiveId);
+      return data || [];
+    },
+    enabled: !!effectiveId,
+  });
+
+  const teamContactIds = new Set(teamMembers.filter(m => m.contact_id).map(m => m.contact_id));
+
+  const addToTeam = useMutation({
+    mutationFn: async (contact: Contact) => {
+      if (!user) throw new Error('Non connecté');
+      const ownerId = effectiveId || user.id;
+      // Génère un Hyla ID unique (HYL-XXXXX) avec retry
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let hylaId = '';
+      for (let attempt = 0; attempt < 20; attempt++) {
+        hylaId = 'HYL-' + Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+        const { data: dup } = await supabase.from('team_members').select('id').eq('internal_id', hylaId).maybeSingle();
+        if (!dup) break;
+      }
+      // Pas de slug → contourne la contrainte unique (WHERE slug IS NOT NULL)
+      const { error } = await supabase.from('team_members').insert({
+        user_id: ownerId,
+        contact_id: contact.id,
+        first_name: contact.first_name,
+        last_name: contact.last_name,
+        phone: contact.phone || null,
+        email: contact.email || null,
+        level: 1,
+        joined_at: new Date().toISOString().split('T')[0],
+        matching_names: [`${contact.first_name} ${contact.last_name}`.toLowerCase()],
+        status: 'actif',
+        internal_id: hylaId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-members', effectiveId] });
+      queryClient.invalidateQueries({ queryKey: ['team-members-contacts', effectiveId] });
+      queryClient.invalidateQueries({ queryKey: ['team-count'] });
+      queryClient.invalidateQueries({ queryKey: ['stats-members'] });
+      toast({ title: '✅ Recruté dans l\'équipe !' });
+      setEditingContact(null);
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
 
   const filtered = contacts.filter((c) => {
@@ -721,6 +795,8 @@ export default function Contacts() {
               stages={stages}
               onSuccess={() => setEditingContact(null)}
               onDelete={() => setEditingContact(null)}
+              isInTeam={teamContactIds.has(editingContact.id)}
+              onAddToTeam={(contact) => addToTeam.mutate(contact)}
             />
           )}
         </DialogContent>
