@@ -53,6 +53,20 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
   // Check if this contact is already in the network
   const isInNetwork = isEdit && teamMembers?.some(m => m.contact_id === initialData?.id);
 
+  // ── Form state — doit être déclaré AVANT le useEffect qui l'utilise ──
+  const [form, setForm] = useState({
+    first_name: initialData?.first_name || '',
+    last_name: initialData?.last_name || '',
+    phone: initialData?.phone || '',
+    email: initialData?.email || '',
+    address: initialData?.address || '',
+    source: initialData?.source || '',
+    status: (initialData?.status || 'prospect') as Contact['status'],
+    priority: (initialData?.priority || 'normale') as Contact['priority'],
+    pipeline_stage_id: initialData?.pipeline_stage_id || stages[0]?.id || '',
+    notes: initialData?.notes || '',
+  });
+
   // ── Duplicate detection (creation mode only) ──
   const [duplicates, setDuplicates] = useState<{ id: string; first_name: string; last_name: string; phone: string | null; email: string | null }[]>([]);
 
@@ -133,19 +147,6 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, teamMembers, on
       setTaskForm({ title: '', type: 'relance', due_date: '', notes: '' });
     },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
-  });
-
-  const [form, setForm] = useState({
-    first_name: initialData?.first_name || '',
-    last_name: initialData?.last_name || '',
-    phone: initialData?.phone || '',
-    email: initialData?.email || '',
-    address: initialData?.address || '',
-    source: initialData?.source || '',
-    status: (initialData?.status || 'prospect') as Contact['status'],
-    priority: (initialData?.priority || 'normale') as Contact['priority'],
-    pipeline_stage_id: initialData?.pipeline_stage_id || stages[0]?.id || '',
-    notes: initialData?.notes || '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
