@@ -1,6 +1,6 @@
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase, HYLA_COMMISSION_SCALE, HYLA_CHALLENGES, getHylaCommission } from '@/lib/supabase';
+import { supabase, HYLA_COMMISSION_SCALE, HYLA_CHALLENGES, getHylaCommission, HYLA_LEVELS, getPersonalSaleCommission, getRecrueCommission } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import {
   TrendingUp,
@@ -93,12 +93,46 @@ export default function Dashboard() {
       if (!effectiveId) return null;
       const { data } = await supabase
         .from('user_settings')
-        .select('monthly_sales_target, monthly_ca_target')
+        .select('monthly_sales_target, monthly_ca_target, hyla_level')
         .eq('user_id', effectiveId)
         .maybeSingle();
       return data;
     },
     enabled: !!effectiveId,
+  });
+
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['team-members-dash', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase
+        .from('team_members')
+        .select('id, status, sponsor_id, hyla_level')
+        .eq('user_id', effectiveId);
+      return data || [];
+    },
+    enabled: !!effectiveId,
+    staleTime: 60000,
+  });
+
+  const { data: recentImports = [] } = useQuery({
+    queryKey: ['recent-imports-dash', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const n = new Date();
+      const periods = Array.from({ length: 3 }, (_, i) => {
+        const d = new Date(n.getFullYear(), n.getMonth() - i, 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      });
+      const { data } = await supabase
+        .from('commission_imports')
+        .select('period, id')
+        .eq('user_id', effectiveId)
+        .in('period', periods);
+      return data || [];
+    },
+    enabled: !!effectiveId,
+    staleTime: 60000,
   });
 
   const { data: upcomingTasks, isLoading: tasksLoading } = useQuery({
@@ -177,6 +211,93 @@ export default function Dashboard() {
     }).length;
   })();
   const currentMonthCA = k.ca_mois || 0;
+
+  // ── Com attendue (théorique depuis deals saisis manuellement) ──
+  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const myLevel = (userSettings as any)?.hyla_level || 'manager';
+
+  // Ventes perso ce mois, triées chronologiquement
+  const currentMonthDeals = deals
+    .filter((d: any) => {
+      if (!d.signed_at) return false;
+      const sd = new Date(d.signed_at);
+      return sd.getMonth() === now.getMonth() && sd.getFullYear() === now.getFullYear();
+    })
+    .sort((a: any, b: any) => new Date(a.signed_at).getTime() - new Date(b.signed_at).getTime());
+
+  const comAttendue = currentMonthDeals.reduce((sum: number, _: any, idx: number) => {
+    return sum + getPersonalSaleCommission(idx + 1);
+  }, 0);
+
+  // Com confirmée = depuis imports TRV (commissions consolidées)
+  const comConfirmee = commTotal; // commDirecte + commReseau depuis KPIs
+
+  // ── Widget "Prochain niveau" ──
+  const myLevelIdx = HYLA_LEVELS.findIndex(l => l.value === myLevel);
+  const nextLevel = myLevelIdx >= 0 && myLevelIdx < HYLA_LEVELS.length - 1 ? HYLA_LEVELS[myLevelIdx + 1] : null;
+
+  const MANAGER_LEVELS = ['manager','chef_groupe','chef_agence','distributeur','elite_bronze','elite_argent','elite_or'];
+
+  // Vendeurs directs actifs (pas de sponsor dans l'équipe = recruté directement par le manager)
+  const directActifs = (teamMembers as any[]).filter(m => !m.sponsor_id && m.status === 'actif').length;
+
+  // Lignées = managers directs (pas de sponsor dans l'équipe ET niveau manager+)
+  const ligneesCount = (teamMembers as any[]).filter(m =>
+    !m.sponsor_id && MANAGER_LEVELS.includes(m.hyla_level || '')
+  ).length;
+
+  // Vendeurs directs actifs hors managers (pour ceux qui ont besoin de "directs + indirects")
+  const indirectActifs = (teamMembers as any[]).filter(m => m.sponsor_id && m.status === 'actif').length;
+
+  // Ventes équipe ce mois depuis KPIs (ou approximation)
+  const teamSalesThisMonth = k.equipe_ventes_mois || 0;
+
+  // Vérification x3 mois consécutifs : l'utilisateur a importé un TRV les 3 derniers mois
+  const last3Periods = Array.from({ length: 3 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const importedPeriods = new Set((recentImports as any[]).map(r => r.period));
+  const consecutiveMonthsMet = last3Periods.every(p => importedPeriods.has(p));
+
+  // Conditions du prochain niveau à remplir
+  type LevelCondition = { label: string; met: boolean; detail: string };
+  const nextLevelConditions: LevelCondition[] = nextLevel ? (() => {
+    const conds: LevelCondition[] = [];
+    const nv = nextLevel.value;
+
+    if (nv === 'manager') {
+      conds.push({ label: 'Vendeurs directs actifs', met: directActifs >= 3, detail: `${directActifs} / 3 requis` });
+      conds.push({ label: 'Volume équipe/mois', met: teamSalesThisMonth >= 15, detail: `${teamSalesThisMonth} / 15 ventes` });
+    } else if (nv === 'chef_groupe') {
+      conds.push({ label: 'Vendeurs directs actifs', met: directActifs >= 4, detail: `${directActifs} / 4 requis` });
+      conds.push({ label: 'Vendeur indirect actif', met: indirectActifs >= 1, detail: `${indirectActifs} / 1 requis` });
+      conds.push({ label: 'Volume équipe/mois', met: teamSalesThisMonth >= 30, detail: `${teamSalesThisMonth} / 30 ventes` });
+    } else if (nv === 'chef_agence') {
+      conds.push({ label: 'Vendeurs directs actifs', met: directActifs >= 4, detail: `${directActifs} / 4 requis` });
+      conds.push({ label: 'Lignée manager directe', met: ligneesCount >= 1, detail: `${ligneesCount} / 1 requise` });
+      conds.push({ label: 'Volume équipe/mois', met: teamSalesThisMonth >= 60, detail: `${teamSalesThisMonth} / 60 ventes` });
+    } else if (nv === 'distributeur') {
+      conds.push({ label: 'Lignées managers directes', met: ligneesCount >= 2, detail: `${ligneesCount} / 2 requises` });
+      conds.push({ label: 'Volume équipe/mois', met: teamSalesThisMonth >= 90, detail: `${teamSalesThisMonth} / 90 ventes` });
+    } else if (nv === 'elite_bronze') {
+      conds.push({ label: 'Lignées managers directes', met: ligneesCount >= 3, detail: `${ligneesCount} / 3 requises` });
+      conds.push({ label: 'Volume équipe/mois', met: teamSalesThisMonth >= 120, detail: `${teamSalesThisMonth} / 120 ventes` });
+    }
+    // Condition transversale : 3 mois consécutifs via imports
+    conds.push({
+      label: '3 mois consécutifs',
+      met: consecutiveMonthsMet,
+      detail: consecutiveMonthsMet
+        ? '3 imports TRV détectés ✓'
+        : `${last3Periods.filter(p => importedPeriods.has(p)).length}/3 imports TRV`
+    });
+    return conds;
+  })() : [];
+
+  const conditionsMet = nextLevelConditions.filter(c => c.met).length;
+  const conditionsTotal = nextLevelConditions.length;
+  const levelProgressPct = conditionsTotal > 0 ? Math.round((conditionsMet / conditionsTotal) * 100) : 0;
 
   const salesPct = salesTarget > 0 ? Math.min(100, Math.round((currentMonthSales / salesTarget) * 100)) : 0;
   const caPct = caTarget > 0 ? Math.min(100, Math.round((currentMonthCA / caTarget) * 100)) : 0;
@@ -335,52 +456,71 @@ export default function Dashboard() {
           </DialogContent>
         </Dialog>
 
-        {/* ── KPIs essentiels (4 cards) ── */}
+        {/* ── KPIs essentiels ── */}
         {kpisLoading ? (
-          <div className="grid grid-cols-2 gap-3">
-            <SkeletonKPI />
-            <SkeletonKPI />
-            <SkeletonKPI />
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <SkeletonKPI />
+              <SkeletonKPI />
+              <SkeletonKPI />
+            </div>
             <SkeletonKPI />
           </div>
         ) : (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-semibold uppercase text-muted-foreground">CA du mois</p>
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
-            </div>
-            <p className="text-xl font-bold text-foreground">{(commTotal > 0 ? commTotal : (k.ca_mois || 0)).toLocaleString('fr-FR')} <span className="text-sm text-muted-foreground">€</span></p>
-            {(k.commissions_annee || 0) > 0 && (
-              <p className="text-[9px] text-muted-foreground mt-1">{(k.commissions_annee || 0).toLocaleString('fr-FR')}€ cette année</p>
-            )}
-          </div>
-          <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl p-4 text-white">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-semibold uppercase opacity-80">Commissions</p>
-              <Zap className="h-4 w-4 opacity-80" />
-            </div>
-            <p className="text-xl font-bold">{commissionAffichee.toLocaleString('fr-FR')} <span className="text-sm opacity-70">€</span></p>
-            {commTotal > 0 && (
-              <div className="flex gap-2 mt-1 text-[9px] opacity-70">
-                <span>Directe {commDirecte.toLocaleString('fr-FR')}€</span>
-                <span>Réseau {commReseau.toLocaleString('fr-FR')}€</span>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            {/* CA du mois */}
+            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] font-semibold uppercase text-muted-foreground">CA du mois</p>
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
               </div>
-            )}
-          </div>
-          <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Ventes</p>
-              <ShoppingBag className="h-4 w-4 text-violet-500" />
+              <p className="text-xl font-bold text-foreground">{(k.ca_mois || 0).toLocaleString('fr-FR')} <span className="text-sm text-muted-foreground">€</span></p>
+              {(k.commissions_annee || 0) > 0 && (
+                <p className="text-[9px] text-muted-foreground mt-1">{(k.commissions_annee || 0).toLocaleString('fr-FR')}€ cette année</p>
+              )}
             </div>
-            <p className="text-xl font-bold text-foreground">{nbSignees}</p>
-          </div>
-          <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Équipe</p>
-              <Users className="h-4 w-4 text-blue-500" />
+            {/* Ventes */}
+            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] font-semibold uppercase text-muted-foreground">Ventes</p>
+                <ShoppingBag className="h-4 w-4 text-violet-500" />
+              </div>
+              <p className="text-xl font-bold text-foreground">{nbSignees}</p>
             </div>
-            <p className="text-xl font-bold text-foreground">{k.equipe_active || 0}</p>
+            {/* Équipe */}
+            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] font-semibold uppercase text-muted-foreground">Équipe</p>
+                <Users className="h-4 w-4 text-blue-500" />
+              </div>
+              <p className="text-xl font-bold text-foreground">{k.equipe_active || 0}</p>
+            </div>
+          </div>
+          {/* Commissions — pleine largeur */}
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-semibold uppercase text-muted-foreground">Commissions du mois</p>
+              <Zap className="h-4 w-4 text-[#3b82f6]" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-3 border border-amber-200 dark:border-amber-800">
+                <p className="text-[9px] font-semibold text-amber-600 uppercase mb-1">Attendue</p>
+                <p className="text-lg font-bold text-amber-700 dark:text-amber-400">
+                  {comAttendue.toLocaleString('fr-FR')} <span className="text-xs font-normal">€</span>
+                </p>
+                <p className="text-[9px] text-amber-500 mt-0.5">Depuis vos saisies</p>
+              </div>
+              <div className={`rounded-xl p-3 border ${comConfirmee > 0 ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800' : 'bg-muted border-border'}`}>
+                <p className={`text-[9px] font-semibold uppercase mb-1 ${comConfirmee > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>Confirmée</p>
+                <p className={`text-lg font-bold ${comConfirmee > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                  {comConfirmee.toLocaleString('fr-FR')} <span className="text-xs font-normal">€</span>
+                </p>
+                <p className={`text-[9px] mt-0.5 ${comConfirmee > 0 ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                  {comConfirmee > 0 ? 'Depuis import TRV' : 'Import TRV requis'}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
         )}
@@ -427,6 +567,65 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Prochain niveau Hyla ── */}
+        {nextLevel && (
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase text-muted-foreground">Progression niveau</p>
+                <p className="text-sm font-bold text-foreground mt-0.5">
+                  {HYLA_LEVELS[myLevelIdx]?.label} → <span className="text-violet-600">{nextLevel.label}</span>
+                </p>
+              </div>
+              <span className="text-sm font-bold text-violet-600">{conditionsMet}/{conditionsTotal}</span>
+            </div>
+
+            {/* Barre de progression globale */}
+            <div className="h-2 rounded-full bg-muted overflow-hidden mb-4">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all duration-700"
+                style={{ width: `${levelProgressPct}%` }}
+              />
+            </div>
+
+            {/* Liste des conditions */}
+            <div className="space-y-2">
+              {nextLevelConditions.map((cond, i) => (
+                <div key={i} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`h-4 w-4 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      cond.met ? 'bg-emerald-100 dark:bg-emerald-900/40' : 'bg-muted'
+                    }`}>
+                      <span className={`text-[9px] font-bold ${cond.met ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                        {cond.met ? '✓' : '·'}
+                      </span>
+                    </div>
+                    <span className={`text-xs truncate ${cond.met ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {cond.label}
+                    </span>
+                  </div>
+                  <span className={`text-[10px] font-semibold flex-shrink-0 ${cond.met ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                    {cond.detail}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Note réunions */}
+            <p className="text-[9px] text-muted-foreground mt-3 italic">
+              ⚠ Présence aux réunions hebdomadaires et au meeting mensuel requise (non traçable automatiquement).
+            </p>
+
+            {/* Avantage du prochain niveau */}
+            <div className="mt-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl p-3">
+              <p className="text-[10px] text-violet-700 dark:text-violet-300">
+                <span className="font-bold">{nextLevel.label}</span> → <span className="font-bold">{nextLevel.recruteCommission}€</span> par vente de recrue directe
+                {nextLevel.quotaMois > 0 && <> + prime groupe dès {nextLevel.quotaMois} ventes/mois</>}
+              </p>
             </div>
           </div>
         )}
