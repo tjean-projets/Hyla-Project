@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
@@ -13,6 +13,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+
+interface GoogleCalEvent {
+  id: string
+  summary?: string
+  start: { dateTime?: string; date?: string }
+  end: { dateTime?: string; date?: string }
+  location?: string
+  description?: string
+  htmlLink?: string
+}
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
   planifie: { bg: 'bg-emerald-50 dark:bg-emerald-950', text: 'text-emerald-600', label: 'Confirmé' },
@@ -99,6 +109,13 @@ export default function CalendarPage() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   });
+
+  const [googleToken, setGoogleToken] = useState<string | null>(null)
+  const [googleEvents, setGoogleEvents] = useState<GoogleCalEvent[]>([])
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [googleConnected, setGoogleConnected] = useState(() =>
+    localStorage.getItem('hyla_google_cal') === '1'
+  )
 
   const { data: appointments = [] } = useQuery({
     queryKey: ['appointments', effectiveId],
@@ -231,6 +248,80 @@ export default function CalendarPage() {
   const selectedDayTasks = calTasks.filter((t: any) => t.due_date?.slice(0, 10) === selectedDayStr);
   const selectedDayLabel = selectedDay.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
+  const googleDayEvents = googleEvents.filter(e => {
+    const d = (e.start.dateTime || e.start.date || '').slice(0, 10)
+    return d === selectedDay.toISOString().slice(0, 10)
+  })
+
+  // ── Google Calendar helpers ──
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
+
+  const fetchGoogleEvents = async (token: string, month: Date) => {
+    setGoogleLoading(true)
+    try {
+      const start = new Date(month.getFullYear(), month.getMonth(), 1).toISOString()
+      const end = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59).toISOString()
+      const res = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(start)}&timeMax=${encodeURIComponent(end)}&singleEvents=true&orderBy=startTime&maxResults=250`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (res.status === 401) {
+        setGoogleToken(null)
+        setGoogleConnected(false)
+        setGoogleEvents([])
+        localStorage.removeItem('hyla_google_cal')
+        toast({ title: 'Session Google expirée', description: 'Reconnectez Google Agenda.', variant: 'destructive' })
+        return
+      }
+      const data = await res.json()
+      setGoogleEvents(data.items || [])
+    } catch {
+      toast({ title: 'Erreur Google Agenda', description: 'Impossible de récupérer les événements.', variant: 'destructive' })
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
+
+  const connectGoogle = () => {
+    if (!GOOGLE_CLIENT_ID) {
+      toast({ title: 'Non configuré', description: 'Ajoutez VITE_GOOGLE_CLIENT_ID dans vos variables d\'environnement Vercel.', variant: 'destructive' })
+      return
+    }
+    const g = (window as any).google
+    if (!g?.accounts?.oauth2) {
+      toast({ title: 'Google non chargé', description: 'Rechargez la page et réessayez.', variant: 'destructive' })
+      return
+    }
+    const client = g.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/calendar.readonly',
+      callback: async (resp: any) => {
+        if (resp.access_token) {
+          setGoogleToken(resp.access_token)
+          setGoogleConnected(true)
+          localStorage.setItem('hyla_google_cal', '1')
+          await fetchGoogleEvents(resp.access_token, calMonth)
+        }
+      },
+    })
+    client.requestAccessToken({ prompt: googleConnected ? '' : 'consent' })
+  }
+
+  const disconnectGoogle = () => {
+    if (googleToken) (window as any).google?.accounts?.oauth2?.revoke(googleToken)
+    setGoogleToken(null)
+    setGoogleConnected(false)
+    setGoogleEvents([])
+    localStorage.removeItem('hyla_google_cal')
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (googleToken) {
+      fetchGoogleEvents(googleToken, calMonth)
+    }
+  }, [calMonth])  // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── List view helpers ──
   const nowStr = new Date().toISOString();
   const upcoming = appointments.filter((a: any) => a.date >= nowStr);
@@ -250,6 +341,25 @@ export default function CalendarPage() {
       title="Calendrier"
       actions={
         <>
+          {/* Google Calendar button */}
+          {googleConnected ? (
+            <button
+              onClick={disconnectGoogle}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
+              title="Déconnecter Google Agenda"
+            >
+              <img src="https://www.google.com/favicon.ico" className="h-3 w-3" alt="" />
+              Google connecté
+            </button>
+          ) : (
+            <button
+              onClick={connectGoogle}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+            >
+              <img src="https://www.google.com/favicon.ico" className="h-3 w-3" alt="" />
+              {googleLoading ? 'Chargement...' : 'Lier Google Agenda'}
+            </button>
+          )}
           <Button onClick={openNewForm} className="bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white">
             <Plus className="h-4 w-4 mr-2" />Nouveau
           </Button>
@@ -386,7 +496,7 @@ export default function CalendarPage() {
                       )}>
                         {displayNum}
                       </span>
-                      {hasApts && (
+                      {(hasApts || googleEvents.some(e => (e.start.dateTime || e.start.date || '').slice(0, 10) === dayStr)) && (
                         <div className="flex flex-wrap gap-0.5 justify-center mt-1 px-0.5">
                           {dayApts.slice(0, 2).map((apt: any, i: number) => (
                             <span key={i} className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_COLORS[apt.type] || TYPE_COLORS.autre)} />
@@ -395,6 +505,14 @@ export default function CalendarPage() {
                             <span key={'t' + i} className="w-1.5 h-1.5 rounded-sm flex-shrink-0 bg-teal-500" />
                           ))}
                           {(dayApts.length + dayTasks.length) > 4 && <span className="text-[8px] text-muted-foreground">+{dayApts.length + dayTasks.length - 4}</span>}
+                          {/* Google events dots */}
+                          {inMonth && googleEvents
+                            .filter(e => (e.start.dateTime || e.start.date || '').slice(0, 10) === `${calMonth.getFullYear()}-${String(calMonth.getMonth()+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`)
+                            .slice(0, 2)
+                            .map(e => (
+                              <span key={e.id} className="h-1.5 w-1.5 rounded-full bg-[#4285F4] flex-shrink-0" />
+                            ))
+                          }
                         </div>
                       )}
                     </div>
@@ -521,13 +639,43 @@ export default function CalendarPage() {
                     );
                   })}
                 </div>
-              ) : selectedDayTasks.length === 0 ? (
+              ) : selectedDayTasks.length === 0 && googleDayEvents.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
                   <CalendarDays className="h-8 w-8 text-muted-foreground/30 mb-2" />
                   <p className="text-sm text-muted-foreground">Aucun événement ce jour</p>
                   <p className="text-xs text-muted-foreground/60 mt-1">Clique sur "Nouveau" pour en créer un</p>
                 </div>
               ) : null}
+
+              {/* Google Calendar events */}
+              {googleDayEvents.length > 0 && (
+                <div className="space-y-2 p-4">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-[#4285F4]" />
+                    Google Agenda
+                  </p>
+                  {googleDayEvents.map(e => {
+                    const time = e.start.dateTime
+                      ? new Date(e.start.dateTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                      : 'Journée'
+                    const endTime = e.end.dateTime
+                      ? new Date(e.end.dateTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                      : ''
+                    return (
+                      <div key={e.id} className="bg-blue-50 dark:bg-blue-950 rounded-xl border border-blue-100 dark:border-blue-900 p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="h-1 w-1 rounded-full bg-[#4285F4] flex-shrink-0" />
+                          <span className="text-sm font-bold text-[#4285F4]">{time}{endTime ? ` → ${endTime}` : ''}</span>
+                        </div>
+                        <p className="text-sm font-semibold text-foreground truncate">{e.summary || '(Sans titre)'}</p>
+                        {e.location && (
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">📍 {e.location}</p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
