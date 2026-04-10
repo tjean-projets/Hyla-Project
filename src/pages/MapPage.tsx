@@ -32,7 +32,8 @@ import { cn } from '@/lib/utils'
 
 interface MapMember {
   id: string
-  full_name: string | null
+  first_name: string | null
+  last_name: string | null
   email: string | null
   status: string
   hyla_level: string | null
@@ -81,7 +82,8 @@ function getLevelLabel(level: string | null): string {
 }
 
 function getMemberName(m: MapMember): string {
-  return m.full_name?.trim() || m.email || 'Membre'
+  const full = [m.first_name, m.last_name].filter(Boolean).join(' ')
+  return full.trim() || m.email || 'Membre'
 }
 
 function getLevelColor(level: string | null): string {
@@ -207,9 +209,9 @@ export default function MapPage() {
       if (!effectiveUserId) return []
       const { data, error } = await supabase
         .from('team_members')
-        .select('id, full_name, email, status, hyla_level, city, lat, lng')
+        .select('id, first_name, last_name, email, status, hyla_level, city, lat, lng')
         .eq('user_id', effectiveUserId)
-        .order('full_name')
+        .order('first_name')
       if (error) throw error
       return (data ?? []) as unknown as MapMember[]
     },
