@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
+import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
 import { supabase, IMPORT_STATUS_LABELS, IMPORT_STATUS_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -84,8 +84,9 @@ const TABS = [
 type TabId = typeof TABS[number]['id'];
 
 export default function Finance() {
-  const { user, profile } = useAuth();
+  const { user, profile: authProfile } = useAuth();
   const effectiveId = useEffectiveUserId();
+  const { profile } = useEffectiveProfile(); // profil du compte visualisé (impersonation-aware)
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabId>('imports');
@@ -145,7 +146,7 @@ export default function Finance() {
   });
 
   // Fetch full team tree via single recursive SQL query (replaces N+1 loop)
-  const { data: allTreeMembers = [] } = useQuery({
+  const { data: allTreeMembers = [], isSuccess: treeMembersLoaded } = useQuery({
     queryKey: ['team-tree-members', effectiveId],
     queryFn: async () => {
       if (!effectiveId) return [];
@@ -353,11 +354,12 @@ export default function Finance() {
   }, [flow, allTreeMembers, profile]);
 
   // Auto-déclenche le matching quand on saute l'étape mapping (TRV reconnu / mapping sauvegardé)
+  // Attend que allTreeMembers soit chargé (isSuccess) pour éviter un matching avec équipe vide
   useEffect(() => {
-    if (flow.step === 'matching' && flow.rawData.length > 0 && matchResults.length === 0 && allTreeMembers !== undefined) {
+    if (flow.step === 'matching' && flow.rawData.length > 0 && matchResults.length === 0 && treeMembersLoaded) {
       runMatching();
     }
-  }, [flow.step, flow.rawData.length, allTreeMembers]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [flow.step, flow.rawData.length, treeMembersLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Save import ──
   const handleValidate = async (forceReplace = false) => {
