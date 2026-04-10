@@ -44,7 +44,7 @@ interface UserStats {
 }
 
 export default function AdminPanel() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -74,7 +74,18 @@ export default function AdminPanel() {
     staleTime: 0, // Toujours fresh pour l'admin
   });
 
-  // Check admin access — après tous les hooks
+  // Attendre que l'auth soit chargée avant de vérifier les droits
+  if (authLoading) {
+    return (
+      <AppLayout title="Admin" hideBanner>
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Check admin access — après tous les hooks ET après que l'auth soit résolue
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
