@@ -222,11 +222,12 @@ export default function AdminPanel() {
         </div>
 
         {/* Debug info */}
-        {profilesError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 font-mono break-all">
-            <strong>Erreur query :</strong> {String(profilesError)}
-          </div>
-        )}
+        <div className="bg-gray-100 border rounded-xl p-3 text-xs font-mono break-all space-y-1">
+          <p><strong>user?.email:</strong> {user?.email ?? 'undefined/null'}</p>
+          <p><strong>isAdmin:</strong> {String(isAdmin)}</p>
+          <p><strong>enabled:</strong> {String(!!user && isAdmin)}</p>
+          <p><strong>profilesError:</strong> {profilesError ? String(profilesError) : 'none'}</p>
+        </div>
 
         {/* User list */}
         {isLoading ? (
