@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase, isSuperAdmin } from '@/lib/supabase';
+import { supabase, isSuperAdmin, HYLA_LEVELS } from '@/lib/supabase';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -87,17 +87,6 @@ interface LessonFormData {
   position: number;
 }
 
-const HYLA_LEVELS = [
-  { value: '', label: 'Tous les niveaux' },
-  { value: 'vendeur', label: 'Vendeur commerçant' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'chef_groupe', label: 'Chef de groupe' },
-  { value: 'chef_agence', label: "Chef d'agence" },
-  { value: 'distributeur', label: 'Distributeur' },
-  { value: 'elite_bronze', label: 'Elite Manager Bronze' },
-  { value: 'elite_argent', label: 'Elite Manager Argent' },
-  { value: 'elite_or', label: 'Elite Manager Or' },
-];
 
 const CONTENT_TYPE_ICONS: Record<string, React.ReactNode> = {
   youtube: <Youtube className="h-4 w-4 text-red-500" />,
@@ -271,6 +260,7 @@ function ModuleFormDialog({
                 <SelectValue placeholder="Tous les niveaux" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="">Tous les niveaux</SelectItem>
                 {HYLA_LEVELS.map((l) => (
                   <SelectItem key={l.value} value={l.value}>
                     {l.label}
@@ -551,10 +541,9 @@ function LessonContent({ lesson }: { lesson: FormationLesson }) {
   // text
   return (
     <div className="prose prose-gray dark:prose-invert max-w-none rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 p-6">
-      <div
-        className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap text-sm"
-        dangerouslySetInnerHTML={{ __html: lesson.content_url ?? '' }}
-      />
+      <div className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap text-sm">
+        {lesson.content_url ?? ''}
+      </div>
     </div>
   );
 }
@@ -582,6 +571,7 @@ export default function FormationPage() {
   const [lessonDialogOpen, setLessonDialogOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<FormationLesson | null>(null);
   const [lessonDialogModuleId, setLessonDialogModuleId] = useState<string | null>(null);
+  const [newLessonPosition, setNewLessonPosition] = useState(0);
 
   // Delete confirmations
   const [deleteModuleTarget, setDeleteModuleTarget] = useState<string | null>(null);
@@ -620,6 +610,8 @@ export default function FormationPage() {
         lesson_count: m.formation_lessons?.[0]?.count ?? 0,
       }));
     },
+    enabled: !!effectiveUserId,
+    staleTime: 60000,
   });
 
   const {
@@ -638,6 +630,7 @@ export default function FormationPage() {
       return data ?? [];
     },
     enabled: !!selectedModuleId,
+    staleTime: 60000,
   });
 
   const { data: completedIds = [] } = useQuery<string[]>({
@@ -652,6 +645,7 @@ export default function FormationPage() {
       return (data ?? []).map((r: any) => r.lesson_id as string);
     },
     enabled: !!effectiveUserId,
+    staleTime: 60000,
   });
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -840,6 +834,7 @@ export default function FormationPage() {
     setEditingLesson(null);
     setLessonDialogModuleId(moduleId);
     const maxPos = Math.max(0, ...lessons.map((l) => l.position));
+    setNewLessonPosition(maxPos + 1);
     setLessonDialogOpen(true);
   }
 
@@ -1081,9 +1076,11 @@ export default function FormationPage() {
                     <div key={i} className="h-12 rounded-lg animate-pulse bg-gray-200 dark:bg-gray-700" />
                   ))}
                 </div>
-              ) : lessons.length === 0 ? (
-                <div className="p-4 text-center text-sm text-gray-400">
-                  {adminMode ? 'Aucune leçon — ajoutez-en une' : 'Aucune leçon'}
+              ) : lessons.length === 0 && !lessonsLoading ? (
+                <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
+                  <BookOpen className="h-8 w-8 mb-2 opacity-30" />
+                  <p className="text-sm">Aucune leçon dans ce module</p>
+                  {adminMode && <p className="text-xs mt-1">Ajoutez une leçon avec le bouton +</p>}
                 </div>
               ) : (
                 <div className="p-2 space-y-1 flex-1">
@@ -1402,7 +1399,7 @@ export default function FormationPage() {
                 duration_minutes: editingLesson.duration_minutes ?? '',
                 position: editingLesson.position,
               }
-            : { position: lessons.length }
+            : { position: newLessonPosition }
         }
         onSave={handleSaveLesson}
         loading={saveLessonMutation.isPending}

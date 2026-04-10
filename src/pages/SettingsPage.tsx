@@ -108,6 +108,7 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
       return counts;
     },
     enabled: !!userId,
+    staleTime: 60000,
   });
 
   const copyLink = async (link: string, type: 'bio' | 'story') => {
@@ -260,6 +261,7 @@ export default function SettingsPage() {
       return data;
     },
     enabled: !!effectiveUserId,
+    staleTime: 60000,
   });
 
   useEffect(() => {
@@ -280,6 +282,7 @@ export default function SettingsPage() {
       return data;
     },
     enabled: !!effectiveUserId,
+    staleTime: 60000,
   });
 
   useEffect(() => {
@@ -375,8 +378,8 @@ export default function SettingsPage() {
       .from('user_settings')
       .upsert({
         user_id: user.id,
-        monthly_sales_target: parseInt(monthlySalesTarget) || 0,
-        monthly_ca_target: parseInt(monthlyCaTarget) || 0,
+        monthly_sales_target: parseInt(monthlySalesTarget, 10) || 0,
+        monthly_ca_target: parseInt(monthlyCaTarget, 10) || 0,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
     setSavingObjectives(false);

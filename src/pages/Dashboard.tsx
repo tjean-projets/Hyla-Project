@@ -35,6 +35,7 @@ export default function Dashboard() {
       return data as Record<string, number>;
     },
     enabled: !!effectiveId,
+    staleTime: 30000,
   });
 
   // Auto-generate relance tasks for inactive prospects (runs once per session)

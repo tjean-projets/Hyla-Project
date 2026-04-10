@@ -23,6 +23,7 @@ export default function Commissions() {
   const [exportMembers, setExportMembers] = useState<Set<string>>(new Set());
   const [exportFrom, setExportFrom] = useState(`${now.getFullYear()}-01`);
   const [exportTo, setExportTo] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
@@ -609,7 +610,7 @@ export default function Commissions() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredCommissions.slice(0, 50).map((c: any) => (
+              {filteredCommissions.slice(0, visibleCount).map((c: any) => (
                 <tr key={c.id} className="hover:bg-muted transition-colors">
                   <td className="px-4 py-3 text-muted-foreground">{c.period}</td>
                   <td className="px-4 py-3">
@@ -641,6 +642,16 @@ export default function Commissions() {
               )}
             </tbody>
           </table></div>
+          {filteredCommissions.length > visibleCount && (
+            <div className="flex justify-center py-4">
+              <button
+                onClick={() => setVisibleCount(v => v + 50)}
+                className="px-4 py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary/5 transition-colors"
+              >
+                Voir plus ({filteredCommissions.length - visibleCount} restantes)
+              </button>
+            </div>
+          )}
         </div>
         </>
         )}

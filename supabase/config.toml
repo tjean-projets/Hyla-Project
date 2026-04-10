@@ -1,3 +1,5 @@
+project_id = "wtkhzxgizyajtwtgtgkg"
+
 [functions.send-partner-invite]
 verify_jwt = false
 
@@ -6,5 +8,3 @@ verify_jwt = false
 
 [functions.generate-consent-document]
 verify_jwt = false
-
-project_id = "wtkhzxgizyajtwtgtgkg"

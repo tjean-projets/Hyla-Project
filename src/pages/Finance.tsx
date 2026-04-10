@@ -85,13 +85,13 @@ export default function Finance() {
 
   // ── User settings (saved column mappings) ──
   const { data: settings } = useQuery({
-    queryKey: ['user-settings', user?.id],
+    queryKey: ['user-settings', effectiveId],
     queryFn: async () => {
-      if (!user) return null;
-      const { data } = await supabase.from('user_settings').select('*').eq('user_id', user.id).maybeSingle();
+      if (!effectiveId) return null;
+      const { data } = await supabase.from('user_settings').select('*').eq('user_id', effectiveId).maybeSingle();
       return data;
     },
-    enabled: !!user,
+    enabled: !!effectiveId,
   });
 
   // ── Imports data ──
@@ -235,7 +235,7 @@ export default function Finance() {
       const lastName = String(row[mapping.name_col] || '').trim();
       const rowName = firstName ? `${firstName} ${lastName}` : lastName;
       const rowId = String(row[mapping.id_col] || '').trim();
-      const amount = parseFloat(String(row[mapping.amount_col] || '0').replace(/[^\d.,\-]/g, '').replace(',', '.')) || 0;
+      const amount = parseFloat(String(row[mapping.amount_col] || '0').replace(/[^\d.,\-]/g, '').replace(/,/g, '.')) || 0;
 
       const isOwner = ownerName ? matchScore(ownerName, rowName) >= 80 : false;
 
@@ -376,7 +376,8 @@ export default function Finance() {
       const { error: rowsError } = await supabase.from('commission_import_rows').insert(rows);
       if (rowsError) throw rowsError;
 
-      await supabase.rpc('consolidate_import_commissions', { p_import_id: importRecord.id });
+      const { error: rpcError } = await supabase.rpc('consolidate_import_commissions', { p_import_id: importRecord.id });
+      if (rpcError) throw rpcError;
 
       // ── Cascade MLM: create commissions in linked members' own spaces ──
       // For each matched member WITH a linked_user_id (= they have their own Hyla account),
