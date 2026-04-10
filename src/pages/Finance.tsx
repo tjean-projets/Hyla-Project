@@ -102,6 +102,7 @@ export default function Finance() {
     fileName: '',
   });
   const [matchResults, setMatchResults] = useState<any[]>([]);
+  const [correctionOpen, setCorrectionOpen] = useState<Set<number>>(new Set());
   const [selectedImport, setSelectedImport] = useState<any>(null);
   const [importRows, setImportRows] = useState<any[]>([]);
 
@@ -321,6 +322,7 @@ export default function Finance() {
     });
 
     setMatchResults(results);
+    setCorrectionOpen(new Set());
     setFlow({ ...flow, step: 'matching' });
   }, [flow, allTreeMembers, profile]);
 
@@ -437,10 +439,9 @@ export default function Finance() {
           });
         }
 
-        // If the member is also a manager with their own sub-team,
-        // cascade network commissions to them for their sub-members' sales
-        if (linkedUserId && member.depth === 1) {
-          // Find sub-members (depth 2+) that belong to this linked member
+        // Si ce membre est lui-même manager avec une sous-équipe (à n'importe quelle profondeur),
+        // on lui cascade les commissions réseau de ses sous-membres
+        if (linkedUserId && linkedUserId !== user.id) {
           const subMemberResults = matchResults.filter(
             sr => sr.matched_member?.owner_user_id === linkedUserId
               && sr.matched_member?.id !== member.id
@@ -832,8 +833,26 @@ export default function Finance() {
                               </div>
                               <span className={`font-semibold ml-2 whitespace-nowrap ${r.match_status === 'non_reconnu' ? 'text-gray-400' : 'text-foreground'}`}>{r.amount.toLocaleString('fr-FR')} €</span>
                             </div>
-                            {/* Dropdown de correction : non_reconnu (visible si showOutOfTeam) OU manuel (toujours visible) */}
-                            {!r.is_owner_row && (r.match_status === 'non_reconnu' ? showOutOfTeam : r.match_status === 'manuel') && (
+                            {/* Bouton "Corriger" pour les lignes auto bien matchées */}
+                            {!r.is_owner_row && r.match_status === 'auto' && r.matched_member && (
+                              <button
+                                className="text-[10px] text-blue-400 underline mt-1"
+                                onClick={() => setCorrectionOpen(prev => {
+                                  const next = new Set(prev);
+                                  next.has(originalIndex) ? next.delete(originalIndex) : next.add(originalIndex);
+                                  return next;
+                                })}
+                              >
+                                {correctionOpen.has(originalIndex) ? 'Annuler' : 'Corriger'}
+                              </button>
+                            )}
+
+                            {/* Dropdown de correction : non_reconnu (visible si showOutOfTeam) | manuel (toujours) | auto (si bouton cliqué) */}
+                            {!r.is_owner_row && (
+                              r.match_status === 'non_reconnu' ? showOutOfTeam :
+                              r.match_status === 'manuel' ? true :
+                              correctionOpen.has(originalIndex)
+                            ) && (
                               <div className="mt-1.5">
                                 <select
                                   className={`w-full text-[11px] border rounded-lg px-2 py-1.5 bg-card focus:ring-1 focus:ring-blue-400 focus:border-blue-400 ${
@@ -853,9 +872,10 @@ export default function Finance() {
                                       }
                                     }
                                     setMatchResults(updated);
+                                    setCorrectionOpen(prev => { const next = new Set(prev); next.delete(originalIndex); return next; });
                                   }}
                                 >
-                                  <option value="">{r.match_status === 'manuel' ? 'Corriger le match...' : 'Assigner à un membre...'}</option>
+                                  <option value="">{r.match_status === 'manuel' ? 'Corriger le match...' : r.match_status === 'auto' ? 'Choisir un autre membre...' : 'Assigner à un membre...'}</option>
                                   <option value="__owner__">C'est moi</option>
                                   {allTreeMembers.map((m: any) => (
                                     <option key={m.id} value={m.id}>{m.first_name} {m.last_name} {m.internal_id ? `(${m.internal_id})` : ''}</option>
@@ -1101,8 +1121,8 @@ export default function Finance() {
                           notes: `Re-import réseau par ${profile?.full_name || 'manager'}`,
                         });
 
-                        // Cascade réseau pour les sous-membres si profondeur 1
-                        if (member.depth === 1) {
+                        // Cascade réseau pour les sous-membres à toute profondeur
+                        if (member.linked_user_id && member.linked_user_id !== user.id) {
                           const subRows = (updatedRows || []).filter((sr: any) => {
                             const subM = allTreeMembers.find((m: any) => m.id === sr.matched_member_id);
                             return subM?.owner_user_id === member.linked_user_id && sr.matched_member_id !== member.id && !sr.is_owner_row && sr.match_status !== 'non_reconnu';
