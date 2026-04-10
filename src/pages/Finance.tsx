@@ -299,7 +299,9 @@ export default function Finance() {
       if (!bestMatch) {
         for (const member of allTreeMembers) {
           const fullName = `${member.first_name} ${member.last_name}`;
-          const names = [fullName, ...(member.matching_names || [])];
+          // Also try reversed order (NOM Prénom) — TRV often has last name first
+          const reversedName = `${member.last_name} ${member.first_name}`;
+          const names = [fullName, reversedName, ...(member.matching_names || [])];
           for (const name of names) {
             const score = matchScore(name, rowName);
             if (score > (bestMatch?.confidence || 0)) {

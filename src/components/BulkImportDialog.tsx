@@ -257,7 +257,7 @@ function runMatchingFn(
     // 3. Fuzzy name
     if (!bestMatch) {
       for (const m of allTreeMembers) {
-        const names = [`${m.first_name} ${m.last_name}`, ...(m.matching_names || [])];
+        const names = [`${m.first_name} ${m.last_name}`, `${m.last_name} ${m.first_name}`, ...(m.matching_names || [])];
         for (const name of names) {
           const score = matchScore(name, fullName);
           if (score > (bestMatch?.confidence || 0)) bestMatch = { member: m, confidence: score };
