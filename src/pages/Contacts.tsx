@@ -440,6 +440,7 @@ export default function Contacts() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [contactTab, setContactTab] = useState<'crm' | 'clients' | 'all'>('crm');
   const [showForm, setShowForm] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [view, setView] = useState<'list' | 'pipeline'>('list');
@@ -531,16 +532,36 @@ export default function Contacts() {
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
 
-  const filtered = contacts.filter((c) => {
+  const filtered = tabContacts.filter((c) => {
     const matchesSearch = !search || `${c.first_name} ${c.last_name} ${c.email || ''} ${c.phone || ''}`.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
+  // Auto-créer les étapes pipeline par défaut si aucune n'existe
+  useEffect(() => {
+    if (!effectiveId || stages.length > 0) return;
+    const DEFAULT_STAGES = [
+      { name: 'Nouveau prospect', color: '#6b7280', position: 1 },
+      { name: 'Premier contact',  color: '#3b82f6', position: 2 },
+      { name: 'Démo planifiée',   color: '#8b5cf6', position: 3 },
+      { name: 'En réflexion',     color: '#f59e0b', position: 4 },
+      { name: 'Gagné ✓',          color: '#10b981', position: 5 },
+    ];
+    supabase.from('pipeline_stages')
+      .insert(DEFAULT_STAGES.map(s => ({ ...s, user_id: effectiveId })))
+      .then(() => queryClient.invalidateQueries({ queryKey: ['pipeline-stages', effectiveId] }));
+  }, [effectiveId, stages.length]);
+
+  // Onglets CRM vs Clients TRV
+  const crmContacts     = contacts.filter(c => c.status !== 'cliente');
+  const clientContacts  = contacts.filter(c => c.status === 'cliente');
+  const tabContacts     = contactTab === 'crm' ? crmContacts : contactTab === 'clients' ? clientContacts : contacts;
+
   // Group contacts by pipeline stage for Kanban view
   const contactsByStage = stages.map(stage => ({
     ...stage,
-    contacts: contacts.filter(c => c.pipeline_stage_id === stage.id),
+    contacts: crmContacts.filter(c => c.pipeline_stage_id === stage.id),
   }));
 
   return (
@@ -586,6 +607,32 @@ export default function Contacts() {
       </Dialog>
 
       <div className="space-y-4">
+        {/* Onglets CRM / Clients / Tous */}
+        <div className="flex gap-1 bg-muted rounded-xl p-1">
+          {([
+            { key: 'crm',     label: 'CRM',     count: crmContacts.length,    desc: 'Prospects · Recrues · Partenaires' },
+            { key: 'clients', label: 'Clients',  count: clientContacts.length, desc: 'Acheteurs importés TRV' },
+            { key: 'all',     label: 'Tous',     count: contacts.length,       desc: '' },
+          ] as const).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => { setContactTab(tab.key); setStatusFilter('all'); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                contactTab === tab.key
+                  ? 'bg-card shadow-sm text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {tab.label}
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                contactTab === tab.key ? 'bg-[#3b82f6] text-white' : 'bg-muted-foreground/20 text-muted-foreground'
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
         {/* Toolbar */}
         <div className="flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
@@ -597,39 +644,45 @@ export default function Contacts() {
               className="pl-10"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Tous les statuts" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les statuts</SelectItem>
-              {Object.entries(CONTACT_STATUS_LABELS).map(([k, v]) => (
-                <SelectItem key={k} value={k}>{v}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex gap-1 bg-muted rounded-lg p-1">
-            <button
-              onClick={() => setView('list')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'list' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
-            >
-              Liste
-            </button>
-            <button
-              onClick={() => setView('pipeline')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'pipeline' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
-            >
-              Pipeline
-            </button>
-            {view === 'pipeline' && (
+          {contactTab !== 'clients' && (
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tous les statuts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                {Object.entries(CONTACT_STATUS_LABELS)
+                  .filter(([k]) => contactTab === 'crm' ? k !== 'cliente' : true)
+                  .map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          )}
+          {contactTab !== 'clients' && (
+            <div className="flex gap-1 bg-muted rounded-lg p-1">
               <button
-                onClick={() => { setEditStages(stages.map(s => ({...s}))); setShowStageManager(true); }}
-                className="px-2 py-1.5 text-muted-foreground hover:text-gray-600"
+                onClick={() => setView('list')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'list' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
               >
-                <Settings className="h-4 w-4" />
+                Liste
               </button>
-            )}
-          </div>
+              <button
+                onClick={() => setView('pipeline')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'pipeline' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
+              >
+                Pipeline
+              </button>
+              {view === 'pipeline' && (
+                <button
+                  onClick={() => { setEditStages(stages.map(s => ({...s}))); setShowStageManager(true); }}
+                  className="px-2 py-1.5 text-muted-foreground hover:text-gray-600"
+                >
+                  <Settings className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* List view */}
