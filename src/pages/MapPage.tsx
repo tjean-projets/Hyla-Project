@@ -37,7 +37,7 @@ interface MapMember {
   email: string | null
   status: string
   hyla_level: string | null
-  city: string | null
+  address: string | null
   lat: number | null
   lng: number | null
 }
@@ -90,10 +90,10 @@ function getLevelColor(level: string | null): string {
   return LEVEL_COLORS[level ?? ''] ?? '#6b7280'
 }
 
-async function geocode(city: string): Promise<{ lat: number; lng: number } | null> {
+async function geocode(address: string): Promise<{ lat: number; lng: number } | null> {
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ', France')}&format=json&limit=1`,
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=fr`,
       { headers: { 'Accept-Language': 'fr' } }
     )
     const data = await res.json()
@@ -149,10 +149,10 @@ function MemberCard({ member, onClick, selected }: MemberCardProps) {
         </Badge>
       </div>
       <div className="flex items-center gap-2 mt-1 ml-4">
-        {member.city ? (
+        {member.address ? (
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             <MapPin className="w-3 h-3" />
-            {member.city}
+            {member.address}
           </span>
         ) : (
           <span className="text-xs text-muted-foreground/60 flex items-center gap-1">
@@ -209,17 +209,20 @@ export default function MapPage() {
       if (!effectiveUserId) return []
       const { data, error } = await supabase
         .from('team_members')
-        .select('id, first_name, last_name, email, status, hyla_level, city, lat, lng')
+        .select('id, first_name, last_name, email, status, hyla_level, lat, lng, contacts(address)')
         .eq('user_id', effectiveUserId)
         .order('first_name')
       if (error) throw error
-      return (data ?? []) as unknown as MapMember[]
+      return (data ?? []).map((m: any) => ({
+        ...m,
+        address: m.contacts?.address ?? null,
+      })) as MapMember[]
     },
     enabled: !!effectiveUserId,
     staleTime: 60_000,
   })
 
-  // ── Auto-geocode members with city but no coordinates ──
+  // ── Auto-geocode members with address but no coordinates ──
   const runGeocoding = useCallback(
     async (members: MapMember[]) => {
       geocodingAbortRef.current = false
@@ -232,14 +235,14 @@ export default function MapPage() {
       setGeocodedMembers(enriched)
 
       const toGeocode = enriched.filter(
-        m => m.city && (m.resolvedLat === null || m.resolvedLng === null)
+        m => m.address && (m.resolvedLat === null || m.resolvedLng === null)
       )
       if (toGeocode.length === 0) return
 
       setIsGeocoding(true)
       for (const member of toGeocode) {
         if (geocodingAbortRef.current) break
-        const coords = await geocode(member.city!)
+        const coords = await geocode(member.address!)
         if (coords) {
           setGeocodedMembers(prev =>
             prev.map(m =>
@@ -471,10 +474,10 @@ export default function MapPage() {
                     <p className="font-semibold pr-4 truncate">
                       {getMemberName(selectedMember)}
                     </p>
-                    {selectedMember.city && (
+                    {selectedMember.address && (
                       <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                         <MapPin className="w-3 h-3" />
-                        {selectedMember.city}
+                        {selectedMember.address}
                       </p>
                     )}
                     <div className="flex gap-1.5 flex-wrap mt-2">
@@ -513,7 +516,7 @@ export default function MapPage() {
             <div>
               <p className="text-sm font-medium">Aucun membre localisé</p>
               <p className="text-xs text-muted-foreground">
-                Ajoutez une ville à vos membres pour les afficher sur la carte.
+                Ajoutez une adresse à vos membres pour les afficher sur la carte.
               </p>
             </div>
           </div>

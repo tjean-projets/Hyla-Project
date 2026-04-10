@@ -979,6 +979,21 @@ function FicheMembre({
     enabled: open && !!effectiveId,
   });
 
+  // Fetch contact address for this member
+  const { data: contactData } = useQuery({
+    queryKey: ['member-contact-address', member.contact_id],
+    queryFn: async () => {
+      if (!member.contact_id) return null;
+      const { data } = await supabase
+        .from('contacts')
+        .select('address')
+        .eq('id', member.contact_id)
+        .single();
+      return data;
+    },
+    enabled: open && !!member.contact_id,
+  });
+
   const totalCommissions = commissions.reduce((s: number, c: any) => s + c.amount, 0);
   const dealsSignes = deals.filter((d: any) => d.status === 'signee').length;
   const dealsEnCours = deals.filter((d: any) => d.status === 'en_cours' || d.status === 'en_attente').length;
@@ -1036,6 +1051,12 @@ function FicheMembre({
             {member.phone && <div className="flex justify-between"><span className="text-muted-foreground">Téléphone</span><span className="text-foreground">{member.phone}</span></div>}
             {member.email && <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span className="text-foreground truncate ml-4">{member.email}</span></div>}
             <div className="flex justify-between"><span className="text-muted-foreground">Depuis le</span><span className="text-foreground">{joined}</span></div>
+            {contactData?.address && (
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground flex-shrink-0">Adresse</span>
+                <span className="text-foreground text-right">{contactData.address}</span>
+              </div>
+            )}
           </div>
 
           {/* Recent commissions */}
