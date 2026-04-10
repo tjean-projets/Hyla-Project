@@ -326,7 +326,7 @@ export default function SettingsPage() {
   const saveProfile = useMutation({
     mutationFn: async () => {
       if (!user) return;
-      const { error } = await supabase.from('profiles').update({ full_name: fullName, phone }).eq('id', user.id);
+      const { error } = await supabase.from('profiles').update({ full_name: fullName, phone }).eq('id', effectiveUserId);
       if (error) throw error;
     },
     onSuccess: () => toast({ title: 'Profil mis à jour' }),
