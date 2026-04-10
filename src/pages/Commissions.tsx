@@ -222,6 +222,26 @@ export default function Commissions() {
     XLSX.writeFile(wb, `commissions_${periodLabel}.xlsx`);
   };
 
+  // ── Export Excel (all filtered commissions) ──
+  const exportExcel = () => {
+    const rows = filteredCommissions.map((c: any) => ({
+      'Période': c.period,
+      'Type': c.type === 'directe' ? 'Vente directe' : 'Réseau',
+      'Membre': c.team_member_id
+        ? teamMembers.find((m: any) => m.id === c.team_member_id)
+            ? `${(teamMembers.find((m: any) => m.id === c.team_member_id) as any).first_name} ${(teamMembers.find((m: any) => m.id === c.team_member_id) as any).last_name}`
+            : 'Inconnu'
+        : 'Vente perso',
+      'Montant (€)': c.amount,
+      'Statut': c.status === 'validee' ? 'Confirmée' : 'Attendue',
+      'Source': c.source || '',
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Commissions')
+    XLSX.writeFile(wb, `commissions-${selectedYear}.xlsx`)
+  }
+
   // ── Export comptable CSV ──
   const exportComptableCSV = () => {
     const comms = filteredCommissions.filter((c: any) => c.status === 'validee');
@@ -319,12 +339,21 @@ export default function Commissions() {
               <p className="text-xs opacity-70 mt-1">{teamSummary.filter((m: any) => m.total > 0).length} membre{teamSummary.filter((m: any) => m.total > 0).length > 1 ? 's' : ''} actif{teamSummary.filter((m: any) => m.total > 0).length > 1 ? 's' : ''}</p>
             </div>
 
-            <button
-              onClick={() => { setExportMembers(new Set(teamMembers.map((m: any) => m.id))); setShowExportDialog(true); }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-card border border-border rounded-xl text-sm text-muted-foreground hover:bg-muted transition-colors"
-            >
-              <FileText className="h-4 w-4" /> Exporter en PDF
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setExportMembers(new Set(teamMembers.map((m: any) => m.id))); setShowExportDialog(true); }}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-card border border-border rounded-xl text-sm text-muted-foreground hover:bg-muted transition-colors"
+              >
+                <FileText className="h-4 w-4" /> Exporter en PDF
+              </button>
+              <button
+                onClick={exportExcel}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors"
+              >
+                <Download className="h-4 w-4" />
+                Excel
+              </button>
+            </div>
 
             <div className="space-y-2">
               {teamSummary.map((m: any) => {

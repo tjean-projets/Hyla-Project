@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Target,
   Zap,
+  GraduationCap,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -186,6 +187,33 @@ export default function Dashboard() {
     enabled: !!effectiveId,
     staleTime: 60000,
   });
+
+  // Total lessons count
+  const { data: totalLessons } = useQuery({
+    queryKey: ['formation-total-lessons'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('formation_lessons')
+        .select('id', { count: 'exact', head: true })
+      return count || 0
+    },
+    staleTime: 300000,
+  })
+
+  // User's completed lessons
+  const { data: completedLessons } = useQuery({
+    queryKey: ['formation-progress-dash', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return 0
+      const { count } = await supabase
+        .from('formation_progress')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', effectiveId)
+      return count || 0
+    },
+    enabled: !!effectiveId,
+    staleTime: 60000,
+  })
 
   const { data: upcomingTasks, isLoading: tasksLoading } = useQuery({
     queryKey: ['upcoming-tasks', effectiveId],
@@ -621,6 +649,32 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+        )}
+
+        {/* Formation progress */}
+        {(totalLessons ?? 0) > 0 && (
+          <a href="/formation" className="block bg-card rounded-2xl border shadow-sm p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-xl bg-violet-100 flex items-center justify-center">
+                  <GraduationCap className="h-4 w-4 text-violet-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Formation</p>
+                  <p className="text-xs text-muted-foreground">{completedLessons ?? 0} / {totalLessons ?? 0} leçons</p>
+                </div>
+              </div>
+              <span className="text-lg font-bold text-violet-600">
+                {totalLessons ? Math.round(((completedLessons ?? 0) / totalLessons) * 100) : 0}%
+              </span>
+            </div>
+            <div className="w-full bg-violet-100 rounded-full h-2">
+              <div
+                className="bg-violet-500 h-2 rounded-full transition-all"
+                style={{ width: `${totalLessons ? Math.min(100, Math.round(((completedLessons ?? 0) / totalLessons) * 100)) : 0}%` }}
+              />
+            </div>
+          </a>
         )}
 
         {/* ── Challenge manager ── */}
