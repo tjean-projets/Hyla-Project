@@ -326,10 +326,19 @@ export default function SettingsPage() {
   const saveProfile = useMutation({
     mutationFn: async () => {
       if (!user) return;
-      const { error } = await supabase.from('profiles').update({ full_name: fullName, phone }).eq('id', effectiveUserId);
+      const { error, count } = await supabase
+        .from('profiles')
+        .update({ full_name: fullName, phone })
+        .eq('id', effectiveUserId)
+        .select('id', { count: 'exact', head: true });
       if (error) throw error;
+      if (count === 0) throw new Error('Mise à jour bloquée (permissions insuffisantes)');
     },
-    onSuccess: () => toast({ title: 'Profil mis à jour' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['impersonated-profile', effectiveUserId] });
+      queryClient.invalidateQueries({ queryKey: ['profile-onboarding', effectiveUserId] });
+      toast({ title: 'Profil mis à jour' });
+    },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
 
