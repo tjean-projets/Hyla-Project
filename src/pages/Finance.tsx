@@ -470,11 +470,102 @@ export default function Finance() {
       if (cascadeCommissions.length > 0) {
         await supabase.from('commissions').insert(cascadeCommissions);
       }
+
+      // ── Création automatique des contacts clients ──
+      const normCol = (s: string) => normalizeStr(s).replace(/[^a-z0-9]/g, '');
+      const findCol = (keywords: string[]) =>
+        flow.columns.find(c => keywords.some(k => normCol(c).includes(k))) ?? null;
+
+      const clientNameCol = findCol(['nomduclient', 'nomclient', 'client', 'acheteur']);
+      const addressCol    = findCol(['adresse', 'address']);
+      const postalCol     = findCol(['cp', 'codepostal', 'postal']);
+      const cityCol       = findCol(['ville', 'city']);
+      const phoneCol      = findCol(['tph', 'tel', 'telephone', 'portable', 'mobile']);
+      const emailCol      = findCol(['mail', 'email', 'courriel']);
+
+      if (clientNameCol && effectiveId) {
+        // Parse "NOM PRENOM" → last word = prénom, reste = nom
+        const parseClientName = (raw: string) => {
+          const parts = raw.trim().split(/\s+/);
+          if (parts.length === 1) return { first: '', last: raw.trim() };
+          const first = parts[parts.length - 1];
+          const last = parts.slice(0, -1).join(' ');
+          const toTitle = (s: string) =>
+            s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('-');
+          return { first: toTitle(first), last: toTitle(last) };
+        };
+
+        // Collect unique clients à créer pour ce user (le manager qui importe)
+        const seen = new Set<string>();
+        const candidates: { first: string; last: string; email: string | null; phone: string | null; address: string | null }[] = [];
+
+        for (const r of matchResults) {
+          if (r.match_status === 'non_reconnu') continue;
+          const rawName = (r.raw_data[clientNameCol] as string)?.trim();
+          if (!rawName) continue;
+
+          const email = emailCol ? ((r.raw_data[emailCol] as string)?.trim()?.toLowerCase() || null) : null;
+          const phone = phoneCol ? ((r.raw_data[phoneCol] as string)?.trim() || null) : null;
+          const addr  = addressCol ? ((r.raw_data[addressCol] as string)?.trim() || null) : null;
+          const cp    = postalCol  ? ((r.raw_data[postalCol]  as string)?.trim() || null) : null;
+          const city  = cityCol    ? ((r.raw_data[cityCol]    as string)?.trim() || null) : null;
+
+          // Déduplique par email si dispo, sinon par nom+cp
+          const key = email || `${normalizeStr(rawName)}|${cp || ''}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+
+          const { first, last } = parseClientName(rawName);
+          candidates.push({
+            first,
+            last,
+            email,
+            phone,
+            address: [addr, cp, city].filter(Boolean).join(', ') || null,
+          });
+        }
+
+        if (candidates.length > 0) {
+          // Vérifie quels emails existent déjà
+          const emails = candidates.map(c => c.email).filter(Boolean) as string[];
+          const existingEmails = new Set<string>();
+          if (emails.length > 0) {
+            const { data: existing } = await supabase
+              .from('contacts')
+              .select('email')
+              .eq('user_id', effectiveId)
+              .in('email', emails);
+            (existing || []).forEach((c: any) => {
+              if (c.email) existingEmails.add(c.email.toLowerCase());
+            });
+          }
+
+          const toInsert = candidates
+            .filter(c => !c.email || !existingEmails.has(c.email))
+            .map(c => ({
+              user_id: effectiveId,
+              first_name: c.first || 'Inconnu',
+              last_name: c.last,
+              email: c.email,
+              phone: c.phone,
+              address: c.address,
+              status: 'cliente' as const,
+              source: 'import_trv',
+            }));
+
+          if (toInsert.length > 0) {
+            await supabase.from('contacts').insert(toInsert);
+            return toInsert.length; // retourne le nombre créés
+          }
+        }
+      }
+      return 0;
     },
-    onSuccess: async () => {
+    onSuccess: async (createdCount) => {
       queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
       queryClient.invalidateQueries({ queryKey: ['commissions'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
 
       // Save mapping profile + name associations for future auto-mapping
       if (user) {
@@ -501,7 +592,10 @@ export default function Finance() {
       }
 
       setFlow({ ...flow, step: 'done' });
-      toast({ title: 'Import traité avec succès' });
+      toast({
+        title: 'Import traité avec succès',
+        description: createdCount > 0 ? `${createdCount} contact${createdCount > 1 ? 's' : ''} client${createdCount > 1 ? 's' : ''} ajouté${createdCount > 1 ? 's' : ''}` : undefined,
+      });
     },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
