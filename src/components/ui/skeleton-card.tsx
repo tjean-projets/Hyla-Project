@@ -1,7 +1,16 @@
 // Skeleton components for loading states
 
 function SkeletonBlock({ className }: { className?: string }) {
-  return <div className={`animate-pulse bg-muted rounded ${className ?? ''}`} />;
+  return (
+    <div
+      className={`rounded overflow-hidden relative ${className ?? ''}`}
+      style={{
+        background: 'hsl(var(--muted))',
+      }}
+    >
+      <div className="absolute inset-0 skeleton-shimmer" />
+    </div>
+  );
 }
 
 /** Skeleton for a KPI card (number + label) */
