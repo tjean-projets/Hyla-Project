@@ -60,18 +60,21 @@ export default function AdminPanel() {
   const isAdmin = isSuperAdmin(user?.email);
 
   // Fetch all profiles — enabled seulement quand l'admin est authentifié
-  const { data: profiles = [], isLoading } = useQuery({
+  const { data: profiles = [], isLoading, error: profilesError } = useQuery({
     queryKey: ['admin-all-profiles', user?.id],
     queryFn: async () => {
+      console.log('[AdminPanel] Fetching profiles, user:', user?.email);
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, email, phone, sponsor_user_id, invite_code, created_at, plan')
         .order('created_at', { ascending: false });
+      console.log('[AdminPanel] Result:', { count: data?.length, error });
       if (error) throw error;
       return (data || []) as UserProfile[];
     },
     enabled: !!user && isAdmin,
-    staleTime: 0, // Toujours fresh pour l'admin
+    staleTime: 0,
+    retry: false,
   });
 
   // Attendre que l'auth soit chargée avant de vérifier les droits
@@ -217,6 +220,13 @@ export default function AdminPanel() {
             <p className="text-[10px] text-purple-500">Parrains actifs</p>
           </div>
         </div>
+
+        {/* Debug info */}
+        {profilesError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 font-mono break-all">
+            <strong>Erreur query :</strong> {String(profilesError)}
+          </div>
+        )}
 
         {/* User list */}
         {isLoading ? (
