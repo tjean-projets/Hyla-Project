@@ -24,7 +24,7 @@ interface UserProfile {
   sponsor_user_id: string | null;
   invite_code: string | null;
   created_at: string;
-  plan: PlanType | null;
+  plan?: PlanType | null;
 }
 
 const PLAN_BADGE: Record<PlanType, { label: string; className: string }> = {
@@ -66,7 +66,7 @@ export default function AdminPanel() {
       console.log('[AdminPanel] Fetching profiles, user:', user?.email);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email, phone, sponsor_user_id, invite_code, created_at, plan')
+        .select('id, full_name, email, phone, sponsor_user_id, invite_code, created_at')
         .order('created_at', { ascending: false });
       console.log('[AdminPanel] Result:', { count: data?.length, error });
       if (error) throw error;
