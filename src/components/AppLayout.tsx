@@ -87,7 +87,8 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
       return data || [];
     },
     enabled: !!effectiveId,
-    refetchInterval: 30000,
+    staleTime: 60000,
+    refetchInterval: 2 * 60 * 1000, // 2 min (was 30s)
   });
 
   // Query overdue tasks
@@ -106,6 +107,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
       return data || [];
     },
     enabled: !!effectiveId,
+    staleTime: 60000,
   });
 
   // Query today's tasks
@@ -128,6 +130,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
       return data || [];
     },
     enabled: !!effectiveId,
+    staleTime: 60000,
   });
 
   // Query upcoming appointments (next 24h)
@@ -148,7 +151,8 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
       return data || [];
     },
     enabled: !!effectiveId,
-    refetchInterval: 30000,
+    staleTime: 60000,
+    refetchInterval: 3 * 60 * 1000, // 3 min (was 30s)
   });
 
   // Query Hyla notifications from DB
@@ -166,7 +170,8 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
       return data || [];
     },
     enabled: !!effectiveId,
-    refetchInterval: 15000,
+    staleTime: 60000,
+    refetchInterval: 2 * 60 * 1000, // 2 min (was 15s — 8× moins de requêtes)
   });
 
   const totalCount = newLeads.length + overdueTasks.length + todayTasks.length + hylaNotifs.length + upcomingApts.length;
@@ -255,7 +260,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
       >
         <Bell className="h-5 w-5" />
         {totalCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center badge-pulse">
             {totalCount > 9 ? '9+' : totalCount}
           </span>
         )}

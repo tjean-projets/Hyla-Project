@@ -44,7 +44,16 @@ const PartnerDocuments = lazy(() => import("./pages/partner/Documents"));
 const PartnerProfile = lazy(() => import("./pages/partner/Profile"));
 const PartnerWallet = lazy(() => import("./pages/partner/Wallet"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000,      // 2 min par défaut : évite les refetch inutiles
+      refetchOnWindowFocus: false,    // Ne pas refetch à chaque focus de fenêtre
+      retry: 1,                       // 1 seul retry en cas d'erreur (pas 3)
+      refetchOnMount: true,           // OK de refetch au montage si stale
+    },
+  },
+});
 
 function AppSpinner() {
   return (
