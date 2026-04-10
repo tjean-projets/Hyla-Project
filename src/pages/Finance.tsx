@@ -632,7 +632,19 @@ export default function Finance() {
         {activeTab === 'imports' && (
           <>
             <button
-              onClick={() => { setShowImport(true); setFlow({ ...flow, step: 'upload', rawData: [] } as any); }}
+              onClick={() => {
+                // Auto-avancer la période au mois suivant le dernier import
+                const lastPeriod = (imports as any[])[0]?.period;
+                let defaultPeriod = flow.period;
+                if (lastPeriod) {
+                  const [y, m] = lastPeriod.split('-').map(Number);
+                  defaultPeriod = m === 12
+                    ? `${y + 1}-01`
+                    : `${y}-${String(m + 1).padStart(2, '0')}`;
+                }
+                setShowImport(true);
+                setFlow({ ...flow, step: 'upload', rawData: [], columns: [], period: defaultPeriod, fileName: '' });
+              }}
               className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#3b82f6] text-white font-semibold rounded-xl active:scale-[0.98] transition-transform"
             >
               <Upload className="h-4 w-4" />
