@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
@@ -351,6 +351,13 @@ export default function Finance() {
     setCorrectionOpen(new Set());
     setFlow({ ...flow, step: 'matching' });
   }, [flow, allTreeMembers, profile]);
+
+  // Auto-déclenche le matching quand on saute l'étape mapping (TRV reconnu / mapping sauvegardé)
+  useEffect(() => {
+    if (flow.step === 'matching' && flow.rawData.length > 0 && matchResults.length === 0 && allTreeMembers !== undefined) {
+      runMatching();
+    }
+  }, [flow.step, flow.rawData.length, allTreeMembers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Save import ──
   const handleValidate = async (forceReplace = false) => {
