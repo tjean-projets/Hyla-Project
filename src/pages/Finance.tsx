@@ -187,58 +187,80 @@ export default function Finance() {
         const data = new Uint8Array(evt.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: '' });
 
-        if (json.length === 0) {
-          toast({ title: 'Fichier vide', variant: 'destructive' });
+        // ── Trouver la vraie ligne d'en-tête (contient VENDEUR ou NOM DU CLIENT) ──
+        const rawRows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: '' });
+        let headerRowIdx = 0;
+        for (let i = 0; i < Math.min(rawRows.length, 15); i++) {
+          const rowStr = (rawRows[i] as string[]).join('|').toUpperCase();
+          if (rowStr.includes('VENDEUR') || rowStr.includes('NOM DU CLIENT') || rowStr.includes('PRIX DE VENTE')) {
+            headerRowIdx = i;
+            break;
+          }
+        }
+
+        // Parse depuis la vraie ligne d'en-tête
+        const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, {
+          defval: '',
+          range: headerRowIdx,
+        });
+
+        // Filtrer les lignes vides (sans vendeur ni montant)
+        const filteredJson = json.filter(row => {
+          const vals = Object.values(row);
+          return vals.some(v => String(v).trim().length > 2);
+        });
+
+        if (filteredJson.length === 0) {
+          toast({ title: 'Fichier vide ou format non reconnu', variant: 'destructive' });
           return;
         }
 
-        const columns = Object.keys(json[0]);
-        const nameCol = columns.find(c => /^nom$|name|conseiller|vendeur/i.test(c)) || '';
-        const firstnameCol = columns.find(c => /prénom|prenom|firstname|first.?name/i.test(c)) || '';
-        const idCol = columns.find(c => /id.?hyla|hyla.?id|matricule|code.?hyla|^id$/i.test(c)) || '';
+        const columns = Object.keys(filteredJson[0]);
 
-        // Smart amount column: prefer column matching current period month
-        const MONTHS_FR = ['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
-        const periodMonth = parseInt(flow.period.split('-')[1]) - 1;
-        const periodYear = flow.period.split('-')[0];
-        const monthName = MONTHS_FR[periodMonth] || '';
-        const amountCols = columns.filter(c => /montant|amount|com\b|comm|commission|total/i.test(c));
-        // Try to find column matching current period (month + year)
-        let amountCol = amountCols.find(c => {
-          const lower = c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          return monthName && lower.includes(monthName) && lower.includes(periodYear);
-        }) || amountCols.find(c => {
-          const lower = c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          return monthName && lower.includes(monthName);
-        }) || amountCols[0] || '';
+        // ── Auto-détection format TRV Hyla ──
+        const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const isTRV = columns.some(c => /vendeur/i.test(c)) && columns.some(c => /client|nom.du/i.test(c));
+
+        let nameCol = '';
+        let firstnameCol = '';
+        let amountCol = '';
+        let idCol = '';
+
+        if (isTRV) {
+          nameCol    = columns.find(c => /vendeur/i.test(c.trim())) || '';
+          amountCol  = columns.find(c => /prix.de.vente|montant/i.test(c.trim())) || '';
+          idCol      = columns.find(c => /n°.dossier|n.*dossier|hyla/i.test(c.trim())) || '';
+        } else {
+          nameCol      = columns.find(c => /^nom$|name|conseiller|vendeur/i.test(c)) || '';
+          firstnameCol = columns.find(c => /prénom|prenom|firstname|first.?name/i.test(c)) || '';
+          idCol        = columns.find(c => /id.?hyla|hyla.?id|matricule|code.?hyla|^id$/i.test(c)) || '';
+          const MONTHS_FR = ['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
+          const periodMonth = parseInt(flow.period.split('-')[1]) - 1;
+          const periodYear = flow.period.split('-')[0];
+          const monthName = MONTHS_FR[periodMonth] || '';
+          const amountCols = columns.filter(c => /montant|amount|com\b|comm|commission|total/i.test(c));
+          amountCol = amountCols.find(c => {
+            const lower = norm(c);
+            return monthName && lower.includes(monthName) && lower.includes(periodYear);
+          }) || amountCols.find(c => { const lower = norm(c); return monthName && lower.includes(monthName); }) || amountCols[0] || '';
+        }
+
+        const mapping = { name_col: nameCol, firstname_col: firstnameCol, amount_col: amountCol, id_col: idCol };
 
         // Check saved mapping profiles
         const columnsKey = [...columns].sort().join(',');
         const savedProfiles = settings?.column_mappings as any;
         const savedProfile = savedProfiles?.profiles?.find((p: any) => p.columns_key === columnsKey);
+        const finalMapping = savedProfile
+          ? { ...savedProfile.mapping, amount_col: amountCol || savedProfile.mapping.amount_col }
+          : mapping;
 
-        if (savedProfile) {
-          // Auto-apply saved mapping, go straight to matching
-          setFlow({
-            step: 'mapping',
-            rawData: json,
-            columns,
-            mapping: { ...savedProfile.mapping, amount_col: amountCol || savedProfile.mapping.amount_col },
-            period: flow.period,
-            fileName: file.name,
-          });
-          // Will auto-trigger matching after render
+        // TRV reconnu ou mapping sauvegardé → skip mapping, aller direct au matching
+        if (isTRV || savedProfile) {
+          setFlow({ step: 'matching', rawData: filteredJson, columns, mapping: finalMapping, period: flow.period, fileName: file.name });
         } else {
-          setFlow({
-            step: 'mapping',
-            rawData: json,
-            columns,
-            mapping: { name_col: nameCol, firstname_col: firstnameCol, amount_col: amountCol, id_col: idCol },
-            period: flow.period,
-            fileName: file.name,
-          });
+          setFlow({ step: 'mapping', rawData: filteredJson, columns, mapping: finalMapping, period: flow.period, fileName: file.name });
         }
       } catch {
         toast({ title: 'Erreur de lecture du fichier', variant: 'destructive' });
