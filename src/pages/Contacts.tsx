@@ -532,6 +532,11 @@ export default function Contacts() {
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
 
+  // Onglets CRM vs Clients TRV — déclarés AVANT filtered
+  const crmContacts    = contacts.filter(c => c.status !== 'cliente');
+  const clientContacts = contacts.filter(c => c.status === 'cliente');
+  const tabContacts    = contactTab === 'crm' ? crmContacts : contactTab === 'clients' ? clientContacts : contacts;
+
   const filtered = tabContacts.filter((c) => {
     const matchesSearch = !search || `${c.first_name} ${c.last_name} ${c.email || ''} ${c.phone || ''}`.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
@@ -551,12 +556,7 @@ export default function Contacts() {
     supabase.from('pipeline_stages')
       .insert(DEFAULT_STAGES.map(s => ({ ...s, user_id: effectiveId })))
       .then(() => queryClient.invalidateQueries({ queryKey: ['pipeline-stages', effectiveId] }));
-  }, [effectiveId, stages.length]);
-
-  // Onglets CRM vs Clients TRV
-  const crmContacts     = contacts.filter(c => c.status !== 'cliente');
-  const clientContacts  = contacts.filter(c => c.status === 'cliente');
-  const tabContacts     = contactTab === 'crm' ? crmContacts : contactTab === 'clients' ? clientContacts : contacts;
+  }, [effectiveId, stages.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Group contacts by pipeline stage for Kanban view
   const contactsByStage = stages.map(stage => ({
