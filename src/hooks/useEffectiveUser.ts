@@ -35,7 +35,7 @@ export function useEffectiveProfile() {
       if (!impersonation?.partnerId) return null;
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, email, phone, avatar_url, invite_code, created_at, role, plan, plan_status, trial_ends_at')
+        .select('id, full_name, email, phone, avatar_url, invite_code, created_at, role')
         .eq('id', impersonation.partnerId)
         .single();
       return data;
