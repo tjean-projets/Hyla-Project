@@ -338,7 +338,7 @@ export default function Finance() {
       const { data: existing } = await supabase
         .from('commission_imports')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .eq('period', flow.period);
       setCheckingDuplicate(false);
       if (existing && existing.length > 0) {
@@ -359,7 +359,7 @@ export default function Finance() {
         const { data: oldImports } = await supabase
           .from('commission_imports')
           .select('id')
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveId)
           .eq('period', flow.period);
 
         if (oldImports?.length) {
@@ -390,7 +390,7 @@ export default function Finance() {
       const { data: importRecord, error: importError } = await supabase
         .from('commission_imports')
         .insert({
-          user_id: user.id,
+          user_id: effectiveId,   // ← impersonation-aware
           file_name: flow.fileName,
           period: flow.period,
           column_mapping: flow.mapping as any,
@@ -1213,8 +1213,8 @@ export default function Finance() {
                       await supabase.from('commission_import_rows').delete().eq('import_id', selectedImport.id);
                       await supabase.from('commission_imports').delete().eq('id', selectedImport.id);
 
-                      queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
-                      queryClient.invalidateQueries({ queryKey: ['commissions'] });
+                      queryClient.invalidateQueries({ queryKey: ['commission-imports', effectiveId] });
+                      queryClient.invalidateQueries({ queryKey: ['commissions', effectiveId] });
                       queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
                       toast({ title: 'Import supprimé', description: `L'import ${selectedImport.period} a été supprimé.` });
                       setSelectedImport(null);
