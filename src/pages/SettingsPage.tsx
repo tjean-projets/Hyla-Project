@@ -593,18 +593,16 @@ export default function SettingsPage() {
             )}
             <div>
               <Label className="text-xs">Téléphone</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isImpersonating} className="h-11" />
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11" />
             </div>
-            {!isImpersonating && (
-              <button
-                onClick={() => saveProfile.mutate()}
-                disabled={saveProfile.isPending}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
-              >
-                <Save className="h-4 w-4" />
-                Sauvegarder
-              </button>
-            )}
+            <button
+              onClick={() => saveProfile.mutate()}
+              disabled={saveProfile.isPending}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              {isImpersonating ? `Sauvegarder le profil de ${profile?.full_name?.split(' ')[0] || 'ce compte'}` : 'Sauvegarder'}
+            </button>
           </div>
         </div>
 
