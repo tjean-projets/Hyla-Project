@@ -5,7 +5,7 @@ import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase, IMPORT_STATUS_LABELS, IMPORT_STATUS_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Upload, FileSpreadsheet, CheckCircle, AlertTriangle, XCircle,
+  Upload, FileSpreadsheet, CheckCircle, AlertTriangle, XCircle, Trash2,
   FileText, Receipt, ChevronRight, RefreshCw, Network,
 } from 'lucide-react';
 import { BulkImportDialog } from '@/components/BulkImportDialog';
@@ -1180,6 +1180,47 @@ export default function Finance() {
                     className="w-full py-2.5 bg-[#3b82f6] text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2"
                   >
                     <RefreshCw className="h-4 w-4" /> Re-consolider les commissions
+                  </button>
+
+                  {/* ── Supprimer l'import ── */}
+                  <button
+                    onClick={async () => {
+                      if (!selectedImport) return;
+                      if (!window.confirm(`Supprimer l'import "${selectedImport.file_name}" (${selectedImport.period}) ? Toutes les commissions associées seront supprimées.`)) return;
+
+                      // 1. Supprimer commissions du manager pour cette période/import
+                      await supabase.from('commissions')
+                        .delete()
+                        .eq('user_id', effectiveId)
+                        .eq('period', selectedImport.period)
+                        .eq('source', 'import');
+
+                      // 2. Supprimer commissions cascadées vers l'équipe liée
+                      const linkedIds = allTreeMembers
+                        .filter((m: any) => m.linked_user_id && m.linked_user_id !== effectiveId)
+                        .map((m: any) => m.linked_user_id as string);
+                      for (const linkedId of linkedIds) {
+                        await supabase.from('commissions')
+                          .delete()
+                          .eq('user_id', linkedId)
+                          .eq('period', selectedImport.period)
+                          .eq('source', 'import');
+                      }
+
+                      // 3. Supprimer les lignes de l'import puis l'import lui-même
+                      await supabase.from('commission_import_rows').delete().eq('import_id', selectedImport.id);
+                      await supabase.from('commission_imports').delete().eq('id', selectedImport.id);
+
+                      queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
+                      queryClient.invalidateQueries({ queryKey: ['commissions'] });
+                      queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
+                      toast({ title: 'Import supprimé', description: `L'import ${selectedImport.period} a été supprimé.` });
+                      setSelectedImport(null);
+                      setImportRows([]);
+                    }}
+                    className="w-full py-2.5 bg-red-50 text-red-600 text-sm font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-red-100 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" /> Supprimer cet import
                   </button>
                 </div>
               </DialogContent>
