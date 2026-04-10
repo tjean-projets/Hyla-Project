@@ -57,22 +57,27 @@ export default function AdminPanel() {
   const [deleteStep, setDeleteStep] = useState(0);
   const [confirmName, setConfirmName] = useState('');
 
-  // Check admin access
-  if (!isSuperAdmin(user?.email)) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  const isAdmin = isSuperAdmin(user?.email);
 
-  // Fetch all profiles
+  // Fetch all profiles — enabled seulement quand l'admin est authentifié
   const { data: profiles = [], isLoading } = useQuery({
-    queryKey: ['admin-all-profiles'],
+    queryKey: ['admin-all-profiles', user?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, email, phone, sponsor_user_id, invite_code, created_at, plan')
         .order('created_at', { ascending: false });
+      if (error) throw error;
       return (data || []) as UserProfile[];
     },
+    enabled: !!user && isAdmin,
+    staleTime: 0, // Toujours fresh pour l'admin
   });
+
+  // Check admin access — après tous les hooks
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   async function updateUserPlan(userId: string, newPlan: PlanType) {
     await supabase
