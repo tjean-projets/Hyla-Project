@@ -113,8 +113,10 @@ export default function CalendarPage() {
   const [googleToken, setGoogleToken] = useState<string | null>(null)
   const [googleEvents, setGoogleEvents] = useState<GoogleCalEvent[]>([])
   const [googleLoading, setGoogleLoading] = useState(false)
+  // Clé par user ID → chaque utilisateur a son propre état de connexion
+  const googleStorageKey = `hyla_google_cal_${user?.id || 'anon'}`
   const [googleConnected, setGoogleConnected] = useState(() =>
-    localStorage.getItem('hyla_google_cal') === '1'
+    localStorage.getItem(`hyla_google_cal_${user?.id || 'anon'}`) === '1'
   )
 
   const { data: appointments = [] } = useQuery({
@@ -269,7 +271,7 @@ export default function CalendarPage() {
         setGoogleToken(null)
         setGoogleConnected(false)
         setGoogleEvents([])
-        localStorage.removeItem('hyla_google_cal')
+        localStorage.removeItem(googleStorageKey)
         toast({ title: 'Session Google expirée', description: 'Reconnectez Google Agenda.', variant: 'destructive' })
         return
       }
@@ -282,29 +284,39 @@ export default function CalendarPage() {
     }
   }
 
-  const connectGoogle = () => {
-    if (!GOOGLE_CLIENT_ID) {
-      toast({ title: 'Non configuré', description: 'Ajoutez VITE_GOOGLE_CLIENT_ID dans vos variables d\'environnement Vercel.', variant: 'destructive' })
-      return
-    }
+  const initTokenClient = (prompt: '' | 'consent', onSuccess: (token: string) => void) => {
     const g = (window as any).google
-    if (!g?.accounts?.oauth2) {
-      toast({ title: 'Google non chargé', description: 'Rechargez la page et réessayez.', variant: 'destructive' })
-      return
-    }
-    const client = g.accounts.oauth2.initTokenClient({
+    if (!g?.accounts?.oauth2) return null
+    return g.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: 'https://www.googleapis.com/auth/calendar.readonly',
       callback: async (resp: any) => {
-        if (resp.access_token) {
-          setGoogleToken(resp.access_token)
-          setGoogleConnected(true)
-          localStorage.setItem('hyla_google_cal', '1')
-          await fetchGoogleEvents(resp.access_token, calMonth)
-        }
+        if (resp.access_token) onSuccess(resp.access_token)
+      },
+      error_callback: () => {
+        // Échec silencieux (ex: utilisateur pas connecté à Google)
+        setGoogleConnected(false)
+        localStorage.removeItem(googleStorageKey)
       },
     })
-    client.requestAccessToken({ prompt: googleConnected ? '' : 'consent' })
+  }
+
+  const connectGoogle = () => {
+    if (!GOOGLE_CLIENT_ID) {
+      toast({ title: 'Non configuré', description: 'Ajoutez VITE_GOOGLE_CLIENT_ID dans vos variables Vercel.', variant: 'destructive' })
+      return
+    }
+    if (!(window as any).google?.accounts?.oauth2) {
+      toast({ title: 'Google non chargé', description: 'Rechargez la page et réessayez.', variant: 'destructive' })
+      return
+    }
+    const client = initTokenClient('consent', async (token) => {
+      setGoogleToken(token)
+      setGoogleConnected(true)
+      localStorage.setItem(googleStorageKey, '1')
+      await fetchGoogleEvents(token, calMonth)
+    })
+    client?.requestAccessToken({ prompt: 'consent' })
   }
 
   const disconnectGoogle = () => {
@@ -312,15 +324,37 @@ export default function CalendarPage() {
     setGoogleToken(null)
     setGoogleConnected(false)
     setGoogleEvents([])
-    localStorage.removeItem('hyla_google_cal')
+    localStorage.removeItem(googleStorageKey)
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Reconnexion silencieuse au chargement si l'utilisateur était connecté
   useEffect(() => {
-    if (googleToken) {
-      fetchGoogleEvents(googleToken, calMonth)
+    if (!googleConnected || !GOOGLE_CLIENT_ID) return
+    const tryAutoConnect = () => {
+      const client = initTokenClient('', async (token) => {
+        setGoogleToken(token)
+        await fetchGoogleEvents(token, calMonth)
+      })
+      client?.requestAccessToken({ prompt: '' })
     }
-  }, [calMonth])  // eslint-disable-line react-hooks/exhaustive-deps
+    // Attendre que le script Google soit chargé
+    if ((window as any).google?.accounts?.oauth2) {
+      tryAutoConnect()
+    } else {
+      const interval = setInterval(() => {
+        if ((window as any).google?.accounts?.oauth2) {
+          clearInterval(interval)
+          tryAutoConnect()
+        }
+      }, 500)
+      return () => clearInterval(interval)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refresh quand on change de mois (si connecté)
+  useEffect(() => {
+    if (googleToken) fetchGoogleEvents(googleToken, calMonth)
+  }, [calMonth]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── List view helpers ──
   const nowStr = new Date().toISOString();
