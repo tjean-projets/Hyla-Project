@@ -81,7 +81,7 @@ export default function StatsPage() {
   });
 
   const currentMonth = `${selectedYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const prevMonth = `${now.getMonth() === 0 ? parseInt(selectedYear) - 1 : selectedYear}-${String(now.getMonth() === 0 ? 12 : now.getMonth()).padStart(2, '00')}`;
+  const prevMonth = `${now.getMonth() === 0 ? parseInt(selectedYear) - 1 : selectedYear}-${String(now.getMonth() === 0 ? 12 : now.getMonth()).padStart(2, '0')}`;
   const currentMonthCA = commissions.filter((c: any) => c.period === currentMonth).reduce((s: number, c: any) => s + c.amount, 0);
   const prevMonthCA = commissions.filter((c: any) => c.period === prevMonth).reduce((s: number, c: any) => s + c.amount, 0);
   const monthGrowth = prevMonthCA > 0 ? Math.round(((currentMonthCA - prevMonthCA) / prevMonthCA) * 100) : 0;

@@ -229,13 +229,6 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
-/* Skeleton shimmer effect */
-.skeleton-shimmer {
-  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.08) 50%, transparent 75%);
-  background-size: 200% 100%;
-  animation: shimmer 2s linear infinite;
-}
-
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

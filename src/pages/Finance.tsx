@@ -6,8 +6,9 @@ import { supabase, IMPORT_STATUS_LABELS, IMPORT_STATUS_COLORS } from '@/lib/supa
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Upload, FileSpreadsheet, CheckCircle, AlertTriangle, XCircle,
-  FileText, Receipt, ChevronRight, RefreshCw,
+  FileText, Receipt, ChevronRight, RefreshCw, Network,
 } from 'lucide-react';
+import { BulkImportDialog } from '@/components/BulkImportDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -105,6 +106,7 @@ export default function Finance() {
   const [correctionOpen, setCorrectionOpen] = useState<Set<number>>(new Set());
   const [selectedImport, setSelectedImport] = useState<any>(null);
   const [importRows, setImportRows] = useState<any[]>([]);
+  const [showBulkImport, setShowBulkImport] = useState(false);
 
   // ── User settings (saved column mappings) ──
   const { data: settings } = useQuery({
@@ -631,25 +633,35 @@ export default function Finance() {
         {/* ══════════════ TAB: IMPORTS ══════════════ */}
         {activeTab === 'imports' && (
           <>
-            <button
-              onClick={() => {
-                // Auto-avancer la période au mois suivant le dernier import
-                const lastPeriod = (imports as any[])[0]?.period;
-                let defaultPeriod = flow.period;
-                if (lastPeriod) {
-                  const [y, m] = lastPeriod.split('-').map(Number);
-                  defaultPeriod = m === 12
-                    ? `${y + 1}-01`
-                    : `${y}-${String(m + 1).padStart(2, '0')}`;
-                }
-                setShowImport(true);
-                setFlow({ ...flow, step: 'upload', rawData: [], columns: [], period: defaultPeriod, fileName: '' });
-              }}
-              className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#3b82f6] text-white font-semibold rounded-xl active:scale-[0.98] transition-transform"
-            >
-              <Upload className="h-4 w-4" />
-              Importer un fichier
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  // Auto-avancer la période au mois suivant le dernier import
+                  const lastPeriod = (imports as any[])[0]?.period;
+                  let defaultPeriod = flow.period;
+                  if (lastPeriod) {
+                    const [y, m] = lastPeriod.split('-').map(Number);
+                    defaultPeriod = m === 12
+                      ? `${y + 1}-01`
+                      : `${y}-${String(m + 1).padStart(2, '0')}`;
+                  }
+                  setShowImport(true);
+                  setFlow({ ...flow, step: 'upload', rawData: [], columns: [], period: defaultPeriod, fileName: '' });
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-[#3b82f6] text-white font-semibold rounded-xl active:scale-[0.98] transition-transform"
+              >
+                <Upload className="h-4 w-4" />
+                Importer
+              </button>
+              <button
+                onClick={() => setShowBulkImport(true)}
+                className="flex items-center justify-center gap-1.5 px-4 py-3.5 bg-muted text-foreground font-semibold rounded-xl active:scale-[0.98] transition-transform border border-border hover:bg-muted/80"
+                title="Importer plusieurs fichiers TRV d'un coup (onboarding historique)"
+              >
+                <Network className="h-4 w-4 text-[#3b82f6]" />
+                <span className="text-sm">Multi</span>
+              </button>
+            </div>
 
             {/* Import dialog */}
             <Dialog open={showImport} onOpenChange={(open) => {
@@ -1250,6 +1262,23 @@ export default function Finance() {
         )}
 
       </div>
+
+      {/* ── Bulk import dialog ── */}
+      <BulkImportDialog
+        open={showBulkImport}
+        onOpenChange={setShowBulkImport}
+        userId={effectiveId || ''}
+        profileName={profile?.full_name || ''}
+        allTreeMembers={allTreeMembers}
+        settings={settings}
+        onComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
+          queryClient.invalidateQueries({ queryKey: ['commissions'] });
+          queryClient.invalidateQueries({ queryKey: ['team-members-import'] });
+          queryClient.invalidateQueries({ queryKey: ['team-tree-members'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
+        }}
+      />
     </AppLayout>
   );
 }
