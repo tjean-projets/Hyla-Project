@@ -1,18 +1,10 @@
-import L from 'leaflet';
-
-// Fix Leaflet default icon issue in Vite
-delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
-
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { AppLayout } from '../components/AppLayout';
-import { useEffectiveUserId } from '../hooks/useEffectiveUser';
-import { supabase, HYLA_LEVELS } from '../lib/supabase';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Map, Overlay } from 'pigeon-maps'
+import { osm } from 'pigeon-maps/providers'
+import { AppLayout } from '../components/AppLayout'
+import { useEffectiveUserId } from '../hooks/useEffectiveUser'
+import { supabase, HYLA_LEVELS } from '../lib/supabase'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   MapPin,
   Search,
@@ -22,46 +14,42 @@ import {
   ChevronUp,
   Loader2,
   Filter,
-} from 'lucide-react';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Badge } from '../components/ui/badge';
-import { ScrollArea } from '../components/ui/scroll-area';
-import { Skeleton } from '../components/ui/skeleton';
+} from 'lucide-react'
+import { Input } from '../components/ui/input'
+import { Badge } from '../components/ui/badge'
+import { ScrollArea } from '../components/ui/scroll-area'
+import { Skeleton } from '../components/ui/skeleton'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select';
-import { cn } from '@/lib/utils';
+} from '../components/ui/select'
+import { cn } from '@/lib/utils'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface MapMember {
-  id: string;
-  user_id: string;
-  first_name: string;
-  last_name: string;
-  full_name: string | null;
-  email: string | null;
-  status: string;
-  hyla_level: string | null;
-  city: string | null;
-  lat: number | null;
-  lng: number | null;
+  id: string
+  full_name: string | null
+  email: string | null
+  status: string
+  hyla_level: string | null
+  city: string | null
+  lat: number | null
+  lng: number | null
 }
 
 interface GeocodedMember extends MapMember {
-  resolvedLat: number | null;
-  resolvedLng: number | null;
+  resolvedLat: number | null
+  resolvedLng: number | null
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const FRANCE_CENTER: [number, number] = [46.5, 2.3];
-const FRANCE_ZOOM = 6;
+const FRANCE_CENTER: [number, number] = [46.5, 2.3]
+const FRANCE_ZOOM = 6
 
 const LEVEL_COLORS: Record<string, string> = {
   vendeur: '#3b82f6',
@@ -71,8 +59,8 @@ const LEVEL_COLORS: Record<string, string> = {
   distributeur: '#f59e0b',
   elite_bronze: '#d97706',
   elite_argent: '#94a3b8',
-  elite_or: '#f59e0b',
-};
+  elite_or: '#eab308',
+}
 
 const LEVEL_BADGE_CLASSES: Record<string, string> = {
   vendeur: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
@@ -83,85 +71,55 @@ const LEVEL_BADGE_CLASSES: Record<string, string> = {
   elite_bronze: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
   elite_argent: 'bg-slate-100 text-slate-700 dark:bg-slate-700/40 dark:text-slate-300',
   elite_or: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-};
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function getLevelLabel(level: string | null): string {
-  if (!level) return 'Vendeur';
-  return HYLA_LEVELS.find(l => l.value === level)?.label ?? level;
+  if (!level) return 'Vendeur'
+  return HYLA_LEVELS.find(l => l.value === level)?.label ?? level
 }
 
 function getMemberName(m: MapMember): string {
-  if (m.full_name) return m.full_name;
-  return `${m.first_name} ${m.last_name}`.trim();
+  return m.full_name?.trim() || m.email || 'Membre'
 }
 
-function getMarkerIcon(level: string | null): L.DivIcon {
-  const color = LEVEL_COLORS[level ?? 'vendeur'] ?? '#6b7280';
-  return L.divIcon({
-    className: '',
-    html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);"></div>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-    popupAnchor: [0, -10],
-  });
+function getLevelColor(level: string | null): string {
+  return LEVEL_COLORS[level ?? ''] ?? '#6b7280'
 }
 
 async function geocode(city: string): Promise<{ lat: number; lng: number } | null> {
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}, France&format=json&limit=1`,
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ', France')}&format=json&limit=1`,
       { headers: { 'Accept-Language': 'fr' } }
-    );
-    const data = await res.json();
-    if (data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    )
+    const data = await res.json()
+    if (data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
   } catch {
-    // silently ignore
+    // silently ignore network errors
   }
-  return null;
+  return null
 }
 
-function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-// ── FlyTo controller ───────────────────────────────────────────────────────
-
-interface FlyToProps {
-  target: [number, number] | null;
-}
-
-function FlyToController({ target }: FlyToProps) {
-  const map = useMap();
-  const prevTarget = useRef<[number, number] | null>(null);
-
-  useEffect(() => {
-    if (
-      target &&
-      (prevTarget.current?.[0] !== target[0] || prevTarget.current?.[1] !== target[1])
-    ) {
-      map.flyTo(target, 12, { animate: true, duration: 1 });
-      prevTarget.current = target;
-    }
-  }, [target, map]);
-
-  return null;
-}
-
-// ── Member card in list ────────────────────────────────────────────────────
+// ── Member card ────────────────────────────────────────────────────────────
 
 interface MemberCardProps {
-  member: GeocodedMember;
-  onClick: (m: GeocodedMember) => void;
-  selected: boolean;
+  member: GeocodedMember
+  onClick: (m: GeocodedMember) => void
+  selected: boolean
 }
 
 function MemberCard({ member, onClick, selected }: MemberCardProps) {
-  const hasLocation = member.resolvedLat !== null && member.resolvedLng !== null;
-  const name = getMemberName(member);
-  const levelLabel = getLevelLabel(member.hyla_level);
-  const levelClass = LEVEL_BADGE_CLASSES[member.hyla_level ?? 'vendeur'] ?? LEVEL_BADGE_CLASSES.vendeur;
+  const hasLocation = member.resolvedLat !== null && member.resolvedLng !== null
+  const name = getMemberName(member)
+  const levelLabel = getLevelLabel(member.hyla_level)
+  const levelClass =
+    LEVEL_BADGE_CLASSES[member.hyla_level ?? ''] ?? LEVEL_BADGE_CLASSES.vendeur
 
   return (
     <button
@@ -169,30 +127,24 @@ function MemberCard({ member, onClick, selected }: MemberCardProps) {
       onClick={() => hasLocation && onClick(member)}
       className={cn(
         'w-full text-left px-3 py-2.5 rounded-lg border transition-all',
-        hasLocation
-          ? 'cursor-pointer hover:bg-muted/60'
-          : 'cursor-default opacity-70',
-        selected
-          ? 'border-primary bg-primary/5'
-          : 'border-transparent'
+        hasLocation ? 'cursor-pointer hover:bg-muted/60' : 'cursor-default opacity-70',
+        selected ? 'border-primary bg-primary/5' : 'border-transparent'
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <div
             className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5"
-            style={{ background: LEVEL_COLORS[member.hyla_level ?? 'vendeur'] ?? '#6b7280' }}
+            style={{ background: getLevelColor(member.hyla_level) }}
           />
           <span className="text-sm font-medium truncate">{name}</span>
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <Badge
-            variant="outline"
-            className={cn('text-[10px] px-1.5 py-0 leading-4 border-0', levelClass)}
-          >
-            {levelLabel}
-          </Badge>
-        </div>
+        <Badge
+          variant="outline"
+          className={cn('text-[10px] px-1.5 py-0 leading-4 border-0 flex-shrink-0', levelClass)}
+        >
+          {levelLabel}
+        </Badge>
       </div>
       <div className="flex items-center gap-2 mt-1 ml-4">
         {member.city ? (
@@ -219,123 +171,129 @@ function MemberCard({ member, onClick, selected }: MemberCardProps) {
         </Badge>
       </div>
     </button>
-  );
+  )
 }
 
 // ── Main page ──────────────────────────────────────────────────────────────
 
 export default function MapPage() {
-  const effectiveUserId = useEffectiveUserId();
-  const queryClient = useQueryClient();
+  const effectiveUserId = useEffectiveUserId()
+  const queryClient = useQueryClient()
 
   // filters
-  const [searchQuery, setSearchQuery] = useState('');
-  const [levelFilter, setLevelFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('')
+  const [levelFilter, setLevelFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
 
-  // map state
-  const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [mobileListOpen, setMobileListOpen] = useState(false);
+  // map state (controlled)
+  const [center, setCenter] = useState<[number, number]>(FRANCE_CENTER)
+  const [zoom, setZoom] = useState(FRANCE_ZOOM)
 
-  // geocoded members (enriched client-side)
-  const [geocodedMembers, setGeocodedMembers] = useState<GeocodedMember[]>([]);
-  const [isGeocoding, setIsGeocoding] = useState(false);
-  const geocodingAbortRef = useRef(false);
+  // selected member for popup and list highlight
+  const [selectedMember, setSelectedMember] = useState<GeocodedMember | null>(null)
+
+  // mobile list sheet
+  const [mobileListOpen, setMobileListOpen] = useState(false)
+
+  // geocoded members enriched client-side
+  const [geocodedMembers, setGeocodedMembers] = useState<GeocodedMember[]>([])
+  const [isGeocoding, setIsGeocoding] = useState(false)
+  const geocodingAbortRef = useRef(false)
 
   // ── Fetch members ──
   const { data: rawMembers, isLoading } = useQuery<MapMember[]>({
     queryKey: ['map-members', effectiveUserId],
     queryFn: async () => {
-      if (!effectiveUserId) return [];
+      if (!effectiveUserId) return []
       const { data, error } = await supabase
         .from('team_members')
-        .select('id, user_id, first_name, last_name, full_name, email, status, hyla_level, city, lat, lng')
+        .select('id, full_name, email, status, hyla_level, city, lat, lng')
         .eq('user_id', effectiveUserId)
-        .order('first_name');
-      if (error) throw error;
-      return (data ?? []) as unknown as MapMember[];
+        .order('full_name')
+      if (error) throw error
+      return (data ?? []) as unknown as MapMember[]
     },
     enabled: !!effectiveUserId,
     staleTime: 60_000,
-  });
+  })
 
-  // ── Auto-geocode ──
-  const runGeocoding = useCallback(async (members: MapMember[]) => {
-    geocodingAbortRef.current = false;
-    const enriched: GeocodedMember[] = members.map(m => ({
-      ...m,
-      resolvedLat: m.lat,
-      resolvedLng: m.lng,
-    }));
-    setGeocodedMembers(enriched);
+  // ── Auto-geocode members with city but no coordinates ──
+  const runGeocoding = useCallback(
+    async (members: MapMember[]) => {
+      geocodingAbortRef.current = false
 
-    const toGeocode = enriched.filter(
-      m => m.city && (m.resolvedLat === null || m.resolvedLng === null)
-    );
-    if (toGeocode.length === 0) return;
+      const enriched: GeocodedMember[] = members.map(m => ({
+        ...m,
+        resolvedLat: m.lat,
+        resolvedLng: m.lng,
+      }))
+      setGeocodedMembers(enriched)
 
-    setIsGeocoding(true);
-    for (const member of toGeocode) {
-      if (geocodingAbortRef.current) break;
-      const coords = await geocode(member.city!);
-      if (coords) {
-        // Update in state
-        setGeocodedMembers(prev =>
-          prev.map(m =>
-            m.id === member.id
-              ? { ...m, resolvedLat: coords.lat, resolvedLng: coords.lng }
-              : m
+      const toGeocode = enriched.filter(
+        m => m.city && (m.resolvedLat === null || m.resolvedLng === null)
+      )
+      if (toGeocode.length === 0) return
+
+      setIsGeocoding(true)
+      for (const member of toGeocode) {
+        if (geocodingAbortRef.current) break
+        const coords = await geocode(member.city!)
+        if (coords) {
+          setGeocodedMembers(prev =>
+            prev.map(m =>
+              m.id === member.id
+                ? { ...m, resolvedLat: coords.lat, resolvedLng: coords.lng }
+                : m
+            )
           )
-        );
-        // Persist to Supabase
-        await supabase
-          .from('team_members')
-          .update({ lat: coords.lat, lng: coords.lng } as unknown as Record<string, unknown>)
-          .eq('id', member.id);
+          await supabase
+            .from('team_members')
+            .update({ lat: coords.lat, lng: coords.lng } as unknown as Record<string, unknown>)
+            .eq('id', member.id)
+        }
+        await sleep(1000) // Nominatim rate limit: 1 req/sec
       }
-      await sleep(1000); // rate limit: 1 req/s
-    }
-    setIsGeocoding(false);
-    // Invalidate query so cached values get the new coords on next fetch
-    queryClient.invalidateQueries({ queryKey: ['map-members', effectiveUserId] });
-  }, [effectiveUserId, queryClient]);
+      setIsGeocoding(false)
+      queryClient.invalidateQueries({ queryKey: ['map-members', effectiveUserId] })
+    },
+    [effectiveUserId, queryClient]
+  )
 
   useEffect(() => {
-    if (!rawMembers) return;
-    geocodingAbortRef.current = true; // abort any previous run
-    runGeocoding(rawMembers);
-  }, [rawMembers, runGeocoding]);
+    if (!rawMembers) return
+    geocodingAbortRef.current = true // abort any in-progress run
+    runGeocoding(rawMembers)
+  }, [rawMembers, runGeocoding])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      geocodingAbortRef.current = true;
-    };
-  }, []);
+      geocodingAbortRef.current = true
+    }
+  }, [])
 
   // ── Filtered members ──
   const displayedMembers = geocodedMembers.filter(m => {
-    const name = getMemberName(m).toLowerCase();
-    const matchSearch = !searchQuery || name.includes(searchQuery.toLowerCase());
-    const matchLevel = levelFilter === 'all' || m.hyla_level === levelFilter;
-    const matchStatus = statusFilter === 'all' || m.status === statusFilter;
-    return matchSearch && matchLevel && matchStatus;
-  });
+    const name = getMemberName(m).toLowerCase()
+    const matchSearch = !searchQuery || name.includes(searchQuery.toLowerCase())
+    const matchLevel = levelFilter === 'all' || m.hyla_level === levelFilter
+    const matchStatus = statusFilter === 'all' || m.status === statusFilter
+    return matchSearch && matchLevel && matchStatus
+  })
 
-  const membersWithLocation = displayedMembers.filter(
+  const membersOnMap = displayedMembers.filter(
     m => m.resolvedLat !== null && m.resolvedLng !== null
-  );
+  )
 
-  // ── Handle click on member list ──
+  // ── Click member in list → fly to pin ──
   const handleMemberClick = useCallback((member: GeocodedMember) => {
-    if (member.resolvedLat === null || member.resolvedLng === null) return;
-    setSelectedMemberId(member.id);
-    setFlyTarget([member.resolvedLat, member.resolvedLng]);
-    setMobileListOpen(false);
-  }, []);
+    if (member.resolvedLat === null || member.resolvedLng === null) return
+    setCenter([member.resolvedLat, member.resolvedLng])
+    setZoom(12)
+    setSelectedMember(member)
+    setMobileListOpen(false)
+  }, [])
 
-  // ── Render ──
+  // ── Sub-components ──
 
   const filterBar = (
     <div className="flex flex-wrap gap-2 items-center p-2 bg-background/80 backdrop-blur-sm border-b">
@@ -348,6 +306,7 @@ export default function MapPage() {
           className="pl-8 h-8 text-sm"
         />
       </div>
+
       <Select value={levelFilter} onValueChange={setLevelFilter}>
         <SelectTrigger className="h-8 text-sm w-[160px]">
           <Filter className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
@@ -362,6 +321,7 @@ export default function MapPage() {
           ))}
         </SelectContent>
       </Select>
+
       <Select value={statusFilter} onValueChange={setStatusFilter}>
         <SelectTrigger className="h-8 text-sm w-[130px]">
           <SelectValue placeholder="Statut" />
@@ -372,20 +332,21 @@ export default function MapPage() {
           <SelectItem value="inactif">Inactif</SelectItem>
         </SelectContent>
       </Select>
-      <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
-        <Users className="inline w-3.5 h-3.5 mr-1 mb-0.5" />
-        {displayedMembers.length} / {geocodedMembers.length} membre{geocodedMembers.length !== 1 ? 's' : ''}
+
+      <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap flex items-center gap-1">
+        <Users className="w-3.5 h-3.5" />
+        {displayedMembers.length} / {geocodedMembers.length} membre
+        {geocodedMembers.length !== 1 ? 's' : ''}
         {isGeocoding && (
-          <span className="ml-2 text-primary flex items-center inline-flex gap-1">
+          <span className="ml-2 text-primary flex items-center gap-1">
             <Loader2 className="w-3 h-3 animate-spin" />
-            Géocodage...
+            Géocodage…
           </span>
         )}
       </span>
     </div>
-  );
+  )
 
-  // ── Member list panel ──
   const memberListPanel = (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="px-3 py-2 border-b flex items-center gap-2">
@@ -416,85 +377,134 @@ export default function MapPage() {
                 key={member.id}
                 member={member}
                 onClick={handleMemberClick}
-                selected={selectedMemberId === member.id}
+                selected={selectedMember?.id === member.id}
               />
             ))
           )}
         </div>
       </ScrollArea>
     </div>
-  );
+  )
 
-  // ── Map area ──
   const mapArea = (
     <div className="relative h-full w-full">
       {isLoading ? (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/20">
           <div className="flex flex-col items-center gap-3 text-muted-foreground">
             <Loader2 className="w-8 h-8 animate-spin" />
-            <span className="text-sm">Chargement de la carte...</span>
+            <span className="text-sm">Chargement de la carte…</span>
           </div>
         </div>
       ) : (
-        <MapContainer
-          center={FRANCE_CENTER}
-          zoom={FRANCE_ZOOM}
+        <Map
+          provider={osm}
+          center={center}
+          zoom={zoom}
+          onBoundsChanged={({ center: c, zoom: z }) => {
+            setCenter(c)
+            setZoom(z)
+          }}
+          height={undefined as unknown as number}
           style={{ height: '100%', width: '100%' }}
-          className="z-0"
+          onClick={() => setSelectedMember(null)}
         >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution="&copy; OpenStreetMap contributors"
-          />
-          <FlyToController target={flyTarget} />
-          {membersWithLocation.map(member => (
-            <Marker
+          {/* Colored dot markers */}
+          {membersOnMap.map(member => (
+            <Overlay
               key={member.id}
-              position={[member.resolvedLat!, member.resolvedLng!]}
-              icon={getMarkerIcon(member.hyla_level)}
-              eventHandlers={{
-                click: () => setSelectedMemberId(member.id),
-              }}
+              anchor={[member.resolvedLat!, member.resolvedLng!]}
+              offset={[8, 8]}
             >
-              <Popup>
-                <div className="min-w-[160px]">
-                  <p className="font-semibold text-sm mb-1">{getMemberName(member)}</p>
-                  {member.city && (
-                    <p className="text-xs text-gray-500 flex items-center gap-1 mb-1.5">
-                      <MapPin className="w-3 h-3" />
-                      {member.city}
+              <div
+                onClick={e => {
+                  e.stopPropagation()
+                  setSelectedMember(member)
+                }}
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: '50%',
+                  background: getLevelColor(member.hyla_level),
+                  border: '2px solid white',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.35)',
+                  cursor: 'pointer',
+                  transition: 'transform 0.15s',
+                }}
+                onMouseEnter={e => {
+                  ;(e.currentTarget as HTMLElement).style.transform = 'scale(1.4)'
+                }}
+                onMouseLeave={e => {
+                  ;(e.currentTarget as HTMLElement).style.transform = 'scale(1)'
+                }}
+              />
+            </Overlay>
+          ))}
+
+          {/* Popup for selected member */}
+          {selectedMember &&
+            selectedMember.resolvedLat !== null &&
+            selectedMember.resolvedLng !== null && (
+              <Overlay
+                anchor={[selectedMember.resolvedLat, selectedMember.resolvedLng]}
+                offset={[-80, 100]}
+              >
+                <div
+                  className="bg-white rounded-xl shadow-xl border text-sm"
+                  style={{ width: 200, position: 'relative' }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  {/* Colour strip at top */}
+                  <div
+                    className="h-1 rounded-t-xl"
+                    style={{ background: getLevelColor(selectedMember.hyla_level) }}
+                  />
+                  <div className="p-3">
+                    <button
+                      onClick={() => setSelectedMember(null)}
+                      className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 leading-none"
+                      aria-label="Fermer"
+                    >
+                      ✕
+                    </button>
+                    <p className="font-semibold pr-4 truncate">
+                      {getMemberName(selectedMember)}
                     </p>
-                  )}
-                  <div className="flex gap-1.5 flex-wrap">
-                    <span
-                      className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                      style={{
-                        background: (LEVEL_COLORS[member.hyla_level ?? 'vendeur'] ?? '#6b7280') + '22',
-                        color: LEVEL_COLORS[member.hyla_level ?? 'vendeur'] ?? '#6b7280',
-                      }}
-                    >
-                      {getLevelLabel(member.hyla_level)}
-                    </span>
-                    <span
-                      className={cn(
-                        'text-[10px] px-2 py-0.5 rounded-full font-medium',
-                        member.status === 'actif'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
-                      )}
-                    >
-                      {member.status === 'actif' ? 'Actif' : 'Inactif'}
-                    </span>
+                    {selectedMember.city && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3" />
+                        {selectedMember.city}
+                      </p>
+                    )}
+                    <div className="flex gap-1.5 flex-wrap mt-2">
+                      <span
+                        className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                        style={{
+                          background: getLevelColor(selectedMember.hyla_level) + '22',
+                          color: getLevelColor(selectedMember.hyla_level),
+                        }}
+                      >
+                        {getLevelLabel(selectedMember.hyla_level)}
+                      </span>
+                      <span
+                        className={cn(
+                          'text-[10px] px-2 py-0.5 rounded-full font-medium',
+                          selectedMember.status === 'actif'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        )}
+                      >
+                        {selectedMember.status === 'actif' ? 'Actif' : 'Inactif'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </Popup>
-            </Marker>
-          ))}
-        </MapContainer>
+              </Overlay>
+            )}
+        </Map>
       )}
 
-      {/* Empty state overlay when map is loaded but no pins */}
-      {!isLoading && membersWithLocation.length === 0 && (
+      {/* No-location banner */}
+      {!isLoading && membersOnMap.length === 0 && (
         <div className="absolute inset-0 flex items-end justify-center pb-16 pointer-events-none z-10">
           <div className="bg-background/90 backdrop-blur-sm border rounded-xl px-4 py-3 flex items-center gap-3 shadow-lg pointer-events-auto mx-4">
             <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
@@ -508,30 +518,26 @@ export default function MapPage() {
         </div>
       )}
     </div>
-  );
+  )
 
   return (
     <AppLayout title="Carte de l'équipe" variant="light">
       <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden -mx-4 -mt-4 md:-mx-6 md:-mt-6">
-        {/* Filter bar */}
         {filterBar}
 
-        {/* Main area */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Map — 65% on desktop, full on mobile */}
-          <div className="flex-1 relative h-full md:w-[65%] md:flex-none">
-            <div className="h-full">
-              {mapArea}
-            </div>
+          {/* Map — flex-1 on desktop */}
+          <div className="flex-1 relative h-full">
+            {mapArea}
           </div>
 
-          {/* Member list — 35% on desktop, hidden on mobile (shown in bottom sheet) */}
-          <div className="hidden md:flex flex-col w-[35%] border-l bg-background h-full overflow-hidden">
+          {/* Member list panel — desktop only */}
+          <div className="hidden md:flex flex-col w-72 border-l bg-background h-full overflow-hidden">
             {memberListPanel}
           </div>
         </div>
 
-        {/* Mobile: floating toggle button + bottom drawer */}
+        {/* Mobile: floating toggle + bottom sheet */}
         <div className="md:hidden">
           <button
             type="button"
@@ -547,7 +553,6 @@ export default function MapPage() {
             )}
           </button>
 
-          {/* Bottom sheet */}
           <div
             className={cn(
               'fixed inset-x-0 bottom-0 z-30 bg-background border-t rounded-t-2xl shadow-2xl transition-transform duration-300',
@@ -555,16 +560,12 @@ export default function MapPage() {
             )}
             style={{ maxHeight: '60vh' }}
           >
-            {/* Handle */}
             <div className="flex justify-center pt-2 pb-1">
               <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
             </div>
-            <div className="h-[calc(60vh-24px)]">
-              {memberListPanel}
-            </div>
+            <div className="h-[calc(60vh-24px)]">{memberListPanel}</div>
           </div>
 
-          {/* Overlay */}
           {mobileListOpen && (
             <div
               className="fixed inset-0 z-20 bg-black/20"
@@ -574,5 +575,5 @@ export default function MapPage() {
         </div>
       </div>
     </AppLayout>
-  );
+  )
 }
