@@ -585,7 +585,6 @@ const sidebarLinks = [
   { to: '/contacts', icon: Users, label: 'Contacts' },
   { to: '/deals', icon: ShoppingBag, label: 'Ventes' },
   { to: '/network', icon: Network, label: 'Équipes' },
-  { to: '/social', icon: Share2, label: 'Social' },
   { to: '/formation', icon: GraduationCap, label: 'Formation' },
   { to: '/map', icon: MapPin, label: 'Carte' },
   { to: '/commissions', icon: TrendingUp, label: 'Commissions' },

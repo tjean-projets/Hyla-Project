@@ -87,9 +87,11 @@ function InviteLinkSection({ inviteCode, fullName }: { inviteCode?: string | nul
 function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | null; userId?: string }) {
   const [copiedBio, setCopiedBio] = useState(false);
   const [copiedStory, setCopiedStory] = useState(false);
+  const [copiedDirect, setCopiedDirect] = useState(false);
 
   const bioLink = inviteCode ? `${window.location.origin}/p/${inviteCode}?src=bio` : '';
   const storyLink = inviteCode ? `${window.location.origin}/p/${inviteCode}?src=story` : '';
+  const directLink = inviteCode ? `${window.location.origin}/p/${inviteCode}` : '';
 
   const { data: leadCounts } = useQuery({
     queryKey: ['lead-counts', userId],
@@ -111,14 +113,17 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
     staleTime: 60000,
   });
 
-  const copyLink = async (link: string, type: 'bio' | 'story') => {
+  const copyLink = async (link: string, type: 'bio' | 'story' | 'direct') => {
     await navigator.clipboard.writeText(link);
     if (type === 'bio') {
       setCopiedBio(true);
       setTimeout(() => setCopiedBio(false), 2000);
-    } else {
+    } else if (type === 'story') {
       setCopiedStory(true);
       setTimeout(() => setCopiedStory(false), 2000);
+    } else {
+      setCopiedDirect(true);
+      setTimeout(() => setCopiedDirect(false), 2000);
     }
   };
 
@@ -158,7 +163,7 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
       </div>
 
       {/* Story link */}
-      <div>
+      <div className="mb-3">
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs font-semibold text-foreground">Lien Story (tracking)</span>
           {leadCounts && leadCounts.story > 0 && (
@@ -176,6 +181,29 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
             className="px-3 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg active:scale-[0.97]"
           >
             {copiedStory ? <Check className="h-3.5 w-3.5" /> : 'Copier'}
+          </button>
+        </div>
+      </div>
+
+      {/* Direct link */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-semibold text-foreground">Lien Direct (message privé)</span>
+          {leadCounts && leadCounts.direct > 0 && (
+            <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+              {leadCounts.direct} lead{leadCounts.direct > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <code className="flex-1 bg-card rounded-lg border border-blue-200 px-3 py-2 text-[11px] text-blue-700 truncate font-mono">
+            {directLink}
+          </code>
+          <button
+            onClick={() => copyLink(directLink, 'direct')}
+            className="px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg active:scale-[0.97]"
+          >
+            {copiedDirect ? <Check className="h-3.5 w-3.5" /> : 'Copier'}
           </button>
         </div>
       </div>
