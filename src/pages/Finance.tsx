@@ -21,6 +21,28 @@ function normalizeStr(s: string): string {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
+// Parse amounts correctly for both French (1.234,56) and English (1,234.56) formats
+function parseAmount(raw: string): number {
+  const s = String(raw || '0').trim();
+  // Keep only digits, dots, commas, minus
+  const cleaned = s.replace(/[^\d.,\-]/g, '');
+  if (!cleaned || cleaned === '-') return 0;
+
+  const dotIdx = cleaned.lastIndexOf('.');
+  const commaIdx = cleaned.lastIndexOf(',');
+
+  if (commaIdx > dotIdx) {
+    // Comma is the decimal separator → French format: 1.234,56 or 1234,56
+    return parseFloat(cleaned.replace(/\./g, '').replace(',', '.')) || 0;
+  } else if (dotIdx > commaIdx) {
+    // Dot is the decimal separator → English format: 1,234.56 or 1234.56
+    return parseFloat(cleaned.replace(/,/g, '')) || 0;
+  } else {
+    // No thousands separator, just convert comma → dot
+    return parseFloat(cleaned.replace(',', '.')) || 0;
+  }
+}
+
 function matchScore(a: string, b: string): number {
   const na = normalizeStr(a);
   const nb = normalizeStr(b);
@@ -235,9 +257,20 @@ export default function Finance() {
       const lastName = String(row[mapping.name_col] || '').trim();
       const rowName = firstName ? `${firstName} ${lastName}` : lastName;
       const rowId = String(row[mapping.id_col] || '').trim();
-      const amount = parseFloat(String(row[mapping.amount_col] || '0').replace(/[^\d.,\-]/g, '').replace(/,/g, '.')) || 0;
+      const amount = parseAmount(String(row[mapping.amount_col] || '0'));
 
-      const isOwner = ownerName ? matchScore(ownerName, rowName) >= 80 : false;
+      // Détection owner robuste : gère "NOM Prénom" vs "Prénom NOM" (format CSV Hyla)
+      const isOwner = ownerName ? (() => {
+        if (matchScore(ownerName, rowName) >= 75) return true;
+        // Essai nom inversé
+        const reversed = ownerName.split(' ').reverse().join(' ');
+        if (matchScore(reversed, rowName) >= 75) return true;
+        // Essai par intersection de mots : tous les mots du profil présents dans la ligne
+        const ownerWords = normalizeStr(ownerName).split(/\s+/).filter(w => w.length > 1);
+        const rowWords = normalizeStr(rowName).split(/\s+/);
+        if (ownerWords.length >= 2 && ownerWords.every(w => rowWords.some(rw => rw === w || rw.startsWith(w) || w.startsWith(rw)))) return true;
+        return false;
+      })() : false;
 
       let bestMatch: { member: any; confidence: number } | null = null;
 
@@ -799,18 +832,20 @@ export default function Finance() {
                               </div>
                               <span className={`font-semibold ml-2 whitespace-nowrap ${r.match_status === 'non_reconnu' ? 'text-gray-400' : 'text-foreground'}`}>{r.amount.toLocaleString('fr-FR')} €</span>
                             </div>
-                            {/* Manual matching dropdown for unmatched rows — only shown when visible */}
-                            {r.match_status === 'non_reconnu' && !r.is_owner_row && showOutOfTeam && (
+                            {/* Dropdown de correction : non_reconnu (visible si showOutOfTeam) OU manuel (toujours visible) */}
+                            {!r.is_owner_row && (r.match_status === 'non_reconnu' ? showOutOfTeam : r.match_status === 'manuel') && (
                               <div className="mt-1.5">
                                 <select
-                                  className="w-full text-[11px] border border-gray-200 rounded-lg px-2 py-1.5 bg-card focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-                                  value=""
+                                  className={`w-full text-[11px] border rounded-lg px-2 py-1.5 bg-card focus:ring-1 focus:ring-blue-400 focus:border-blue-400 ${
+                                    r.match_status === 'non_reconnu' ? 'border-gray-200' : 'border-amber-300'
+                                  }`}
+                                  value={r.matched_member?.id || ''}
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     if (!val) return;
                                     const updated = [...matchResults];
                                     if (val === '__owner__') {
-                                      updated[originalIndex] = { ...r, is_owner_row: true, match_status: 'auto' as const, match_confidence: 100 };
+                                      updated[originalIndex] = { ...r, is_owner_row: true, matched_member: null, match_status: 'auto' as const, match_confidence: 100 };
                                     } else {
                                       const member = allTreeMembers.find((m: any) => m.id === val);
                                       if (member) {
@@ -820,7 +855,7 @@ export default function Finance() {
                                     setMatchResults(updated);
                                   }}
                                 >
-                                  <option value="">Assigner à un membre de l'équipe...</option>
+                                  <option value="">{r.match_status === 'manuel' ? 'Corriger le match...' : 'Assigner à un membre...'}</option>
                                   <option value="__owner__">C'est moi</option>
                                   {allTreeMembers.map((m: any) => (
                                     <option key={m.id} value={m.id}>{m.first_name} {m.last_name} {m.internal_id ? `(${m.internal_id})` : ''}</option>
@@ -1025,11 +1060,76 @@ export default function Finance() {
                   )}
                   <button
                     onClick={async () => {
-                      await supabase.rpc('consolidate_import_commissions', { p_import_id: selectedImport.id });
+                      if (!user) return;
+                      // 1. Re-run SQL consolidation (commissions du manager)
+                      const { error: rpcErr } = await supabase.rpc('consolidate_import_commissions', { p_import_id: selectedImport.id });
+                      if (rpcErr) { toast({ title: 'Erreur', description: rpcErr.message, variant: 'destructive' }); return; }
+
+                      // 2. Re-déclencher la cascade MLM vers les membres liés
+                      // Supprimer les cascades précédentes de cet import
+                      const linkedIds = allTreeMembers
+                        .filter((m: any) => m.linked_user_id && m.linked_user_id !== user.id)
+                        .map((m: any) => m.linked_user_id as string);
+                      for (const linkedId of linkedIds) {
+                        await supabase.from('commissions')
+                          .delete()
+                          .eq('user_id', linkedId)
+                          .eq('period', selectedImport.period)
+                          .eq('source', 'import');
+                      }
+
+                      // Re-créer les cascades depuis les lignes corrigées
+                      const { data: updatedRows } = await supabase
+                        .from('commission_import_rows')
+                        .select('*, team_members:matched_member_id(id, linked_user_id, first_name, last_name)')
+                        .eq('import_id', selectedImport.id);
+
+                      const cascadeCommissions: any[] = [];
+                      for (const row of (updatedRows || [])) {
+                        if (row.is_owner_row || row.match_status === 'non_reconnu' || !row.matched_member_id) continue;
+                        const member = allTreeMembers.find((m: any) => m.id === row.matched_member_id);
+                        if (!member?.linked_user_id || member.linked_user_id === user.id) continue;
+
+                        cascadeCommissions.push({
+                          user_id: member.linked_user_id,
+                          type: 'directe',
+                          amount: row.amount,
+                          period: selectedImport.period,
+                          status: 'validee',
+                          source: 'import',
+                          team_member_id: null,
+                          notes: `Re-import réseau par ${profile?.full_name || 'manager'}`,
+                        });
+
+                        // Cascade réseau pour les sous-membres si profondeur 1
+                        if (member.depth === 1) {
+                          const subRows = (updatedRows || []).filter((sr: any) => {
+                            const subM = allTreeMembers.find((m: any) => m.id === sr.matched_member_id);
+                            return subM?.owner_user_id === member.linked_user_id && sr.matched_member_id !== member.id && !sr.is_owner_row && sr.match_status !== 'non_reconnu';
+                          });
+                          for (const sr of subRows) {
+                            cascadeCommissions.push({
+                              user_id: member.linked_user_id,
+                              type: 'reseau',
+                              amount: sr.amount,
+                              period: selectedImport.period,
+                              status: 'validee',
+                              source: 'import',
+                              team_member_id: sr.matched_member_id,
+                              notes: `Commission réseau re-importée`,
+                            });
+                          }
+                        }
+                      }
+
+                      if (cascadeCommissions.length > 0) {
+                        await supabase.from('commissions').insert(cascadeCommissions);
+                      }
+
                       queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
                       queryClient.invalidateQueries({ queryKey: ['commissions'] });
                       queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
-                      toast({ title: 'Commissions re-consolidées' });
+                      toast({ title: 'Commissions re-consolidées', description: cascadeCommissions.length > 0 ? `${cascadeCommissions.length} commission(s) cascadée(s) à l'équipe` : undefined });
                       setSelectedImport(null);
                       setImportRows([]);
                     }}
