@@ -64,18 +64,26 @@ const STEPS: OnboardingStep[] = [
   {
     title: 'Réseau (Managers)',
     description:
-      "Si tu es manager, ajoute les membres de ton équipe dans l'onglet Réseau. Indique qui est leur sponsor pour créer l'arborescence automatiquement.",
+      "Si tu es manager, ajoute les membres de ton équipe dans l'onglet Réseau. Indique qui est leur sponsor pour créer l'arborescence. Tu peux aussi les importer automatiquement depuis tes fichiers TRV.",
     icon: Network,
     color: '#ec4899',
     bgColor: '#fce7f3',
   },
   {
-    title: 'Finance & Import CSV',
+    title: 'Import mensuel TRV',
     description:
-      "Dans l'onglet Finance, importe ton relevé de commissions (fichier Excel/CSV). L'outil fait le tri automatiquement en fonction des noms renseignés dans ton Réseau et tes contacts.",
+      "Chaque mois, importe ton relevé Hyla (Excel/CSV) dans Finance → Importer. L'outil reconnaît automatiquement tes membres et calcule tes commissions directes et réseau.",
     icon: Wallet,
     color: '#f97316',
     bgColor: '#ffedd5',
+  },
+  {
+    title: 'Onboarding Elite Manager',
+    description:
+      "Tu arrives avec 1 an d'historique et 30+ vendeurs ? Utilise le bouton \"Multi\" dans Finance pour importer tous tes TRV passés en une fois. L'outil crée ton équipe automatiquement et tu définis les niveaux en 5 minutes.",
+    icon: Rocket,
+    color: '#8b5cf6',
+    bgColor: '#ede9fe',
   },
   {
     title: 'Commissions',

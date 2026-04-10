@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Circle, X, ArrowRight, Users, ShoppingBag, CheckSquare, Calendar, Target } from 'lucide-react';
+import { CheckCircle2, Circle, X, ArrowRight, Users, ShoppingBag, CheckSquare, Calendar, Target, Network } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const STEPS = [
@@ -12,6 +12,7 @@ const STEPS = [
   { key: 'task', label: 'Planifier une tâche', icon: CheckSquare, color: 'text-emerald-500', link: '/tasks' },
   { key: 'appointment', label: 'Créer un rendez-vous', icon: Calendar, color: 'text-[#3b82f6]', link: '/calendar' },
   { key: 'objective', label: 'Définir ses objectifs', icon: Target, color: 'text-amber-500', link: '/settings' },
+  { key: 'team', label: 'Importer votre équipe (Finance → Multi)', icon: Network, color: 'text-pink-500', link: '/finance' },
 ] as const;
 
 const STORAGE_KEY = 'hyla_getting_started_done';
@@ -45,12 +46,14 @@ export default function GettingStartedWidget() {
         { count: tasks },
         { count: appointments },
         { data: settings },
+        { count: teamMembers },
       ] = await Promise.all([
         supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('user_id', effectiveId),
         supabase.from('deals').select('id', { count: 'exact', head: true }).eq('user_id', effectiveId),
         supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('user_id', effectiveId),
         supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('user_id', effectiveId),
         supabase.from('user_settings').select('monthly_sales_target').eq('user_id', effectiveId).maybeSingle(),
+        supabase.from('team_members').select('id', { count: 'exact', head: true }).eq('user_id', effectiveId),
       ]);
       return {
         contact: (contacts || 0) > 0,
@@ -58,6 +61,7 @@ export default function GettingStartedWidget() {
         task: (tasks || 0) > 0,
         appointment: (appointments || 0) > 0,
         objective: ((settings as any)?.monthly_sales_target || 0) > 0,
+        team: (teamMembers || 0) > 0,
       };
     },
     enabled: !!effectiveId && !dismissed,
