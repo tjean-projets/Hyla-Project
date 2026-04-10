@@ -230,8 +230,20 @@ export default function Finance() {
 
         if (isTRV) {
           nameCol    = columns.find(c => /vendeur/i.test(c.trim())) || '';
-          amountCol  = columns.find(c => /prix.de.vente|montant/i.test(c.trim())) || '';
           idCol      = columns.find(c => /n°.dossier|n.*dossier|hyla/i.test(c.trim())) || '';
+          // Détection du montant par contenu (pas par nom de colonne) car TRV a un décalage
+          // entre la position du header "PRIX DE VENTE" et la position réelle des données.
+          // On cherche la colonne dont les valeurs tombent dans la plage prix Hyla (500–8000€).
+          const sampleRows = filteredJson.slice(0, 20);
+          amountCol = columns.find(col => {
+            const nonEmpty = sampleRows.map(r => r[col]).filter(v => String(v).trim().length > 0);
+            if (nonEmpty.length < 2) return false;
+            const priceCount = nonEmpty.filter(v => {
+              const p = parseAmount(String(v));
+              return p >= 500 && p <= 9000;
+            }).length;
+            return priceCount / nonEmpty.length > 0.3;
+          }) || columns.find(c => /prix.de.vente|montant/i.test(c.trim())) || '';
         } else {
           nameCol      = columns.find(c => /^nom$|name|conseiller|vendeur/i.test(c)) || '';
           firstnameCol = columns.find(c => /prénom|prenom|firstname|first.?name/i.test(c)) || '';
@@ -503,108 +515,121 @@ export default function Finance() {
       }
 
       // ── Création automatique des contacts clients ──
-      const normCol = (s: string) => normalizeStr(s).replace(/[^a-z0-9]/g, '');
-      const findCol = (keywords: string[]) =>
-        flow.columns.find(c => keywords.some(k => normCol(c).includes(k))) ?? null;
+      try {
+        const normCol = (s: unknown) => normalizeStr(String(s ?? '')).replace(/[^a-z0-9]/g, '');
+        const findCol = (keywords: string[]) =>
+          flow.columns.find(c => keywords.some(k => normCol(c).includes(k))) ?? null;
 
-      const clientNameCol = findCol(['nomduclient', 'nomclient', 'client', 'acheteur']);
-      const addressCol    = findCol(['adresse', 'address']);
-      const postalCol     = findCol(['cp', 'codepostal', 'postal']);
-      const cityCol       = findCol(['ville', 'city']);
-      const phoneCol      = findCol(['tph', 'tel', 'telephone', 'portable', 'mobile']);
-      const emailCol      = findCol(['mail', 'email', 'courriel']);
+        const clientNameCol = findCol(['nomduclient', 'nomclient', 'client', 'acheteur']);
+        const addressCol    = findCol(['adresse', 'address']);
+        const postalCol     = findCol(['cp', 'codepostal', 'postal']);
+        const cityCol       = findCol(['ville', 'city']);
+        const phoneCol      = findCol(['tph', 'tel', 'telephone', 'portable', 'mobile']);
+        const emailCol      = findCol(['mail', 'email', 'courriel']);
 
-      if (clientNameCol && effectiveId) {
-        // Parse "NOM PRENOM" → last word = prénom, reste = nom
-        const parseClientName = (raw: string) => {
-          const parts = raw.trim().split(/\s+/);
-          if (parts.length === 1) return { first: '', last: raw.trim() };
-          const first = parts[parts.length - 1];
-          const last = parts.slice(0, -1).join(' ');
-          const toTitle = (s: string) =>
-            s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('-');
-          return { first: toTitle(first), last: toTitle(last) };
-        };
-
-        // ── Collect candidates (déduplique dans le fichier lui-même d'abord) ──
-        type ClientCandidate = {
-          first: string; last: string; fullNameNorm: string;
-          email: string | null; phone: string | null;
-          cp: string | null; city: string | null; address: string | null;
-        };
-        const seenInFile = new Set<string>();
-        const candidates: ClientCandidate[] = [];
-
-        for (const r of matchResults) {
-          if (r.match_status === 'non_reconnu') continue;
-          const rawName = (r.raw_data[clientNameCol] as string)?.trim();
-          if (!rawName) continue;
-
-          const email = emailCol ? ((r.raw_data[emailCol] as string)?.trim()?.toLowerCase() || null) : null;
-          const phone = phoneCol ? ((r.raw_data[phoneCol] as string)?.trim()?.replace(/\s/g, '') || null) : null;
-          const addr  = addressCol ? ((r.raw_data[addressCol] as string)?.trim() || null) : null;
-          const cp    = postalCol  ? ((r.raw_data[postalCol]  as string)?.trim() || null) : null;
-          const city  = cityCol    ? ((r.raw_data[cityCol]    as string)?.trim() || null) : null;
-
-          // Dédup interne au fichier : email > téléphone > nom+cp
-          const fileKey = email || phone || `${normalizeStr(rawName)}|${cp || ''}`;
-          if (seenInFile.has(fileKey)) continue;
-          seenInFile.add(fileKey);
-
-          const { first, last } = parseClientName(rawName);
-          candidates.push({ first, last, fullNameNorm: normalizeStr(rawName), email, phone, cp, city, address: addr });
-        }
-
-        if (candidates.length > 0) {
-          // Charge les contacts existants (nom normalisé + email + téléphone + cp)
-          const { data: existingContacts } = await supabase
-            .from('contacts')
-            .select('first_name, last_name, email, phone, address')
-            .eq('user_id', effectiveId);
-
-          // Système de points : score ≥ 4 → doublon incontestable
-          // Email exact      : 5 pts  (seul = déjà suffisant)
-          // Téléphone exact  : 4 pts  (seul = déjà suffisant)
-          // Nom normalisé    : 2 pts
-          // CP               : 1 pt
-          // Ville            : 1 pt
-          const isDuplicate = (c: ClientCandidate): boolean => {
-            for (const ex of (existingContacts || [])) {
-              let score = 0;
-              const exEmail = ex.email?.toLowerCase() || null;
-              const exPhone = ex.phone?.replace(/\s/g, '') || null;
-              const exNameNorm = normalizeStr(`${ex.first_name} ${ex.last_name}`);
-              const exCp = ex.address?.match(/\b\d{5}\b/)?.[0] || null;
-
-              if (c.email && exEmail && c.email === exEmail) score += 5;
-              if (c.phone && exPhone && c.phone === exPhone) score += 4;
-              if (matchScore(c.fullNameNorm, exNameNorm) >= 85) score += 2;
-              if (c.cp && exCp && c.cp === exCp) score += 1;
-              if (c.city && ex.address && normalizeStr(ex.address).includes(normalizeStr(c.city))) score += 1;
-
-              if (score >= 4) return true;
-            }
-            return false;
+        if (clientNameCol && effectiveId) {
+          // Parse "NOM PRENOM" → last word = prénom, reste = nom
+          const parseClientName = (raw: string) => {
+            const parts = raw.trim().split(/\s+/);
+            if (parts.length === 1) return { first: '', last: raw.trim() };
+            const first = parts[parts.length - 1];
+            const last = parts.slice(0, -1).join(' ');
+            const toTitle = (s: string) =>
+              s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('-');
+            return { first: toTitle(first), last: toTitle(last) };
           };
 
-          const toInsert = candidates
-            .filter(c => !isDuplicate(c))
-            .map(c => ({
-              user_id: effectiveId,
-              first_name: c.first || 'Inconnu',
-              last_name: c.last,
-              email: c.email,
-              phone: c.phone,
-              address: [c.address, c.cp, c.city].filter(Boolean).join(', ') || null,
-              status: 'cliente' as const,
-              source: 'import_trv',
-            }));
+          // ── Collect candidates (déduplique dans le fichier lui-même d'abord) ──
+          type ClientCandidate = {
+            first: string; last: string; fullNameNorm: string;
+            email: string | null; phone: string | null;
+            cp: string | null; city: string | null; address: string | null;
+          };
+          const seenInFile = new Set<string>();
+          const candidates: ClientCandidate[] = [];
 
-          if (toInsert.length > 0) {
-            await supabase.from('contacts').insert(toInsert);
-            return toInsert.length; // retourne le nombre créés
+          for (const r of matchResults) {
+            if (r.match_status === 'non_reconnu') continue;
+            const rawNameRaw = r.raw_data[clientNameCol];
+            if (rawNameRaw == null) continue;
+            const rawName = String(rawNameRaw).trim();
+            if (!rawName) continue;
+
+            const emailRaw = emailCol ? r.raw_data[emailCol] : null;
+            const phoneRaw = phoneCol ? r.raw_data[phoneCol] : null;
+            const addrRaw  = addressCol ? r.raw_data[addressCol] : null;
+            const cpRaw    = postalCol  ? r.raw_data[postalCol]  : null;
+            const cityRaw  = cityCol    ? r.raw_data[cityCol]    : null;
+
+            const email = emailRaw != null ? (String(emailRaw).trim().toLowerCase() || null) : null;
+            const phone = phoneRaw != null ? (String(phoneRaw).trim().replace(/\s/g, '') || null) : null;
+            const addr  = addrRaw  != null ? (String(addrRaw).trim()  || null) : null;
+            const cp    = cpRaw    != null ? (String(cpRaw).trim()    || null) : null;
+            const city  = cityRaw  != null ? (String(cityRaw).trim()  || null) : null;
+
+            // Dédup interne au fichier : email > téléphone > nom+cp
+            const fileKey = email || phone || `${normalizeStr(rawName)}|${cp || ''}`;
+            if (seenInFile.has(fileKey)) continue;
+            seenInFile.add(fileKey);
+
+            const { first, last } = parseClientName(rawName);
+            candidates.push({ first, last, fullNameNorm: normalizeStr(rawName), email, phone, cp, city, address: addr });
+          }
+
+          if (candidates.length > 0) {
+            // Charge les contacts existants (nom normalisé + email + téléphone + cp)
+            const { data: existingContacts } = await supabase
+              .from('contacts')
+              .select('first_name, last_name, email, phone, address')
+              .eq('user_id', effectiveId);
+
+            // Système de points : score ≥ 4 → doublon incontestable
+            // Email exact      : 5 pts  (seul = déjà suffisant)
+            // Téléphone exact  : 4 pts  (seul = déjà suffisant)
+            // Nom normalisé    : 2 pts
+            // CP               : 1 pt
+            // Ville            : 1 pt
+            const isDuplicate = (c: ClientCandidate): boolean => {
+              for (const ex of (existingContacts || [])) {
+                let score = 0;
+                const exEmail = ex.email ? String(ex.email).toLowerCase() : null;
+                const exPhone = ex.phone ? String(ex.phone).replace(/\s/g, '') : null;
+                const exNameNorm = normalizeStr(`${ex.first_name ?? ''} ${ex.last_name ?? ''}`);
+                const exCp = ex.address ? (String(ex.address).match(/\b\d{5}\b/)?.[0] || null) : null;
+
+                if (c.email && exEmail && c.email === exEmail) score += 5;
+                if (c.phone && exPhone && c.phone === exPhone) score += 4;
+                if (matchScore(c.fullNameNorm, exNameNorm) >= 85) score += 2;
+                if (c.cp && exCp && c.cp === exCp) score += 1;
+                if (c.city && ex.address && normalizeStr(String(ex.address)).includes(normalizeStr(c.city))) score += 1;
+
+                if (score >= 4) return true;
+              }
+              return false;
+            };
+
+            const toInsert = candidates
+              .filter(c => !isDuplicate(c))
+              .map(c => ({
+                user_id: effectiveId,
+                first_name: c.first || 'Inconnu',
+                last_name: c.last,
+                email: c.email,
+                phone: c.phone,
+                address: [c.address, c.cp, c.city].filter(Boolean).join(', ') || null,
+                status: 'cliente' as const,
+                source: 'import_trv',
+              }));
+
+            if (toInsert.length > 0) {
+              await supabase.from('contacts').insert(toInsert);
+              return toInsert.length; // retourne le nombre créés
+            }
           }
         }
+      } catch (contactErr) {
+        // Ne pas faire échouer tout l'import pour un problème de création de contacts
+        console.warn('Création contacts clients ignorée :', contactErr);
       }
       return 0;
     },

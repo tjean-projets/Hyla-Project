@@ -221,14 +221,6 @@ export default function AdminPanel() {
           </div>
         </div>
 
-        {/* Debug info */}
-        <div className="bg-gray-100 border rounded-xl p-3 text-xs font-mono break-all space-y-1">
-          <p><strong>user?.email:</strong> {user?.email ?? 'undefined/null'}</p>
-          <p><strong>isAdmin:</strong> {String(isAdmin)}</p>
-          <p><strong>enabled:</strong> {String(!!user && isAdmin)}</p>
-          <p><strong>profilesError:</strong> {profilesError ? String(profilesError) : 'none'}</p>
-        </div>
-
         {/* User list */}
         {isLoading ? (
           <div className="flex justify-center py-8">
