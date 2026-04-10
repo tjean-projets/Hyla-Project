@@ -495,9 +495,14 @@ export default function Finance() {
           return { first: toTitle(first), last: toTitle(last) };
         };
 
-        // Collect unique clients à créer pour ce user (le manager qui importe)
-        const seen = new Set<string>();
-        const candidates: { first: string; last: string; email: string | null; phone: string | null; address: string | null }[] = [];
+        // ── Collect candidates (déduplique dans le fichier lui-même d'abord) ──
+        type ClientCandidate = {
+          first: string; last: string; fullNameNorm: string;
+          email: string | null; phone: string | null;
+          cp: string | null; city: string | null; address: string | null;
+        };
+        const seenInFile = new Set<string>();
+        const candidates: ClientCandidate[] = [];
 
         for (const r of matchResults) {
           if (r.match_status === 'non_reconnu') continue;
@@ -505,50 +510,61 @@ export default function Finance() {
           if (!rawName) continue;
 
           const email = emailCol ? ((r.raw_data[emailCol] as string)?.trim()?.toLowerCase() || null) : null;
-          const phone = phoneCol ? ((r.raw_data[phoneCol] as string)?.trim() || null) : null;
+          const phone = phoneCol ? ((r.raw_data[phoneCol] as string)?.trim()?.replace(/\s/g, '') || null) : null;
           const addr  = addressCol ? ((r.raw_data[addressCol] as string)?.trim() || null) : null;
           const cp    = postalCol  ? ((r.raw_data[postalCol]  as string)?.trim() || null) : null;
           const city  = cityCol    ? ((r.raw_data[cityCol]    as string)?.trim() || null) : null;
 
-          // Déduplique par email si dispo, sinon par nom+cp
-          const key = email || `${normalizeStr(rawName)}|${cp || ''}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
+          // Dédup interne au fichier : email > téléphone > nom+cp
+          const fileKey = email || phone || `${normalizeStr(rawName)}|${cp || ''}`;
+          if (seenInFile.has(fileKey)) continue;
+          seenInFile.add(fileKey);
 
           const { first, last } = parseClientName(rawName);
-          candidates.push({
-            first,
-            last,
-            email,
-            phone,
-            address: [addr, cp, city].filter(Boolean).join(', ') || null,
-          });
+          candidates.push({ first, last, fullNameNorm: normalizeStr(rawName), email, phone, cp, city, address: addr });
         }
 
         if (candidates.length > 0) {
-          // Vérifie quels emails existent déjà
-          const emails = candidates.map(c => c.email).filter(Boolean) as string[];
-          const existingEmails = new Set<string>();
-          if (emails.length > 0) {
-            const { data: existing } = await supabase
-              .from('contacts')
-              .select('email')
-              .eq('user_id', effectiveId)
-              .in('email', emails);
-            (existing || []).forEach((c: any) => {
-              if (c.email) existingEmails.add(c.email.toLowerCase());
-            });
-          }
+          // Charge les contacts existants (nom normalisé + email + téléphone + cp)
+          const { data: existingContacts } = await supabase
+            .from('contacts')
+            .select('first_name, last_name, email, phone, address')
+            .eq('user_id', effectiveId);
+
+          // Système de points : score ≥ 4 → doublon incontestable
+          // Email exact      : 5 pts  (seul = déjà suffisant)
+          // Téléphone exact  : 4 pts  (seul = déjà suffisant)
+          // Nom normalisé    : 2 pts
+          // CP               : 1 pt
+          // Ville            : 1 pt
+          const isDuplicate = (c: ClientCandidate): boolean => {
+            for (const ex of (existingContacts || [])) {
+              let score = 0;
+              const exEmail = ex.email?.toLowerCase() || null;
+              const exPhone = ex.phone?.replace(/\s/g, '') || null;
+              const exNameNorm = normalizeStr(`${ex.first_name} ${ex.last_name}`);
+              const exCp = ex.address?.match(/\b\d{5}\b/)?.[0] || null;
+
+              if (c.email && exEmail && c.email === exEmail) score += 5;
+              if (c.phone && exPhone && c.phone === exPhone) score += 4;
+              if (matchScore(c.fullNameNorm, exNameNorm) >= 85) score += 2;
+              if (c.cp && exCp && c.cp === exCp) score += 1;
+              if (c.city && ex.address && normalizeStr(ex.address).includes(normalizeStr(c.city))) score += 1;
+
+              if (score >= 4) return true;
+            }
+            return false;
+          };
 
           const toInsert = candidates
-            .filter(c => !c.email || !existingEmails.has(c.email))
+            .filter(c => !isDuplicate(c))
             .map(c => ({
               user_id: effectiveId,
               first_name: c.first || 'Inconnu',
               last_name: c.last,
               email: c.email,
               phone: c.phone,
-              address: c.address,
+              address: [c.address, c.cp, c.city].filter(Boolean).join(', ') || null,
               status: 'cliente' as const,
               source: 'import_trv',
             }));
