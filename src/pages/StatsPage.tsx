@@ -114,7 +114,7 @@ export default function StatsPage() {
   });
 
   const totalContacts = contacts.length;
-  const recrues = contacts.filter((c: any) => c.status === 'recrue' || c.status === 'partenaire').length;
+  const recrues = contacts.filter((c: any) => c.status === 'recrue').length;
   const conversionRate = totalContacts > 0 ? Math.round((recrues / totalContacts) * 100) : 0;
 
   const lossReasonLabels: Record<string, string> = {

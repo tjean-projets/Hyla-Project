@@ -646,7 +646,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "partner"
-      contact_status: "prospect" | "cliente" | "recrue" | "inactive" | "perdue" | "partenaire"
+      contact_status: "prospect" | "cliente" | "recrue" | "inactive" | "perdue"
       contact_priority: "basse" | "normale" | "haute" | "urgente"
       deal_status: "en_cours" | "signee" | "annulee" | "en_attente" | "livree"
       task_type: "relance" | "rdv" | "demo" | "suivi" | "admin" | "autre"

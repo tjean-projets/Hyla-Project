@@ -610,7 +610,7 @@ export default function Contacts() {
         {/* Onglets CRM / Clients / Tous */}
         <div className="flex gap-1 bg-muted rounded-xl p-1">
           {([
-            { key: 'crm',     label: 'CRM',     count: crmContacts.length,    desc: 'Prospects · Recrues · Partenaires' },
+            { key: 'crm',     label: 'CRM',     count: crmContacts.length,    desc: 'Prospects · Recrues' },
             { key: 'clients', label: 'Clients',  count: clientContacts.length, desc: 'Acheteurs importés TRV' },
             { key: 'all',     label: 'Tous',     count: contacts.length,       desc: '' },
           ] as const).map(tab => (

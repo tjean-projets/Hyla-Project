@@ -10,7 +10,7 @@ export function isSuperAdmin(email?: string | null): boolean {
 }
 
 // ── Contact statuses ──
-export type ContactStatus = 'prospect' | 'cliente' | 'recrue' | 'inactive' | 'perdue' | 'partenaire';
+export type ContactStatus = 'prospect' | 'cliente' | 'recrue' | 'inactive' | 'perdue';
 
 export const CONTACT_STATUS_LABELS: Record<ContactStatus, string> = {
   prospect: 'Prospect',
@@ -18,7 +18,6 @@ export const CONTACT_STATUS_LABELS: Record<ContactStatus, string> = {
   recrue: 'Recrue',
   inactive: 'Inactive',
   perdue: 'Perdue',
-  partenaire: 'Partenaire',
 };
 
 export const CONTACT_STATUS_COLORS: Record<ContactStatus, string> = {
@@ -27,7 +26,6 @@ export const CONTACT_STATUS_COLORS: Record<ContactStatus, string> = {
   recrue: 'bg-purple-100 text-purple-800',
   inactive: 'bg-gray-100 text-gray-600',
   perdue: 'bg-red-100 text-red-800',
-  partenaire: 'bg-amber-100 text-amber-800',
 };
 
 // ── Deal statuses ──
