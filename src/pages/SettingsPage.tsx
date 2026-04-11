@@ -398,12 +398,21 @@ export default function SettingsPage() {
     const { error } = await supabase
       .from('user_settings')
       .upsert({ user_id: effectiveUserId, hyla_level: level, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (!error) {
+      // Synchroniser aussi le niveau dans team_members (où ce compte est membre d'une équipe)
+      await supabase
+        .from('team_members')
+        .update({ hyla_level: level })
+        .eq('linked_user_id', effectiveUserId);
+    }
     setSavingLevel(false);
     if (error) {
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
     } else {
       setHylaLevel(level);
       queryClient.invalidateQueries({ queryKey: ['user-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members-dash'] });
       toast({ title: 'Niveau mis à jour', description: `Niveau ${HYLA_LEVELS.find(l => l.value === level)?.label} enregistré.` });
     }
   };

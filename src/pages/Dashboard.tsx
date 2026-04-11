@@ -803,13 +803,24 @@ export default function Dashboard() {
               ⚠ Présence aux réunions hebdomadaires et au meeting mensuel requise (non traçable automatiquement).
             </p>
 
-            {/* Avantage du prochain niveau */}
-            <div className="mt-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl p-3">
-              <p className="text-[10px] text-violet-700 dark:text-violet-300">
-                <span className="font-bold">{nextLevel.label}</span> → <span className="font-bold">{nextLevel.recruteCommission}€</span> par vente de recrue directe
-                {nextLevel.quotaMois > 0 && <> + prime groupe dès {nextLevel.quotaMois} ventes/mois</>}
-              </p>
-            </div>
+            {/* CTA : toutes conditions remplies */}
+            {conditionsMet === conditionsTotal && conditionsTotal > 0 ? (
+              <div className="mt-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3">
+                <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 mb-1">
+                  🎉 Vous remplissez toutes les conditions pour passer {nextLevel.label} !
+                </p>
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-500">
+                  Contactez votre responsable Hyla pour valider votre passage de niveau.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl p-3">
+                <p className="text-[10px] text-violet-700 dark:text-violet-300">
+                  <span className="font-bold">{nextLevel.label}</span> → <span className="font-bold">{nextLevel.recruteCommission}€</span> par vente de recrue directe
+                  {nextLevel.quotaMois > 0 && <> + prime groupe dès {nextLevel.quotaMois} ventes/mois</>}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
