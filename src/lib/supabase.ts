@@ -257,7 +257,7 @@ export function getGroupPrime(level: HylaLevel | string, teamSalesCount: number)
   if (teamSalesCount < 15) return 0;
   type Range = { min: number; max: number | null; prime: number };
   const ranges: Record<string, Range[]> = {
-    manager:     [{ min: 15, max: null, prime: 30 }],
+    manager:     [{ min: 15, max: 29, prime: 30 }, { min: 30, max: null, prime: 50 }],
     chef_groupe: [{ min: 15, max: 29, prime: 30 }, { min: 30, max: null, prime: 50 }],
     chef_agence: [{ min: 15, max: 29, prime: 30 }, { min: 30, max: 59, prime: 50 }, { min: 60, max: null, prime: 70 }],
     distributeur:[{ min: 15, max: 29, prime: 30 }, { min: 30, max: 59, prime: 50 }, { min: 60, max: 89, prime: 70 }, { min: 90, max: null, prime: 85 }],

@@ -1333,7 +1333,49 @@ export default function Finance() {
                   <button
                     onClick={async () => {
                       if (!user) return;
-                      // 1. Re-run SQL consolidation (commissions du manager)
+                      const myLevel = (settings as any)?.hyla_level || 'manager';
+
+                      // 0. Recalculer les montants Hyla pour toutes les lignes matchées
+                      // (les anciennes lignes peuvent avoir amount=0, le RPC filtre AND amount>0)
+                      const { data: allRows } = await supabase
+                        .from('commission_import_rows')
+                        .select('id, is_owner_row, match_status, matched_member_id, amount')
+                        .eq('import_id', selectedImport.id)
+                        .in('match_status', ['auto', 'manuel']);
+
+                      if (allRows && allRows.length > 0) {
+                        const ownerRows = allRows.filter((r: any) => r.is_owner_row);
+                        const recrueRows = allRows.filter((r: any) => !r.is_owner_row);
+
+                        // Mettre à jour les ventes perso avec le barème glissant
+                        for (let i = 0; i < ownerRows.length; i++) {
+                          const correctAmount = getPersonalSaleCommission(i + 1);
+                          if (ownerRows[i].amount !== correctAmount) {
+                            await supabase.from('commission_import_rows')
+                              .update({ amount: correctAmount })
+                              .eq('id', ownerRows[i].id);
+                          }
+                        }
+
+                        // Mettre à jour les ventes recrues avec le taux du niveau
+                        const recrueAmount = getRecrueCommission(myLevel);
+                        const recrueToUpdate = recrueRows.filter((r: any) => r.amount !== recrueAmount).map((r: any) => r.id);
+                        if (recrueToUpdate.length > 0) {
+                          await supabase.from('commission_import_rows')
+                            .update({ amount: recrueAmount })
+                            .in('id', recrueToUpdate);
+                        }
+                      }
+
+                      // 1. Supprimer les anciennes commissions de ce manager pour cette période
+                      // (sinon le RPC tente de re-insérer des lignes déjà existantes à 0€ → conflit silencieux)
+                      await supabase.from('commissions')
+                        .delete()
+                        .eq('user_id', effectiveId)
+                        .eq('period', selectedImport.period)
+                        .eq('source', 'import');
+
+                      // 2. Re-run SQL consolidation (commissions du manager)
                       const { error: rpcErr } = await supabase.rpc('consolidate_import_commissions', { p_import_id: selectedImport.id });
                       if (rpcErr) { toast({ title: 'Erreur', description: rpcErr.message, variant: 'destructive' }); return; }
 

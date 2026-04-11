@@ -34,11 +34,11 @@ Port par défaut : 5174
 - 1ère vente : 300€ — 2ème : 350€ — 3ème : 400€ — 4→7 : 450€ — 8+ : 500€
 
 ### Prime de gestion de groupe (€/machine/mois selon volume équipe)
-- Manager : >15 ventes → 30€/machine
+- Manager : 15-29 → 30€, 30+ → 50€
 - Chef groupe : 15-29 → 30€, 30+ → 50€
 - Chef agence : 15-29 → 30€, 30-59 → 50€, 60+ → 70€
-- Distributeur : +85€ dès 90 ventes
-- Elite Manager : jusqu'à 100€/machine dès 120 ventes
+- Distributeur : 15-29 → 30€, 30-59 → 50€, 60-89 → 70€, 90+ → 85€
+- Elite Manager : 15-29 → 30€, 30-59 → 50€, 60-89 → 70€, 90-119 → 85€, 120+ → 100€
 
 ### Commissions : Attendue vs Confirmée
 - **Com attendue** : calculée depuis les deals saisis manuellement (barème glissant). Affichée en ambre.
