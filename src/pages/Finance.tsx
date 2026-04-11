@@ -1526,10 +1526,93 @@ export default function Finance() {
                         if (insertErr) { toast({ title: 'Erreur insertion', description: insertErr.message, variant: 'destructive' }); return; }
                       }
 
+                      // 4. Créer/valider les deals depuis les lignes TRV
+                      try {
+                        const { data: allContacts } = await supabase
+                          .from('contacts').select('id, first_name, last_name').eq('user_id', effectiveId);
+
+                        // Détecter colonne nom client et prix depuis raw_data
+                        const rawKeys = Object.keys((updatedRows || [])[0]?.raw_data || {});
+                        const normKey = (s: string) => normalizeStr(s).replace(/[^a-z0-9]/g, '');
+                        const clientNameCol = rawKeys.find(k => ['nomduclient','nomclient','client','acheteur'].some(kw => normKey(k).includes(kw))) || null;
+                        const priceCol = rawKeys.find(col => {
+                          const samples = (updatedRows || []).slice(0, 20).map((r: any) => r.raw_data?.[col]).filter(Boolean);
+                          if (samples.length < 2) return false;
+                          const hits = samples.filter((v: any) => { const p = parseAmount(String(v)); return p >= 500 && p <= 9000; }).length;
+                          return hits / samples.length > 0.3;
+                        }) || null;
+
+                        const parseClientName = (raw: string) => {
+                          const parts = raw.trim().split(/\s+/);
+                          if (parts.length === 1) return { first: '', last: raw.trim() };
+                          const toTitle = (s: string) => s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('-');
+                          return { first: toTitle(parts[parts.length - 1]), last: toTitle(parts.slice(0, -1).join(' ')) };
+                        };
+
+                        const trvMarker = `TRV ${selectedImport.period}`;
+                        const { data: existingDeals } = await supabase
+                          .from('deals').select('id, contact_id, status, notes')
+                          .eq('user_id', effectiveId)
+                          .in('status', ['signee', 'livree', 'en_cours', 'en_attente'])
+                          .gte('signed_at', `${selectedImport.period}-01`)
+                          .lte('signed_at', `${selectedImport.period}-31`);
+
+                        const seenClients = new Set<string>();
+                        const dealsToCreate: any[] = [];
+                        let dealsValidated = 0;
+
+                        for (const row of (updatedRows || [])) {
+                          if (row.match_status === 'non_reconnu') continue;
+                          const rawClient = clientNameCol ? String(row.raw_data?.[clientNameCol] ?? '').trim() : '';
+                          const clientKey = normalizeStr(rawClient || row.id);
+                          if (seenClients.has(clientKey)) continue;
+                          seenClients.add(clientKey);
+
+                          let contactId: string | null = null;
+                          if (rawClient && allContacts) {
+                            const { first: cf, last: cl } = parseClientName(rawClient);
+                            const norm = normalizeStr(`${cf} ${cl}`);
+                            contactId = (allContacts as any[]).find(c =>
+                              matchScore(normalizeStr(`${c.first_name ?? ''} ${c.last_name ?? ''}`), norm) >= 75
+                            )?.id || null;
+                          }
+
+                          const existingDeal = (existingDeals || []).find((d: any) => d.contact_id && d.contact_id === contactId);
+                          if (existingDeal) {
+                            await supabase.from('deals').update({
+                              status: 'livree',
+                              notes: existingDeal.notes ? `${existingDeal.notes} • ${trvMarker}` : trvMarker,
+                            }).eq('id', existingDeal.id);
+                            dealsValidated++;
+                          } else {
+                            const saleAmount = priceCol ? parseAmount(String(row.raw_data?.[priceCol] ?? '')) : 0;
+                            dealsToCreate.push({
+                              user_id: effectiveId,
+                              contact_id: contactId,
+                              amount: saleAmount,
+                              status: 'livree' as const,
+                              signed_at: new Date(`${selectedImport.period}-15T12:00:00.000Z`).toISOString(),
+                              sold_by: row.is_owner_row ? null : (row.matched_member_id || null),
+                              notes: trvMarker,
+                              commission_direct: 0,
+                              commission_actual: 0,
+                            });
+                          }
+                        }
+
+                        if (dealsToCreate.length > 0) {
+                          const { error: dealErr } = await supabase.from('deals').insert(dealsToCreate);
+                          if (dealErr) toast({ title: 'Erreur deals', description: dealErr.message, variant: 'destructive' });
+                        }
+                        queryClient.invalidateQueries({ queryKey: ['deals'] });
+                      } catch (dealErr) {
+                        toast({ title: 'Erreur deals', description: String((dealErr as Error)?.message || dealErr), variant: 'destructive' });
+                      }
+
                       queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
                       queryClient.invalidateQueries({ queryKey: ['commissions'] });
                       queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
-                      toast({ title: 'Commissions re-consolidées', description: `${toInsert.length} commission(s) créée(s)` });
+                      toast({ title: 'Commissions re-consolidées', description: `${toInsert.length} commission(s) + ${0} deal(s)` });
                       setSelectedImport(null);
                       setImportRows([]);
                     }}
