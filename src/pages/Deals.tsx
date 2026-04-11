@@ -451,14 +451,18 @@ export default function Deals() {
     setDrawerDeal(null);
   };
 
+  const selectedPeriod = `${selectedYear}-${selectedMonth}`;
+
   const filtered = deals.filter((d: any) => {
     const name = d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : '';
     const matchesSearch = !search || `${name} ${d.product || ''}`.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    // Filtre par mois : basé sur signed_at ou created_at
+    const dateStr = d.signed_at || d.created_at;
+    const matchesPeriod = dateStr && dateStr.startsWith(selectedPeriod);
+    return matchesSearch && matchesStatus && matchesPeriod;
   });
 
-  const selectedPeriod = `${selectedYear}-${selectedMonth}`;
   // 'signee' = estimé (manuel) + 'livree' = confirmé par TRV
   const signedInPeriod = deals.filter((d: any) => {
     if (d.status !== 'signee' && d.status !== 'livree') return false;

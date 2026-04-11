@@ -717,12 +717,14 @@ export default function Finance() {
         }
 
         if (dealsToCreate.length > 0) {
-          await supabase.from('deals').insert(dealsToCreate);
+          const { error: dealInsertErr } = await supabase.from('deals').insert(dealsToCreate);
+          if (dealInsertErr) throw new Error(`Deals: ${dealInsertErr.message}`);
         }
         return validated + dealsToCreate.length;
       } catch (contactErr) {
-        // Ne pas faire échouer tout l'import pour un problème de création de contacts/deals
-        console.warn('Création contacts/deals ignorée :', contactErr);
+        // Contacts non-bloquants, deals remontés
+        console.warn('Contacts/deals :', contactErr);
+        toast({ title: 'Avertissement deals', description: String((contactErr as Error)?.message || contactErr), variant: 'destructive' });
       }
       return 0;
     },
