@@ -544,6 +544,7 @@ export default function Finance() {
         const cityCol       = findCol(['ville', 'city']);
         const phoneCol      = findCol(['tph', 'tel', 'telephone', 'portable', 'mobile']);
         const emailCol      = findCol(['mail', 'email', 'courriel']);
+        const packCol       = flow.columns.find(c => /^pack$/i.test(c.trim())) ?? null;
 
         // Parse "NOM PRENOM" → last word = prénom, reste = nom (utilisé contacts + deals)
         const parseClientName = (raw: string) => {
@@ -704,12 +705,17 @@ export default function Finance() {
             validated++;
           } else {
             // Fallback : créer le deal si pas trouvé (nouveau compte ou deal non encore créé)
-            const rawPriceStr = priceCol && r.raw_data[priceCol] != null ? String(r.raw_data[priceCol]) : '';
+            const trimmedPriceCol = (priceCol || '').trim();
+            const rawPriceStr = trimmedPriceCol
+              ? String(r.raw_data[trimmedPriceCol] ?? r.raw_data[priceCol!] ?? '')
+              : '';
             const saleAmount = parseAmount(rawPriceStr) || 0;
+            const rawPack = packCol ? String(r.raw_data[packCol] ?? '').trim() || null : null;
             dealsToCreate.push({
               user_id: effectiveId,
               contact_id: contactId,
               amount: saleAmount,
+              product: rawPack,
               status: 'livree' as const,
               signed_at: new Date(`${flow.period}-15T12:00:00.000Z`).toISOString(),
               sold_by: r.is_owner_row ? null : (r.matched_member?.id || null),
@@ -1535,24 +1541,20 @@ export default function Finance() {
                       // 4. Contacts + Deals depuis les lignes TRV
                       try {
                         const rawKeys = Object.keys((updatedRows || [])[0]?.raw_data || {});
-                        // Diagnostic : afficher la 1ère ligne matchée avec ses valeurs
-                        const firstMatchedRow = (updatedRows || []).find((r: any) => r.match_status !== 'non_reconnu');
-                        const rd = firstMatchedRow?.raw_data || {};
-                        const savedAmtColDbg = (selectedImport.column_mapping as any)?.amount_col || 'vide';
-                        const colLines = Object.entries(rd).map(([k, v]) => `${k}: ${v}`).join('\n');
-                        alert(`1ère ligne matchée (amount_col="${savedAmtColDbg}"):\n\n${colLines}`);
                         const nk = (s: string) => normalizeStr(s).replace(/[^a-z0-9]/g, '');
+                        const nkCol = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
                         const clientNameCol = rawKeys.find(k => ['nomduclient','nomclient','client','acheteur'].some(kw => nk(k).includes(kw))) || null;
                         const emailCol     = rawKeys.find(k => /mail|email|courriel/i.test(k)) || null;
                         const phoneCol     = rawKeys.find(k => /tph|tel|telephone|portable|mobile/i.test(k)) || null;
                         const addrCol      = rawKeys.find(k => /adresse|address/i.test(k)) || null;
                         const cpCol        = rawKeys.find(k => /^cp$|codepostal|postal/i.test(k)) || null;
                         const cityCol      = rawKeys.find(k => /ville|city/i.test(k)) || null;
-                        // Colonne prix : 1) mapping sauvegardé, 2) nom de colonne, 3) valeurs sur lignes matchées
-                        const savedAmountCol = (selectedImport.column_mapping as any)?.amount_col || null;
-                        const nkCol = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
-                        const priceCol = (savedAmountCol && rawKeys.includes(savedAmountCol) ? savedAmountCol : null)
-                          || rawKeys.find(k => /prix.*vente|prixvente|prix|montant|price|amount/i.test(nkCol(k)))
+                        const packCol      = rawKeys.find(k => /^pack$/i.test(k.trim())) || null;
+                        // Colonne prix : 1) mapping sauvegardé (trim), 2) nom colonne, 3) valeurs
+                        const savedAmountCol = ((selectedImport.column_mapping as any)?.amount_col || '').trim() || null;
+                        const priceCol = rawKeys.find(k => k.trim() === savedAmountCol)
+                          || rawKeys.find(k => /prix.*vente|prixvente|prix.*de.*vente/i.test(nkCol(k)))
+                          || rawKeys.find(k => /^prix$|^montant$|^price$/i.test(k.trim()))
                           || rawKeys.find(col => {
                             const matched = (updatedRows || []).filter((r: any) => r.match_status !== 'non_reconnu');
                             const samples = matched.slice(0, 30).map((r: any) => r.raw_data?.[col]).filter(Boolean);
@@ -1666,12 +1668,14 @@ export default function Finance() {
 
                           const existingDeal = (existingDeals || []).find((d: any) => d.contact_id && d.contact_id === contactId);
                           const saleAmount = priceCol ? parseAmount(String(row.raw_data?.[priceCol] ?? '')) : 0;
+                          const rawPack    = packCol ? String(row.raw_data?.[packCol] ?? '').trim() || null : null;
                           const comDirect  = row.is_owner_row ? getPersonalSaleCommission(ownerRank) : 0;
 
                           if (existingDeal) {
                             await supabase.from('deals').update({
                               status: 'livree',
                               amount: saleAmount > 0 ? saleAmount : existingDeal.amount,
+                              ...(rawPack ? { product: rawPack } : {}),
                               commission_actual: comDirect,
                             }).eq('id', existingDeal.id);
                             dealsValidated++;
@@ -1680,6 +1684,7 @@ export default function Finance() {
                               user_id: effectiveId,
                               contact_id: contactId,
                               amount: saleAmount ?? 0,
+                              product: rawPack,
                               status: 'livree' as const,
                               signed_at: new Date(`${selectedImport.period}-15T12:00:00.000Z`).toISOString(),
                               sold_by: row.is_owner_row ? null : (row.matched_member_id || null),
