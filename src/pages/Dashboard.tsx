@@ -175,15 +175,16 @@ export default function Dashboard() {
     queryFn: async () => {
       if (!effectiveId) return [];
       const n = new Date();
-      const periods = Array.from({ length: 3 }, (_, i) => {
+      const periods = Array.from({ length: 4 }, (_, i) => {
         const d = new Date(n.getFullYear(), n.getMonth() - i, 1);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       });
       const { data } = await supabase
         .from('commission_imports')
-        .select('period, id')
+        .select('period, id, commission_import_rows(id, is_owner_row, match_status)')
         .eq('user_id', effectiveId)
-        .in('period', periods);
+        .in('period', periods)
+        .order('period', { ascending: false });
       return data || [];
     },
     enabled: !!effectiveId,
@@ -332,15 +333,32 @@ export default function Dashboard() {
   // Vendeurs directs actifs hors managers (pour ceux qui ont besoin de "directs + indirects")
   const indirectActifs = (teamMembers as any[]).filter(m => m.sponsor_id && m.status === 'actif').length;
 
-  // Ventes équipe ce mois depuis KPIs (ou approximation)
-  const teamSalesThisMonth = k.equipe_ventes_mois || 0;
+  // Ventes équipe : priorité au mois en cours (KPI), sinon dernier import disponible
+  // (car si on est en mi-mois et que le dernier import date du mois précédent,
+  //  le KPI mois en cours = 0 alors que les données réelles sont dans le dernier import)
+  const latestImport = (recentImports as any[]).length > 0 ? (recentImports as any[])[0] : null;
+  const latestImportTeamSales = latestImport
+    ? ((latestImport.commission_import_rows || []) as any[])
+        .filter((r: any) => !r.is_owner_row && r.match_status !== 'non_reconnu').length
+    : 0;
+  const teamSalesThisMonth = (k.equipe_ventes_mois || 0) > 0
+    ? (k.equipe_ventes_mois || 0)
+    : latestImportTeamSales;
 
-  // Vérification x3 mois consécutifs : l'utilisateur a importé un TRV les 3 derniers mois
-  const last3Periods = Array.from({ length: 3 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
-  const importedPeriods = new Set((recentImports as any[]).map(r => r.period));
+  // Vérification x3 mois consécutifs : vérifier les 3 mois précédant le dernier import
+  // (pas le mois calendaire en cours, qui peut ne pas encore avoir d'import)
+  const importedPeriods = new Set((recentImports as any[]).map((r: any) => r.period));
+  const latestImportedPeriod = latestImport?.period || null;
+  const last3Periods = latestImportedPeriod
+    ? Array.from({ length: 3 }, (_, i) => {
+        const [y, m] = latestImportedPeriod.split('-').map(Number);
+        const d = new Date(y, m - 1 - i, 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      })
+    : Array.from({ length: 3 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - 1 - i, 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      });
   const consecutiveMonthsMet = last3Periods.every(p => importedPeriods.has(p));
 
   // Conditions du prochain niveau à remplir
