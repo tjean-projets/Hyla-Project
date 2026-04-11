@@ -611,12 +611,14 @@ export default function Finance() {
                 let score = 0;
                 const exEmail = ex.email ? String(ex.email).toLowerCase() : null;
                 const exPhone = ex.phone ? String(ex.phone).replace(/\s/g, '') : null;
-                const exNameNorm = normalizeStr(`${ex.first_name ?? ''} ${ex.last_name ?? ''}`);
+                // Compare nom dans les deux ordres (CSV = "NOM PRENOM", DB = "PRENOM NOM")
+                const exNameNorm1 = normalizeStr(`${ex.first_name ?? ''} ${ex.last_name ?? ''}`);
+                const exNameNorm2 = normalizeStr(`${ex.last_name ?? ''} ${ex.first_name ?? ''}`);
                 const exCp = ex.address ? (String(ex.address).match(/\b\d{5}\b/)?.[0] || null) : null;
 
                 if (c.email && exEmail && c.email === exEmail) score += 5;
                 if (c.phone && exPhone && c.phone === exPhone) score += 4;
-                if (matchScore(c.fullNameNorm, exNameNorm) >= 85) score += 2;
+                if (matchScore(c.fullNameNorm, exNameNorm1) >= 85 || matchScore(c.fullNameNorm, exNameNorm2) >= 85) score += 2;
                 if (c.cp && exCp && c.cp === exCp) score += 1;
                 if (c.city && ex.address && normalizeStr(String(ex.address)).includes(normalizeStr(c.city))) score += 1;
 
@@ -1569,9 +1571,15 @@ export default function Finance() {
                             if (seenContactKeys.has(normName)) continue;
                             seenContactKeys.add(normName);
 
-                            const alreadyExists = (existingContacts || []).some((c: any) =>
-                              matchScore(normalizeStr(`${c.first_name ?? ''} ${c.last_name ?? ''}`), normName) >= 85
-                            );
+                            const rawEmail = emailCol ? String(row.raw_data?.[emailCol] ?? '').trim().toLowerCase() : '';
+                            const rawPhone = phoneCol ? String(row.raw_data?.[phoneCol] ?? '').replace(/\s/g, '') : '';
+                            const alreadyExists = (existingContacts || []).some((c: any) => {
+                              if (rawEmail && c.email && rawEmail === String(c.email).toLowerCase()) return true;
+                              if (rawPhone && c.phone && rawPhone === String(c.phone).replace(/\s/g, '')) return true;
+                              const stored1 = normalizeStr(`${c.first_name ?? ''} ${c.last_name ?? ''}`);
+                              const stored2 = normalizeStr(`${c.last_name ?? ''} ${c.first_name ?? ''}`);
+                              return matchScore(stored1, normName) >= 85 || matchScore(stored2, normName) >= 85;
+                            });
                             if (alreadyExists) continue;
 
                             const { first, last } = parseClientName(rawName);
