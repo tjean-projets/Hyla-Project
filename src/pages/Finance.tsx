@@ -801,7 +801,7 @@ export default function Finance() {
           const rawFin        = financingCol ? String(r.raw_data[financingCol] ?? '').trim() : '';
           const isMensualites = /alma|sofinco|floa|cofidis/i.test(rawFin);
           const paymentType   = isMensualites ? 'mensualites' : 'comptant';
-          const monthMatch    = rawFin.match(/(\d{2,})\s*[xXmM]/);
+          const monthMatch    = rawFin.match(/(\d+)\s*[xXmM]/);
           const paymentMonths = isMensualites && monthMatch ? parseInt(monthMatch[1]) : null;
           const providerMatch = rawFin.match(/(alma|sofinco|floa|cofidis)/i);
           const financingProvider = providerMatch ? providerMatch[1].toUpperCase() : null;
@@ -1817,7 +1817,7 @@ export default function Finance() {
                           const rawFin        = financingCol ? String(row.raw_data?.[financingCol] ?? '').trim() : '';
                           const isMensualites = /alma|sofinco|floa|cofidis/i.test(rawFin);
                           const paymentType   = isMensualites ? 'mensualites' : 'comptant';
-                          const monthMatch    = rawFin.match(/(\d{2,})\s*[xXmM]/);
+                          const monthMatch    = rawFin.match(/(\d+)\s*[xXmM]/);
                           const paymentMonths = isMensualites && monthMatch ? parseInt(monthMatch[1]) : null;
                           const provMatch     = rawFin.match(/(alma|sofinco|floa|cofidis)/i);
                           const finProvider   = provMatch ? provMatch[1].toUpperCase() : null;
