@@ -74,6 +74,9 @@ interface ImportFlowState {
   mapping: { name_col: string; firstname_col: string; amount_col: string; id_col: string };
   period: string;
   fileName: string;
+  /** Index (0-based) de la première colonne du fichier dans la feuille Excel (A=0, B=1…).
+   *  Permet de calculer correctement la colonne N, O, D, Q par lettre Excel. */
+  colStartIdx?: number;
 }
 
 const TABS = [
@@ -188,16 +191,24 @@ export default function Finance() {
     reader.onload = (evt) => {
       try {
         let workbook: ReturnType<typeof XLSX.read>;
+        const rawBuffer = evt.target?.result as ArrayBuffer;
         if (isExcel) {
           // Fichier Excel binaire : XLSX gère l'encodage nativement
-          const rawBytes = new Uint8Array(evt.target?.result as ArrayBuffer);
-          workbook = XLSX.read(rawBytes, { type: 'array' });
+          workbook = XLSX.read(new Uint8Array(rawBuffer), { type: 'array' });
         } else {
-          // CSV : décodé en UTF-8 par readAsText (voir ci-dessous)
-          const csvText = evt.target?.result as string;
+          // CSV : décoder manuellement en UTF-8 via TextDecoder (plus fiable que readAsText)
+          let csvText = new TextDecoder('utf-8').decode(rawBuffer);
+          // Supprimer le BOM UTF-8 si présent (U+FEFF)
+          if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
           workbook = XLSX.read(csvText, { type: 'string' });
         }
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        // Calculer la colonne de départ (A=0, B=1…) pour mapper correctement D, N, O, Q
+        const sheetRef = sheet['!ref'] || 'A1';
+        const startLetter = (sheetRef.match(/^([A-Z]+)/) || ['', 'A'])[1];
+        const letterToIdx = (l: string) =>
+          l.split('').reduce((a, c) => a * 26 + c.charCodeAt(0) - 64, 0) - 1;
+        const colStartIdx = letterToIdx(startLetter);
 
         // ── Trouver la vraie ligne d'en-tête (contient VENDEUR ou NOM DU CLIENT) ──
         const rawRows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: '' });
@@ -281,20 +292,16 @@ export default function Finance() {
 
         // TRV reconnu ou mapping sauvegardé → skip mapping, aller direct au matching
         if (isTRV || savedProfile) {
-          setFlow({ step: 'matching', rawData: filteredJson, columns, mapping: finalMapping, period: flow.period, fileName: file.name });
+          setFlow({ step: 'matching', rawData: filteredJson, columns, mapping: finalMapping, period: flow.period, fileName: file.name, colStartIdx });
         } else {
-          setFlow({ step: 'mapping', rawData: filteredJson, columns, mapping: finalMapping, period: flow.period, fileName: file.name });
+          setFlow({ step: 'mapping', rawData: filteredJson, columns, mapping: finalMapping, period: flow.period, fileName: file.name, colStartIdx });
         }
       } catch {
         toast({ title: 'Erreur de lecture du fichier', variant: 'destructive' });
       }
     };
-    if (isExcel) {
-      reader.readAsArrayBuffer(file);
-    } else {
-      // CSV : UTF-8 comme demandé (fichiers TRV Hyla encodés en UTF-8)
-      reader.readAsText(file, 'utf-8');
-    }
+    // Toujours lire en ArrayBuffer (encodage géré manuellement via TextDecoder)
+    reader.readAsArrayBuffer(file);
     // Reset input so the same file can be re-selected
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [flow.period, toast]);
@@ -551,23 +558,34 @@ export default function Finance() {
         const findCol = (keywords: string[]) =>
           flow.columns.find(c => keywords.some(k => normCol(c).includes(k))) ?? null;
 
+        // Helper : convertit une lettre Excel (A, B… Z, AA…) en index 0-based dans flow.columns
+        // en tenant compte du décalage de départ de la feuille (colStartIdx).
+        const excelLetterToFlowIdx = (letter: string): number => {
+          const absIdx = letter.split('').reduce((a, c) => a * 26 + c.charCodeAt(0) - 64, 0) - 1;
+          return absIdx - (flow.colStartIdx ?? 0);
+        };
+        const colByLetter = (letter: string): string | null => {
+          const idx = excelLetterToFlowIdx(letter);
+          return (idx >= 0 && idx < flow.columns.length) ? (flow.columns[idx] || null) : null;
+        };
+
         const clientNameCol = findCol(['nomduclient', 'nomclient', 'client', 'acheteur']);
         const addressCol    = findCol(['adresse', 'address']);
         const postalCol     = findCol(['cp', 'codepostal', 'postal']);
         const cityCol       = findCol(['ville', 'city']);
         const phoneCol      = findCol(['tph', 'tel', 'telephone', 'portable', 'mobile']);
         const emailCol      = findCol(['mail', 'email', 'courriel']);
-        // Colonne pack : colonne N (index 13) en priorité, sinon par nom
-        const packCol       = (flow.columns.length > 13 ? flow.columns[13] : null)
+        // Colonne pack : colonne N Excel en priorité, sinon par nom
+        const packCol       = colByLetter('N')
                            || flow.columns.find(c => /^pack$/i.test(c.trim()))
                            || null;
-        // Colonne financement : colonne Q (index 16) en priorité, sinon par nom
-        const financingCol  = (flow.columns.length > 16 ? flow.columns[16] : null)
+        // Colonne financement : colonne Q Excel en priorité, sinon par nom
+        const financingCol  = colByLetter('Q')
                            || flow.columns.find(c => /financ/i.test(c.trim()))
                            || null;
-        // Colonne date : par nom d'abord, sinon colonne D (index 3)
+        // Colonne date : par nom d'abord, sinon colonne D Excel
         const dateCol       = findCol(['datelivr', 'datevente', 'datepose', 'dateinstall', 'datecontrat', 'date'])
-                           ?? (flow.columns.length > 3 ? flow.columns[3] : null);
+                           ?? colByLetter('D');
 
         // Parse "NOM PRENOM" → last word = prénom, reste = nom (utilisé contacts + deals)
         const parseClientName = (raw: string) => {
@@ -691,9 +709,8 @@ export default function Finance() {
           .gte('signed_at', periodStart)
           .lte('signed_at', periodEnd);
 
-        // Colonne prix : colonne O (index 14) en priorité, sinon mapping manuel
-        const priceCol = (flow.columns.length > 14 ? flow.columns[14] : null)
-                      || flow.mapping.amount_col || null;
+        // Colonne prix : colonne O Excel en priorité (tenant compte du décalage de la feuille), sinon mapping auto
+        const priceCol = colByLetter('O') || flow.mapping.amount_col || null;
         const seenDealClients = new Set<string>();
         let validated = 0;
         const dealsToCreate: any[] = [];
@@ -1608,15 +1625,14 @@ export default function Finance() {
                         const addrCol      = rawKeys.find(k => /adresse|address/i.test(k)) || null;
                         const cpCol        = rawKeys.find(k => /^cp$|codepostal|postal/i.test(k)) || null;
                         const cityCol      = rawKeys.find(k => /ville|city/i.test(k)) || null;
-                        // Colonne N (index 13) = pack, colonne O (index 14) = prix, colonne Q (index 16) = financement
-                        const packCol      = (rawKeys.length > 13 ? rawKeys[13] : null)
-                          || rawKeys.find(k => /^pack$/i.test(k.trim())) || null;
-                        const financingCol = (rawKeys.length > 16 ? rawKeys[16] : null)
-                          || rawKeys.find(k => /financ/i.test(k.trim())) || null;
-                        // Colonne date : par nom ou colonne D (index 3)
+                        // ⚠ JSONB Supabase trie les clés alphabétiquement → on NE peut PAS utiliser
+                        // rawKeys[N] pour retrouver la colonne N Excel. Détection par nom uniquement.
+                        const packCol      = rawKeys.find(k => /^pack$/i.test(k.trim()))
+                                          || rawKeys.find(k => /\bpack\b/i.test(k)) || null;
+                        const financingCol = rawKeys.find(k => /financ/i.test(k)) || null;
+                        // Colonne date : par nom (datelivr, datevente, date…)
                         const dateCol      = rawKeys.find(k => /datelivr|datevente|datepose|dateinstall|datecontrat/i.test(nk(k)))
-                                          || rawKeys.find(k => /^date$/i.test(k.trim()))
-                                          || (rawKeys.length > 3 ? rawKeys[3] : null);
+                                          || rawKeys.find(k => /^date$/i.test(k.trim())) || null;
                         const parseCsvDate = (raw: string): string => {
                           if (!raw) return new Date(`${selectedImport.period}-15T12:00:00.000Z`).toISOString();
                           const m = raw.trim().match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
@@ -1628,17 +1644,15 @@ export default function Finance() {
                           const d = new Date(raw);
                           return isNaN(d.getTime()) ? new Date(`${selectedImport.period}-15T12:00:00.000Z`).toISOString() : d.toISOString();
                         };
-                        // Colonnes O (prix, index 14) et N (pack, index 13) — positions fixes TRV Hyla
-                        // Fallback : nom de colonne, puis détection par valeurs
-                        const priceCol = (rawKeys.length > 14 ? rawKeys[14] : null)
-                          || rawKeys.find(k => /prix.*vente|prixvente|prix.*de.*vente/i.test(nkCol(k)))
+                        // Prix : détection par nom de colonne, puis par contenu (valeurs Hyla 800–12000€)
+                        // ⚠ Pas d'index car JSONB réordonne les clés alphabétiquement
+                        const priceCol = rawKeys.find(k => /prix.*vente|prixvente|prix.*de.*vente/i.test(nkCol(k)))
                           || rawKeys.find(k => /^prix$|^montant$|^price$/i.test(k.trim()))
                           || rawKeys.find(col => {
                             const matched2 = (updatedRows || []).filter((r: any) => r.match_status !== 'non_reconnu');
-                            return matched2.some((r: any) => {
-                              const v = parseAmount(String(r.raw_data?.[col] ?? ''));
-                              return v >= 500 && v <= 30000;
-                            });
+                            const vals = matched2.map((r: any) => parseAmount(String(r.raw_data?.[col] ?? '')));
+                            const inRange = vals.filter(v => v >= 800 && v <= 12000);
+                            return inRange.length > 0 && inRange.length / Math.max(vals.filter(v => v > 0).length, 1) > 0.4;
                           }) || null;
 
                         const parseClientName = (raw: string) => {
