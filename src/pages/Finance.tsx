@@ -1600,7 +1600,11 @@ export default function Finance() {
                             });
                           }
                           if (contactsToInsert.length > 0) {
-                            await supabase.from('contacts').insert(contactsToInsert);
+                            const { error: contactErr } = await supabase.from('contacts').insert(contactsToInsert);
+                            if (contactErr) {
+                              toast({ title: '❌ Erreur INSERT contacts', description: contactErr.message, variant: 'destructive' });
+                              // On continue quand même pour créer les deals avec les contacts existants
+                            }
                           }
                         }
 
@@ -1673,12 +1677,13 @@ export default function Finance() {
 
                         let dealsCreated = 0;
                         if (dealsToCreate.length > 0) {
-                          const { error: dealErr, data: dealData } = await supabase.from('deals').insert(dealsToCreate).select('id');
+                          const { error: dealErr } = await supabase.from('deals').insert(dealsToCreate);
                           if (dealErr) {
                             toast({ title: '❌ Erreur INSERT deals', description: dealErr.message, variant: 'destructive' });
-                            throw new Error(dealErr.message);
+                            // On ne throw pas — les commissions sont déjà créées, on loggue juste
+                          } else {
+                            dealsCreated = dealsToCreate.length;
                           }
-                          dealsCreated = dealData?.length ?? dealsToCreate.length;
                         }
                         queryClient.invalidateQueries({ queryKey: ['deals'] });
                         queryClient.invalidateQueries({ queryKey: ['contacts'] });
