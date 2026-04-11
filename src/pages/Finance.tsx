@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 
 // ── Fuzzy name matching ──
 function normalizeStr(s: string): string {
@@ -217,55 +218,33 @@ export default function Finance() {
           if (filteredJson.length > 0) columns = Object.keys(filteredJson[0]);
 
         } else {
-          // ── CSV : parse manuel UTF-8, bypass XLSX pour l'encodage ──
+          // ── CSV : PapaParse — UTF-8 natif, auto-détection séparateur, champs quotés ──
           let csvText = new TextDecoder('utf-8').decode(rawBuffer);
           if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1); // strip BOM
 
-          const lines = csvText.split(/\r?\n/);
-
-          // Auto-détecter le séparateur (;  ou ,)
-          const sampleLine = lines.find(l => l.trim().length > 5) || '';
-          const sep = sampleLine.split(';').length > sampleLine.split(',').length ? ';' : ',';
-
-          // Splitter une ligne CSV en respectant les champs entre guillemets
-          const splitCSV = (line: string): string[] => {
-            const result: string[] = [];
-            let field = '';
-            let inQuotes = false;
-            for (let i = 0; i < line.length; i++) {
-              const ch = line[i];
-              if (ch === '"') {
-                if (inQuotes && line[i + 1] === '"') { field += '"'; i++; }
-                else inQuotes = !inQuotes;
-              } else if (ch === sep && !inQuotes) {
-                result.push(field.trim()); field = '';
-              } else {
-                field += ch;
-              }
-            }
-            result.push(field.trim());
-            return result;
-          };
-
           // Trouver la ligne d'en-tête (contient VENDEUR ou NOM DU CLIENT)
+          const csvLines = csvText.split(/\r?\n/);
           let headerLineIdx = 0;
-          for (let i = 0; i < Math.min(lines.length, 15); i++) {
-            const upper = lines[i].toUpperCase();
+          for (let i = 0; i < Math.min(csvLines.length, 15); i++) {
+            const upper = csvLines[i].toUpperCase();
             if (upper.includes('VENDEUR') || upper.includes('NOM DU CLIENT') || upper.includes('PRIX DE VENTE')) {
               headerLineIdx = i; break;
             }
           }
+          // Repartir du bon header pour que PapaParse ait les bons noms de colonnes
+          const csvFromHeader = csvLines.slice(headerLineIdx).join('\n');
 
-          const headers = splitCSV(lines[headerLineIdx]);
-          columns = headers; // ordre préservé ✓
+          const parsed = Papa.parse<Record<string, string>>(csvFromHeader, {
+            header: true,          // 1ère ligne = noms de colonnes
+            skipEmptyLines: true,  // ignore les lignes vides
+            delimiter: '',         // auto-détection du séparateur (, ou ;)
+            transformHeader: (h) => h, // garder les noms tels quels (accents préservés)
+          });
 
-          for (let i = headerLineIdx + 1; i < lines.length; i++) {
-            if (!lines[i].trim()) continue;
-            const cells = splitCSV(lines[i]);
-            const row: Record<string, string> = {};
-            for (let j = 0; j < headers.length; j++) row[headers[j]] = cells[j] ?? '';
-            if (Object.values(row).some(v => v.trim().length > 2)) filteredJson.push(row);
-          }
+          columns = parsed.meta.fields ?? [];
+          filteredJson = (parsed.data as Record<string, string>[]).filter(row =>
+            Object.values(row).some(v => String(v).trim().length > 2)
+          );
         }
 
         if (filteredJson.length === 0) {
