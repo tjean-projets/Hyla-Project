@@ -682,7 +682,12 @@ export default function Deals() {
                       {(deal as any).payment_type === 'mensualites' && (
                         <div className="flex items-center justify-end gap-1 mt-0.5">
                           <span className="text-[10px] text-blue-500">
-                            {(deal as any).payment_months ? `${(deal as any).payment_months}×` : 'Mens.'}
+                            {(() => {
+                              const provM = (deal as any).notes?.match(/Fin:([A-Z]+)/i);
+                              const prov = provM ? provM[1].charAt(0) + provM[1].slice(1).toLowerCase() : null;
+                              const months = (deal as any).payment_months ? `${(deal as any).payment_months}×` : 'Mens.';
+                              return prov ? `${months} ${prov}` : months;
+                            })()}
                           </span>
                           {(deal as any).bank_fees_offered && <span className="text-[10px] text-emerald-500" title="Frais offerts">🎁</span>}
                         </div>

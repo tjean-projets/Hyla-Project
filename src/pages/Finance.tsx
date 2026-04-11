@@ -96,7 +96,6 @@ export default function Finance() {
   const [activeTab, setActiveTab] = useState<TabId>('imports');
   const [showImport, setShowImport] = useState(false);
   const [showOutOfTeam, setShowOutOfTeam] = useState(false);
-  const [duplicateWarning, setDuplicateWarning] = useState(false);
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
   const [invoicePeriod, setInvoicePeriod] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`);
 
@@ -426,23 +425,47 @@ export default function Finance() {
   }, [flow.step, flow.rawData.length, treeMembersLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Save import ──
-  const handleValidate = async (forceReplace = false) => {
+  const handleValidate = async () => {
     if (!user) return;
-    if (!forceReplace) {
-      setCheckingDuplicate(true);
-      const { data: existing } = await supabase
-        .from('commission_imports')
-        .select('id')
-        .eq('user_id', effectiveId)
-        .eq('period', flow.period);
-      setCheckingDuplicate(false);
-      if (existing && existing.length > 0) {
-        setDuplicateWarning(true);
+    setCheckingDuplicate(true);
+    const { data: existing } = await supabase
+      .from('commission_imports')
+      .select('id')
+      .eq('user_id', effectiveId)
+      .eq('period', flow.period);
+    setCheckingDuplicate(false);
+
+    if (existing && existing.length > 0) {
+      // Comparer avec les données actuelles pour détecter si identique ou mis à jour
+      const existingIds = existing.map((i: any) => i.id);
+      const { data: existingRows } = await supabase
+        .from('commission_import_rows')
+        .select('amount')
+        .in('import_id', existingIds);
+      const existingCount = existingRows?.length ?? 0;
+      const existingTotal = existingRows?.reduce((s: number, r: any) => s + (r.amount || 0), 0) ?? 0;
+      const newCount = matchResults.filter(r => r.match_status !== 'non_reconnu').length;
+      const newTotal = matchResults.reduce((s, r) => s + (r.amount || 0), 0);
+
+      if (existingCount === newCount && Math.abs(existingTotal - newTotal) < 0.01) {
+        // Données identiques → notifier et ne pas re-importer
+        toast({
+          title: `Import ${flow.period} identique`,
+          description: 'Les données sont identiques à l\'import existant. Aucun changement effectué.',
+        });
+        setFlow(f => ({ ...f, step: 'done' }));
+        return;
+      } else {
+        // Données différentes → remplacer automatiquement
+        toast({
+          title: `Import ${flow.period} mis à jour`,
+          description: 'Les données ont changé, l\'import précédent a été remplacé.',
+        });
+        saveImport.mutate(true);
         return;
       }
     }
-    setDuplicateWarning(false);
-    saveImport.mutate(forceReplace);
+    saveImport.mutate(false);
   };
 
   const saveImport = useMutation({
@@ -479,6 +502,14 @@ export default function Finance() {
           // Supprimer lignes et imports
           await supabase.from('commission_import_rows').delete().in('import_id', oldIds);
           await supabase.from('commission_imports').delete().in('id', oldIds);
+          // Supprimer les deals auto-créés par le TRV précédent pour cette période
+          // (notes commençant par "TRV {period}" = créés en fallback, pas manuellement)
+          // Les deals manuels validés par TRV ont le marker en suffixe ("... • TRV {period}") → préservés
+          await supabase
+            .from('deals')
+            .delete()
+            .eq('user_id', effectiveId)
+            .ilike('notes', `TRV ${flow.period}%`);
         }
       }
 
@@ -582,8 +613,13 @@ export default function Finance() {
         const packCol       = flow.columns.find(c => /^pack$/i.test(c.trim()))
                            || flow.columns.find(c => /\bpack\b/i.test(c.trim()))
                            || null;
-        // Colonne financement : par nom
-        const financingCol  = flow.columns.find(c => /financ/i.test(c.trim())) || null;
+        // Colonne financement : par nom d'abord, puis par contenu (valeurs alma/sofinco/floa/cofidis)
+        const financingCol  = flow.columns.find(c => /financ|paiement|reglement|credit|mensual|organisme/i.test(c.trim()))
+          || flow.columns.find(c => {
+            const vals = flow.rawData.map(r => String((r as any)[c] ?? '').toLowerCase());
+            return vals.some(v => /alma|sofinco|floa|cofidis/.test(v));
+          })
+          || null;
         // Colonne date : par nom
         const dateCol       = findCol(['datelivr', 'datevente', 'datepose', 'dateinstall', 'datecontrat', 'date']) ?? null;
 
@@ -741,7 +777,18 @@ export default function Finance() {
           }
 
           // Chercher un deal existant pour ce client dans la période
-          const existingDeal = (existingDeals || []).find(d => d.contact_id && d.contact_id === contactId);
+          // 1er choix : match par contact_id (le plus fiable)
+          // 2ème choix fallback : si contactId null, cherche un deal sans contact ou avec nom approchant dans les notes
+          const existingDeal = (existingDeals || []).find(d => {
+            if (contactId && d.contact_id === contactId) return true;
+            // Fallback : deal sans contact_id dont le montant et le vendeur correspondent (évite doublons sur re-import)
+            if (!contactId && rawClientName) {
+              const dealNorm = normalizeStr(d.notes || '');
+              const clientNorm = normalizeStr(rawClientName);
+              if (clientNorm.length > 3 && dealNorm.includes(clientNorm)) return true;
+            }
+            return false;
+          });
 
           // Montant + produit + financement calculés ici pour les deux chemins (update ET create)
           const trimmedPriceCol = (priceCol || '').trim();
@@ -750,12 +797,14 @@ export default function Finance() {
             : '';
           const saleAmount = parseAmount(rawPriceStr) || 0;
           const rawPack = packCol ? String(r.raw_data[packCol] ?? '').trim() || null : null;
-          // Financement (colonne Q, index 16)
-          const rawFin      = financingCol ? String(r.raw_data[financingCol] ?? '').trim() : '';
+          // Financement (colonne Q)
+          const rawFin        = financingCol ? String(r.raw_data[financingCol] ?? '').trim() : '';
           const isMensualites = /alma|sofinco|floa|cofidis/i.test(rawFin);
           const paymentType   = isMensualites ? 'mensualites' : 'comptant';
           const monthMatch    = rawFin.match(/(\d{2,})\s*[xXmM]/);
           const paymentMonths = isMensualites && monthMatch ? parseInt(monthMatch[1]) : null;
+          const providerMatch = rawFin.match(/\b(alma|sofinco|floa|cofidis)\b/i);
+          const financingProvider = providerMatch ? providerMatch[1].toUpperCase() : null;
 
           // Date réelle depuis la colonne D (ou colonne nommée "date")
           const parseCsvDate = (raw: string): string => {
@@ -775,9 +824,16 @@ export default function Finance() {
 
           if (existingDeal) {
             // Valider le deal existant + corriger montant/produit/date/financement si manquants
+            // Évite le double-marquage si re-import du même TRV sur un deal déjà validé
+            const strippedNotes = (existingDeal.notes || '')
+              .replace(new RegExp(`\\s*•\\s*TRV ${flow.period}[^•]*`, 'g'), '')
+              .replace(/\s*\|\s*Fin:[A-Z]+/g, '')
+              .trim();
+            const noteBase = strippedNotes ? `${strippedNotes} • ${trvNoteMarker}` : trvNoteMarker;
+            const noteWithProvider = financingProvider ? `${noteBase} | Fin:${financingProvider}` : noteBase;
             await supabase.from('deals').update({
               status: 'livree',
-              notes: existingDeal.notes ? `${existingDeal.notes} • ${trvNoteMarker}` : trvNoteMarker,
+              notes: noteWithProvider,
               commission_actual: r.is_owner_row ? r.amount : 0,
               ...(saleAmount > 0 ? { amount: saleAmount } : {}),
               ...(rawPack ? { product: rawPack } : {}),
@@ -788,6 +844,9 @@ export default function Finance() {
             validated++;
           } else {
             // Fallback : créer le deal si pas trouvé (nouveau compte ou deal non encore créé)
+            // Le nom client normalisé est stocké en notes pour permettre le matching lors d'un re-import
+            const clientTag = rawClientName ? ` | client:${normalizeStr(rawClientName)}` : '';
+            const finTag = financingProvider ? ` | Fin:${financingProvider}` : '';
             dealsToCreate.push({
               user_id: effectiveId,
               contact_id: contactId,
@@ -796,7 +855,7 @@ export default function Finance() {
               status: 'livree' as const,
               signed_at: signedAt,
               sold_by: r.is_owner_row ? null : (r.matched_member?.id || null),
-              notes: trvNoteMarker,
+              notes: `${trvNoteMarker}${clientTag}${finTag}`,
               commission_direct: r.is_owner_row ? r.amount : 0,
               commission_actual: 0,
               payment_type: paymentType as any,
@@ -1022,7 +1081,6 @@ export default function Finance() {
               if (!open) {
                 setFlow({ step: 'upload', rawData: [], columns: [], mapping: { name_col: '', firstname_col: '', amount_col: '', id_col: '' }, period: flow.period, fileName: '' });
                 setMatchResults([]);
-                setDuplicateWarning(false);
                 setShowOutOfTeam(false);
               }
             }}>
@@ -1265,49 +1323,22 @@ export default function Finance() {
                       })}
                     </div>
 
-                    {duplicateWarning ? (
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
-                        <div className="flex items-start gap-2">
-                          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                          <p className="text-xs text-amber-800">
-                            <span className="font-semibold">Un import existe déjà pour {flow.period}.</span><br />
-                            Le remplacer effacera les commissions précédemment importées pour cette période, y compris celles cascadées à ton équipe.
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setDuplicateWarning(false)}
-                            className="flex-1 py-2 bg-muted text-foreground text-xs font-semibold rounded-lg"
-                          >
-                            Annuler
-                          </button>
-                          <button
-                            onClick={() => handleValidate(true)}
-                            disabled={saveImport.isPending}
-                            className="flex-[2] py-2 bg-amber-600 text-white text-xs font-semibold rounded-lg disabled:opacity-50"
-                          >
-                            {saveImport.isPending ? 'Remplacement...' : 'Remplacer l\'import existant'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setFlow({ ...flow, step: 'mapping' })}
-                          disabled={saveImport.isPending || checkingDuplicate}
-                          className="flex-1 py-3 bg-muted text-foreground font-semibold rounded-xl disabled:opacity-50"
-                        >
-                          Retour
-                        </button>
-                        <button
-                          onClick={() => handleValidate(false)}
-                          disabled={saveImport.isPending || checkingDuplicate}
-                          className="flex-[2] py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
-                        >
-                          {checkingDuplicate ? 'Vérification...' : saveImport.isPending ? 'Traitement...' : 'Valider et consolider'}
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setFlow({ ...flow, step: 'mapping' })}
+                        disabled={saveImport.isPending || checkingDuplicate}
+                        className="flex-1 py-3 bg-muted text-foreground font-semibold rounded-xl disabled:opacity-50"
+                      >
+                        Retour
+                      </button>
+                      <button
+                        onClick={() => handleValidate()}
+                        disabled={saveImport.isPending || checkingDuplicate}
+                        className="flex-[2] py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
+                      >
+                        {checkingDuplicate ? 'Vérification...' : saveImport.isPending ? 'Traitement...' : 'Valider et consolider'}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -1635,7 +1666,12 @@ export default function Finance() {
                         // rawKeys[N] pour retrouver la colonne N Excel. Détection par nom uniquement.
                         const packCol      = rawKeys.find(k => /^pack$/i.test(k.trim()))
                                           || rawKeys.find(k => /\bpack\b/i.test(k)) || null;
-                        const financingCol = rawKeys.find(k => /financ/i.test(k)) || null;
+                        const financingCol = rawKeys.find(k => /financ|paiement|reglement|credit|mensual|organisme/i.test(k))
+                          || rawKeys.find(k => {
+                            const vals = (updatedRows || []).map((r: any) => String(r.raw_data?.[k] ?? '').toLowerCase());
+                            return vals.some(v => /alma|sofinco|floa|cofidis/.test(v));
+                          })
+                          || null;
                         // Colonne date : par nom (datelivr, datevente, date…)
                         const dateCol      = rawKeys.find(k => /datelivr|datevente|datepose|dateinstall|datecontrat/i.test(nk(k)))
                                           || rawKeys.find(k => /^date$/i.test(k.trim())) || null;
@@ -1764,22 +1800,42 @@ export default function Finance() {
                             contactId = found?.id || null;
                           }
 
-                          const existingDeal = (existingDeals || []).find((d: any) => d.contact_id && d.contact_id === contactId);
+                          const existingDeal = (existingDeals || []).find((d: any) => {
+                            if (contactId && d.contact_id === contactId) return true;
+                            if (!contactId && rawClient) {
+                              const cn = normalizeStr(rawClient);
+                              return cn.length > 3 && normalizeStr(d.notes || '').includes(cn);
+                            }
+                            return false;
+                          });
                           const saleAmount    = priceCol ? parseAmount(String(row.raw_data?.[priceCol] ?? '')) : 0;
                           const rawPack       = packCol ? String(row.raw_data?.[packCol] ?? '').trim() || null : null;
                           const comDirect     = row.is_owner_row ? getPersonalSaleCommission(ownerRank) : 0;
                           const rawDateStr    = dateCol ? String(row.raw_data?.[dateCol] ?? '').trim() : '';
                           const signedAt      = parseCsvDate(rawDateStr);
-                          // Financement (colonne Q, index 16)
+                          // Financement (colonne Q)
                           const rawFin        = financingCol ? String(row.raw_data?.[financingCol] ?? '').trim() : '';
                           const isMensualites = /alma|sofinco|floa|cofidis/i.test(rawFin);
                           const paymentType   = isMensualites ? 'mensualites' : 'comptant';
                           const monthMatch    = rawFin.match(/(\d{2,})\s*[xXmM]/);
                           const paymentMonths = isMensualites && monthMatch ? parseInt(monthMatch[1]) : null;
+                          const provMatch     = rawFin.match(/\b(alma|sofinco|floa|cofidis)\b/i);
+                          const finProvider   = provMatch ? provMatch[1].toUpperCase() : null;
 
                           if (existingDeal) {
+                            // Nettoyer les vieux markers avant de ré-appliquer (évite double-marquage)
+                            const cleanedNotes = (existingDeal.notes || '')
+                              .replace(new RegExp(`\\s*•\\s*TRV ${selectedImport.period}[^•]*`, 'g'), '')
+                              .replace(/\s*\|\s*(Fin:[A-Z]+|client:[a-z0-9 ]+)/g, '')
+                              .trim();
+                            const newNotes = [
+                              cleanedNotes || trvMarker,
+                              cleanedNotes ? `• ${trvMarker}` : null,
+                              finProvider ? `| Fin:${finProvider}` : null,
+                            ].filter(Boolean).join(' ');
                             await supabase.from('deals').update({
                               status: 'livree',
+                              notes: newNotes,
                               amount: saleAmount > 0 ? saleAmount : existingDeal.amount,
                               ...(rawPack ? { product: rawPack } : {}),
                               commission_actual: comDirect,
@@ -1789,6 +1845,8 @@ export default function Finance() {
                             }).eq('id', existingDeal.id);
                             dealsValidated++;
                           } else {
+                            const clientTag = rawClient ? ` | client:${normalizeStr(rawClient)}` : '';
+                            const finTag    = finProvider ? ` | Fin:${finProvider}` : '';
                             dealsToCreate.push({
                               user_id: effectiveId,
                               contact_id: contactId,
@@ -1797,7 +1855,7 @@ export default function Finance() {
                               status: 'livree' as const,
                               signed_at: signedAt,
                               sold_by: row.is_owner_row ? null : (row.matched_member_id || null),
-                              notes: trvMarker,
+                              notes: `${trvMarker}${clientTag}${finTag}`,
                               commission_direct: comDirect,
                               commission_actual: comDirect,
                               payment_type: paymentType as any,

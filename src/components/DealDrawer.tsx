@@ -1,4 +1,4 @@
-import { X, Edit2, Trash2, Tag, User, Clock, Users } from 'lucide-react';
+import { X, Edit2, Trash2, Tag, User, Clock, Users, CreditCard } from 'lucide-react';
 import { DEAL_STATUS_LABELS, DEAL_STATUS_COLORS } from '@/lib/supabase';
 
 interface DealDrawerProps {
@@ -83,14 +83,31 @@ export function DealDrawer({ deal, onClose, onEdit, onDelete, onStatusChange }: 
                 <p className="text-sm font-medium text-foreground">{new Date(deal.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
               </div>
             </div>
+            {deal.payment_type === 'mensualites' && (
+              <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl">
+                <CreditCard className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Financement</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {(() => {
+                      const provM = deal.notes?.match(/Fin:([A-Z]+)/);
+                      const prov = provM ? provM[1].charAt(0) + provM[1].slice(1).toLowerCase() : null;
+                      const months = deal.payment_months ? `${deal.payment_months} mensualités` : 'Mensualités';
+                      return prov ? `${months} — ${prov}` : months;
+                    })()}
+                    {deal.bank_fees_offered && <span className="ml-1 text-emerald-500 text-xs">· Frais offerts</span>}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Notes */}
-          {deal.notes && (
+          {deal.notes && deal.notes.replace(/\s*\|\s*(Fin:[A-Z]+|client:[a-z0-9 ]+)/g, '').trim() && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Notes</p>
               <div className="bg-muted/40 rounded-xl p-3">
-                <p className="text-sm text-foreground whitespace-pre-wrap">{deal.notes}</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{deal.notes.replace(/\s*\|\s*(Fin:[A-Z]+|client:[a-z0-9 ]+)/g, '').trim()}</p>
               </div>
             </div>
           )}
