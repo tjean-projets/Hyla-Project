@@ -693,7 +693,7 @@ export default function Contacts() {
         {/* List view */}
         {view === 'list' && isLoading && <SkeletonTable rows={6} />}
         {view === 'list' && !isLoading && (
-          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted border-b">
                 <tr>

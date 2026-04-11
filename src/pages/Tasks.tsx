@@ -122,7 +122,7 @@ function TaskForm({
         />
         {errors.title && <p className="text-[10px] text-red-500 mt-1">{errors.title}</p>}
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <Label className="text-xs">Type</Label>
           <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
@@ -276,7 +276,7 @@ export default function Tasks() {
       }
     >
       <Dialog open={showForm} onOpenChange={(open) => { if (!open) handleCloseForm(); else setShowForm(true); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
           <DialogHeader>
             <DialogTitle>{editingTask ? 'Modifier la tâche' : 'Nouvelle tâche'}</DialogTitle>
           </DialogHeader>

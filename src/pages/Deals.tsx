@@ -174,7 +174,7 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           </SelectContent>
         </Select>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <Label>Montant (€) *</Label>
           <Input
@@ -200,7 +200,7 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           {errors.status && <p className="text-[10px] text-red-500 mt-1">{errors.status}</p>}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <Label>Produit / Pack</Label>
           <Select value={form.product} onValueChange={(v) => setForm({ ...form, product: v })}>
@@ -511,7 +511,7 @@ export default function Deals() {
                 Nouvelle vente
               </button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
               <DialogHeader><DialogTitle>Nouvelle vente</DialogTitle></DialogHeader>
               <DealForm onSuccess={() => setShowForm(false)} contacts={contacts} teamMembers={teamMembers} />
             </DialogContent>
@@ -521,7 +521,7 @@ export default function Deals() {
     >
       {/* Edit dialog */}
       <Dialog open={!!editingDeal} onOpenChange={(open) => { if (!open) setEditingDeal(null); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
           <DialogHeader><DialogTitle>Modifier la vente</DialogTitle></DialogHeader>
           {editingDeal && (
             <DealForm
@@ -538,7 +538,7 @@ export default function Deals() {
       <div className="space-y-4">
         {/* KPI row */}
         {/* KPI cards */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
             <p className="text-[10px] text-muted-foreground uppercase font-semibold">Machines vendues — {MONTHS_FR[parseInt(selectedMonth) - 1]} {selectedYear}</p>
             <p className="text-2xl font-bold text-foreground mt-1">{nbSignees}</p>
@@ -564,7 +564,7 @@ export default function Deals() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
             <p className="text-[10px] text-muted-foreground uppercase font-semibold">CA total</p>
             <p className="text-lg font-bold text-foreground mt-1">{totalMois.toLocaleString('fr-FR')} €</p>
@@ -658,7 +658,7 @@ export default function Deals() {
         {/* Table */}
         {view === 'list' && isLoading && <SkeletonTable rows={4} />}
         {view === 'list' && !isLoading && (
-          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted border-b">
                 <tr>
