@@ -190,55 +190,88 @@ export default function Finance() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        let workbook: ReturnType<typeof XLSX.read>;
         const rawBuffer = evt.target?.result as ArrayBuffer;
-        if (isExcel) {
-          // Fichier Excel binaire : XLSX gère l'encodage nativement
-          workbook = XLSX.read(new Uint8Array(rawBuffer), { type: 'array' });
-        } else {
-          // CSV : décoder manuellement en UTF-8 via TextDecoder (plus fiable que readAsText)
-          let csvText = new TextDecoder('utf-8').decode(rawBuffer);
-          // Supprimer le BOM UTF-8 si présent (U+FEFF)
-          if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
-          workbook = XLSX.read(csvText, { type: 'string' });
-        }
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        // Calculer la colonne de départ (A=0, B=1…) pour mapper correctement D, N, O, Q
-        const sheetRef = sheet['!ref'] || 'A1';
-        const startLetter = (sheetRef.match(/^([A-Z]+)/) || ['', 'A'])[1];
-        const letterToIdx = (l: string) =>
-          l.split('').reduce((a, c) => a * 26 + c.charCodeAt(0) - 64, 0) - 1;
-        const colStartIdx = letterToIdx(startLetter);
 
-        // ── Trouver la vraie ligne d'en-tête (contient VENDEUR ou NOM DU CLIENT) ──
-        const rawRows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: '' });
-        let headerRowIdx = 0;
-        for (let i = 0; i < Math.min(rawRows.length, 15); i++) {
-          const rowStr = (rawRows[i] as string[]).join('|').toUpperCase();
-          if (rowStr.includes('VENDEUR') || rowStr.includes('NOM DU CLIENT') || rowStr.includes('PRIX DE VENTE')) {
-            headerRowIdx = i;
-            break;
+        // ── Parser CSV/Excel → filteredJson + columns ──
+        let filteredJson: Record<string, string>[] = [];
+        let columns: string[] = [];
+        let colStartIdx = 0; // réservé pour Excel (non utilisé pour CSV)
+
+        if (isExcel) {
+          // ── Excel : XLSX gère l'encodage nativement ──
+          const workbook = XLSX.read(new Uint8Array(rawBuffer), { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const sheetRef = sheet['!ref'] || 'A1';
+          const startLetter = (sheetRef.match(/^([A-Z]+)/) || ['', 'A'])[1];
+          colStartIdx = startLetter.split('').reduce((a, c) => a * 26 + c.charCodeAt(0) - 64, 0) - 1;
+          const rawRows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: '' });
+          let headerRowIdx = 0;
+          for (let i = 0; i < Math.min(rawRows.length, 15); i++) {
+            const rowStr = (rawRows[i] as string[]).join('|').toUpperCase();
+            if (rowStr.includes('VENDEUR') || rowStr.includes('NOM DU CLIENT') || rowStr.includes('PRIX DE VENTE')) {
+              headerRowIdx = i; break;
+            }
+          }
+          const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: '', range: headerRowIdx });
+          filteredJson = json.filter(row => Object.values(row).some(v => String(v).trim().length > 2));
+          if (filteredJson.length > 0) columns = Object.keys(filteredJson[0]);
+
+        } else {
+          // ── CSV : parse manuel UTF-8, bypass XLSX pour l'encodage ──
+          let csvText = new TextDecoder('utf-8').decode(rawBuffer);
+          if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1); // strip BOM
+
+          const lines = csvText.split(/\r?\n/);
+
+          // Auto-détecter le séparateur (;  ou ,)
+          const sampleLine = lines.find(l => l.trim().length > 5) || '';
+          const sep = sampleLine.split(';').length > sampleLine.split(',').length ? ';' : ',';
+
+          // Splitter une ligne CSV en respectant les champs entre guillemets
+          const splitCSV = (line: string): string[] => {
+            const result: string[] = [];
+            let field = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+              const ch = line[i];
+              if (ch === '"') {
+                if (inQuotes && line[i + 1] === '"') { field += '"'; i++; }
+                else inQuotes = !inQuotes;
+              } else if (ch === sep && !inQuotes) {
+                result.push(field.trim()); field = '';
+              } else {
+                field += ch;
+              }
+            }
+            result.push(field.trim());
+            return result;
+          };
+
+          // Trouver la ligne d'en-tête (contient VENDEUR ou NOM DU CLIENT)
+          let headerLineIdx = 0;
+          for (let i = 0; i < Math.min(lines.length, 15); i++) {
+            const upper = lines[i].toUpperCase();
+            if (upper.includes('VENDEUR') || upper.includes('NOM DU CLIENT') || upper.includes('PRIX DE VENTE')) {
+              headerLineIdx = i; break;
+            }
+          }
+
+          const headers = splitCSV(lines[headerLineIdx]);
+          columns = headers; // ordre préservé ✓
+
+          for (let i = headerLineIdx + 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            const cells = splitCSV(lines[i]);
+            const row: Record<string, string> = {};
+            for (let j = 0; j < headers.length; j++) row[headers[j]] = cells[j] ?? '';
+            if (Object.values(row).some(v => v.trim().length > 2)) filteredJson.push(row);
           }
         }
-
-        // Parse depuis la vraie ligne d'en-tête
-        const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, {
-          defval: '',
-          range: headerRowIdx,
-        });
-
-        // Filtrer les lignes vides (sans vendeur ni montant)
-        const filteredJson = json.filter(row => {
-          const vals = Object.values(row);
-          return vals.some(v => String(v).trim().length > 2);
-        });
 
         if (filteredJson.length === 0) {
           toast({ title: 'Fichier vide ou format non reconnu', variant: 'destructive' });
           return;
         }
-
-        const columns = Object.keys(filteredJson[0]);
 
         // ── Auto-détection format TRV Hyla ──
         const norm = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -252,19 +285,21 @@ export default function Finance() {
         if (isTRV) {
           nameCol    = columns.find(c => /vendeur/i.test(c.trim())) || '';
           idCol      = columns.find(c => /n°.dossier|n.*dossier|hyla/i.test(c.trim())) || '';
-          // Détection du montant par contenu (pas par nom de colonne) car TRV a un décalage
-          // entre la position du header "PRIX DE VENTE" et la position réelle des données.
-          // On cherche la colonne dont les valeurs tombent dans la plage prix Hyla (500–8000€).
-          const sampleRows = filteredJson.slice(0, 20);
-          amountCol = columns.find(col => {
-            const nonEmpty = sampleRows.map(r => r[col]).filter(v => String(v).trim().length > 0);
-            if (nonEmpty.length < 2) return false;
-            const priceCount = nonEmpty.filter(v => {
-              const p = parseAmount(String(v));
-              return p >= 500 && p <= 9000;
-            }).length;
-            return priceCount / nonEmpty.length > 0.3;
-          }) || columns.find(c => /prix.de.vente|montant/i.test(c.trim())) || '';
+          // Détection prix TRV Hyla : la colonne prix est juste après la colonne PACK
+          // (Thomas : "Le prix est en colonne O, à côté de la colonne N = PACK")
+          const packIdx = columns.findIndex(c => /^pack$/i.test(c.trim()));
+          if (packIdx >= 0 && packIdx + 1 < columns.length) {
+            amountCol = columns[packIdx + 1]; // colonne O = celle juste après PACK
+          } else {
+            // Fallback : détection par valeurs dans la plage Hyla (1000–8000€)
+            const sampleRows = filteredJson.slice(0, 20);
+            amountCol = columns.find(col => {
+              const nonEmpty = sampleRows.map(r => r[col]).filter(v => String(v).trim().length > 0);
+              if (nonEmpty.length < 2) return false;
+              const priceCount = nonEmpty.filter(v => { const p = parseAmount(String(v)); return p >= 1000 && p <= 8000; }).length;
+              return priceCount / nonEmpty.length > 0.4;
+            }) || columns.find(c => /prix.de.vente|montant/i.test(c.trim())) || '';
+          }
         } else {
           nameCol      = columns.find(c => /^nom$|name|conseiller|vendeur/i.test(c)) || '';
           firstnameCol = columns.find(c => /prénom|prenom|firstname|first.?name/i.test(c)) || '';
@@ -558,34 +593,20 @@ export default function Finance() {
         const findCol = (keywords: string[]) =>
           flow.columns.find(c => keywords.some(k => normCol(c).includes(k))) ?? null;
 
-        // Helper : convertit une lettre Excel (A, B… Z, AA…) en index 0-based dans flow.columns
-        // en tenant compte du décalage de départ de la feuille (colStartIdx).
-        const excelLetterToFlowIdx = (letter: string): number => {
-          const absIdx = letter.split('').reduce((a, c) => a * 26 + c.charCodeAt(0) - 64, 0) - 1;
-          return absIdx - (flow.colStartIdx ?? 0);
-        };
-        const colByLetter = (letter: string): string | null => {
-          const idx = excelLetterToFlowIdx(letter);
-          return (idx >= 0 && idx < flow.columns.length) ? (flow.columns[idx] || null) : null;
-        };
-
         const clientNameCol = findCol(['nomduclient', 'nomclient', 'client', 'acheteur']);
         const addressCol    = findCol(['adresse', 'address']);
         const postalCol     = findCol(['cp', 'codepostal', 'postal']);
         const cityCol       = findCol(['ville', 'city']);
         const phoneCol      = findCol(['tph', 'tel', 'telephone', 'portable', 'mobile']);
         const emailCol      = findCol(['mail', 'email', 'courriel']);
-        // Colonne pack : colonne N Excel en priorité, sinon par nom
-        const packCol       = colByLetter('N')
-                           || flow.columns.find(c => /^pack$/i.test(c.trim()))
+        // Colonne pack : par nom
+        const packCol       = flow.columns.find(c => /^pack$/i.test(c.trim()))
+                           || flow.columns.find(c => /\bpack\b/i.test(c.trim()))
                            || null;
-        // Colonne financement : colonne Q Excel en priorité, sinon par nom
-        const financingCol  = colByLetter('Q')
-                           || flow.columns.find(c => /financ/i.test(c.trim()))
-                           || null;
-        // Colonne date : par nom d'abord, sinon colonne D Excel
-        const dateCol       = findCol(['datelivr', 'datevente', 'datepose', 'dateinstall', 'datecontrat', 'date'])
-                           ?? colByLetter('D');
+        // Colonne financement : par nom
+        const financingCol  = flow.columns.find(c => /financ/i.test(c.trim())) || null;
+        // Colonne date : par nom
+        const dateCol       = findCol(['datelivr', 'datevente', 'datepose', 'dateinstall', 'datecontrat', 'date']) ?? null;
 
         // Parse "NOM PRENOM" → last word = prénom, reste = nom (utilisé contacts + deals)
         const parseClientName = (raw: string) => {
@@ -709,8 +730,14 @@ export default function Finance() {
           .gte('signed_at', periodStart)
           .lte('signed_at', periodEnd);
 
-        // Colonne prix : colonne O Excel en priorité (tenant compte du décalage de la feuille), sinon mapping auto
-        const priceCol = colByLetter('O') || flow.mapping.amount_col || null;
+        // Colonne prix : celle juste après PACK (Thomas: "colonne O, à côté du PACK colonne N")
+        // flow.mapping.amount_col a déjà été détecté par la logique PACK+1 au moment du chargement
+        const packColForPrice = flow.columns.find(c => /^pack$/i.test(c.trim()))
+                             || flow.columns.find(c => /\bpack\b/i.test(c.trim()));
+        const packIdxForPrice = packColForPrice ? flow.columns.indexOf(packColForPrice) : -1;
+        const priceCol = (packIdxForPrice >= 0 && packIdxForPrice + 1 < flow.columns.length)
+          ? flow.columns[packIdxForPrice + 1]
+          : (flow.mapping.amount_col || null);
         const seenDealClients = new Set<string>();
         let validated = 0;
         const dealsToCreate: any[] = [];
