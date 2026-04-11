@@ -108,7 +108,6 @@ export default function Finance() {
   const [selectedImport, setSelectedImport] = useState<any>(null);
   const [importRows, setImportRows] = useState<any[]>([]);
   const [showBulkImport, setShowBulkImport] = useState(false);
-
   // ── User settings (saved column mappings) ──
   const { data: settings } = useQuery({
     queryKey: ['user-settings', effectiveId],
@@ -182,13 +181,22 @@ export default function Finance() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const fileName = (file.name || '').toLowerCase();
+    const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const rawBytes = new Uint8Array(evt.target?.result as ArrayBuffer);
-        // UTF-8 via TextDecoder (plus fiable que codepage XLSX pour les CSV français)
-        const csvText = new TextDecoder('utf-8').decode(rawBytes);
-        const workbook = XLSX.read(csvText, { type: 'string' });
+        let workbook: ReturnType<typeof XLSX.read>;
+        if (isExcel) {
+          // Fichier Excel binaire : XLSX gère l'encodage nativement
+          const rawBytes = new Uint8Array(evt.target?.result as ArrayBuffer);
+          workbook = XLSX.read(rawBytes, { type: 'array' });
+        } else {
+          // CSV : décodé en UTF-8 par readAsText (voir ci-dessous)
+          const csvText = evt.target?.result as string;
+          workbook = XLSX.read(csvText, { type: 'string' });
+        }
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
         // ── Trouver la vraie ligne d'en-tête (contient VENDEUR ou NOM DU CLIENT) ──
@@ -281,7 +289,12 @@ export default function Finance() {
         toast({ title: 'Erreur de lecture du fichier', variant: 'destructive' });
       }
     };
-    reader.readAsArrayBuffer(file);
+    if (isExcel) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      // CSV : UTF-8 comme demandé (fichiers TRV Hyla encodés en UTF-8)
+      reader.readAsText(file, 'utf-8');
+    }
     // Reset input so the same file can be re-selected
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [flow.period, toast]);
@@ -544,7 +557,17 @@ export default function Finance() {
         const cityCol       = findCol(['ville', 'city']);
         const phoneCol      = findCol(['tph', 'tel', 'telephone', 'portable', 'mobile']);
         const emailCol      = findCol(['mail', 'email', 'courriel']);
-        const packCol       = flow.columns.find(c => /^pack$/i.test(c.trim())) ?? null;
+        // Colonne pack : colonne N (index 13) en priorité, sinon par nom
+        const packCol       = (flow.columns.length > 13 ? flow.columns[13] : null)
+                           || flow.columns.find(c => /^pack$/i.test(c.trim()))
+                           || null;
+        // Colonne financement : colonne Q (index 16) en priorité, sinon par nom
+        const financingCol  = (flow.columns.length > 16 ? flow.columns[16] : null)
+                           || flow.columns.find(c => /financ/i.test(c.trim()))
+                           || null;
+        // Colonne date : par nom d'abord, sinon colonne D (index 3)
+        const dateCol       = findCol(['datelivr', 'datevente', 'datepose', 'dateinstall', 'datecontrat', 'date'])
+                           ?? (flow.columns.length > 3 ? flow.columns[3] : null);
 
         // Parse "NOM PRENOM" → last word = prénom, reste = nom (utilisé contacts + deals)
         const parseClientName = (raw: string) => {
@@ -668,7 +691,9 @@ export default function Finance() {
           .gte('signed_at', periodStart)
           .lte('signed_at', periodEnd);
 
-        const priceCol = flow.mapping.amount_col;
+        // Colonne prix : colonne O (index 14) en priorité, sinon mapping manuel
+        const priceCol = (flow.columns.length > 14 ? flow.columns[14] : null)
+                      || flow.mapping.amount_col || null;
         const seenDealClients = new Set<string>();
         let validated = 0;
         const dealsToCreate: any[] = [];
@@ -695,33 +720,64 @@ export default function Finance() {
           // Chercher un deal existant pour ce client dans la période
           const existingDeal = (existingDeals || []).find(d => d.contact_id && d.contact_id === contactId);
 
+          // Montant + produit + financement calculés ici pour les deux chemins (update ET create)
+          const trimmedPriceCol = (priceCol || '').trim();
+          const rawPriceStr = trimmedPriceCol
+            ? String(r.raw_data[trimmedPriceCol] ?? r.raw_data[(priceCol || '')] ?? '')
+            : '';
+          const saleAmount = parseAmount(rawPriceStr) || 0;
+          const rawPack = packCol ? String(r.raw_data[packCol] ?? '').trim() || null : null;
+          // Financement (colonne Q, index 16)
+          const rawFin      = financingCol ? String(r.raw_data[financingCol] ?? '').trim() : '';
+          const isMensualites = /alma|sofinco|floa|cofidis/i.test(rawFin);
+          const paymentType   = isMensualites ? 'mensualites' : 'comptant';
+          const monthMatch    = rawFin.match(/(\d{2,})\s*[xXmM]/);
+          const paymentMonths = isMensualites && monthMatch ? parseInt(monthMatch[1]) : null;
+
+          // Date réelle depuis la colonne D (ou colonne nommée "date")
+          const parseCsvDate = (raw: string): string => {
+            if (!raw) return new Date(`${flow.period}-15T12:00:00.000Z`).toISOString();
+            // Format DD/MM/YYYY (standard French)
+            const m = raw.trim().match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+            if (m) {
+              const year = m[3].length === 2 ? `20${m[3]}` : m[3];
+              const d = new Date(`${year}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}T12:00:00.000Z`);
+              if (!isNaN(d.getTime())) return d.toISOString();
+            }
+            const d = new Date(raw);
+            return isNaN(d.getTime()) ? new Date(`${flow.period}-15T12:00:00.000Z`).toISOString() : d.toISOString();
+          };
+          const rawDateStr = dateCol ? String(r.raw_data[dateCol] ?? '').trim() : '';
+          const signedAt = parseCsvDate(rawDateStr);
+
           if (existingDeal) {
-            // Valider le deal existant
+            // Valider le deal existant + corriger montant/produit/date/financement si manquants
             await supabase.from('deals').update({
               status: 'livree',
               notes: existingDeal.notes ? `${existingDeal.notes} • ${trvNoteMarker}` : trvNoteMarker,
               commission_actual: r.is_owner_row ? r.amount : 0,
+              ...(saleAmount > 0 ? { amount: saleAmount } : {}),
+              ...(rawPack ? { product: rawPack } : {}),
+              signed_at: signedAt,
+              payment_type: paymentType as any,
+              ...(paymentMonths ? { payment_months: paymentMonths } : {}),
             }).eq('id', existingDeal.id);
             validated++;
           } else {
             // Fallback : créer le deal si pas trouvé (nouveau compte ou deal non encore créé)
-            const trimmedPriceCol = (priceCol || '').trim();
-            const rawPriceStr = trimmedPriceCol
-              ? String(r.raw_data[trimmedPriceCol] ?? r.raw_data[priceCol!] ?? '')
-              : '';
-            const saleAmount = parseAmount(rawPriceStr) || 0;
-            const rawPack = packCol ? String(r.raw_data[packCol] ?? '').trim() || null : null;
             dealsToCreate.push({
               user_id: effectiveId,
               contact_id: contactId,
               amount: saleAmount,
               product: rawPack,
               status: 'livree' as const,
-              signed_at: new Date(`${flow.period}-15T12:00:00.000Z`).toISOString(),
+              signed_at: signedAt,
               sold_by: r.is_owner_row ? null : (r.matched_member?.id || null),
               notes: trvNoteMarker,
               commission_direct: r.is_owner_row ? r.amount : 0,
               commission_actual: 0,
+              payment_type: paymentType as any,
+              ...(paymentMonths ? { payment_months: paymentMonths } : {}),
             });
           }
         }
@@ -1540,7 +1596,10 @@ export default function Finance() {
 
                       // 4. Contacts + Deals depuis les lignes TRV
                       try {
-                        const rawKeys = Object.keys((updatedRows || [])[0]?.raw_data || {});
+                        // Utiliser le 1er row MATCHÉ pour les clés (pas forcément updatedRows[0])
+                        const firstMatchedRow = (updatedRows || []).find((r: any) => r.match_status !== 'non_reconnu');
+                        const rawKeys = Object.keys(firstMatchedRow?.raw_data || (updatedRows || [])[0]?.raw_data || {});
+
                         const nk = (s: string) => normalizeStr(s).replace(/[^a-z0-9]/g, '');
                         const nkCol = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
                         const clientNameCol = rawKeys.find(k => ['nomduclient','nomclient','client','acheteur'].some(kw => nk(k).includes(kw))) || null;
@@ -1549,18 +1608,37 @@ export default function Finance() {
                         const addrCol      = rawKeys.find(k => /adresse|address/i.test(k)) || null;
                         const cpCol        = rawKeys.find(k => /^cp$|codepostal|postal/i.test(k)) || null;
                         const cityCol      = rawKeys.find(k => /ville|city/i.test(k)) || null;
-                        const packCol      = rawKeys.find(k => /^pack$/i.test(k.trim())) || null;
-                        // Colonne prix : 1) mapping sauvegardé (trim), 2) nom colonne, 3) valeurs
-                        const savedAmountCol = ((selectedImport.column_mapping as any)?.amount_col || '').trim() || null;
-                        const priceCol = rawKeys.find(k => k.trim() === savedAmountCol)
+                        // Colonne N (index 13) = pack, colonne O (index 14) = prix, colonne Q (index 16) = financement
+                        const packCol      = (rawKeys.length > 13 ? rawKeys[13] : null)
+                          || rawKeys.find(k => /^pack$/i.test(k.trim())) || null;
+                        const financingCol = (rawKeys.length > 16 ? rawKeys[16] : null)
+                          || rawKeys.find(k => /financ/i.test(k.trim())) || null;
+                        // Colonne date : par nom ou colonne D (index 3)
+                        const dateCol      = rawKeys.find(k => /datelivr|datevente|datepose|dateinstall|datecontrat/i.test(nk(k)))
+                                          || rawKeys.find(k => /^date$/i.test(k.trim()))
+                                          || (rawKeys.length > 3 ? rawKeys[3] : null);
+                        const parseCsvDate = (raw: string): string => {
+                          if (!raw) return new Date(`${selectedImport.period}-15T12:00:00.000Z`).toISOString();
+                          const m = raw.trim().match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+                          if (m) {
+                            const year = m[3].length === 2 ? `20${m[3]}` : m[3];
+                            const d = new Date(`${year}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}T12:00:00.000Z`);
+                            if (!isNaN(d.getTime())) return d.toISOString();
+                          }
+                          const d = new Date(raw);
+                          return isNaN(d.getTime()) ? new Date(`${selectedImport.period}-15T12:00:00.000Z`).toISOString() : d.toISOString();
+                        };
+                        // Colonnes O (prix, index 14) et N (pack, index 13) — positions fixes TRV Hyla
+                        // Fallback : nom de colonne, puis détection par valeurs
+                        const priceCol = (rawKeys.length > 14 ? rawKeys[14] : null)
                           || rawKeys.find(k => /prix.*vente|prixvente|prix.*de.*vente/i.test(nkCol(k)))
                           || rawKeys.find(k => /^prix$|^montant$|^price$/i.test(k.trim()))
                           || rawKeys.find(col => {
-                            const matched = (updatedRows || []).filter((r: any) => r.match_status !== 'non_reconnu');
-                            const samples = matched.slice(0, 30).map((r: any) => r.raw_data?.[col]).filter(Boolean);
-                            if (samples.length < 2) return false;
-                            const hits = samples.filter((v: any) => { const p = parseAmount(String(v)); return p >= 500 && p <= 9000; }).length;
-                            return hits / samples.length > 0.3;
+                            const matched2 = (updatedRows || []).filter((r: any) => r.match_status !== 'non_reconnu');
+                            return matched2.some((r: any) => {
+                              const v = parseAmount(String(r.raw_data?.[col] ?? ''));
+                              return v >= 500 && v <= 30000;
+                            });
                           }) || null;
 
                         const parseClientName = (raw: string) => {
@@ -1667,9 +1745,17 @@ export default function Finance() {
                           }
 
                           const existingDeal = (existingDeals || []).find((d: any) => d.contact_id && d.contact_id === contactId);
-                          const saleAmount = priceCol ? parseAmount(String(row.raw_data?.[priceCol] ?? '')) : 0;
-                          const rawPack    = packCol ? String(row.raw_data?.[packCol] ?? '').trim() || null : null;
-                          const comDirect  = row.is_owner_row ? getPersonalSaleCommission(ownerRank) : 0;
+                          const saleAmount    = priceCol ? parseAmount(String(row.raw_data?.[priceCol] ?? '')) : 0;
+                          const rawPack       = packCol ? String(row.raw_data?.[packCol] ?? '').trim() || null : null;
+                          const comDirect     = row.is_owner_row ? getPersonalSaleCommission(ownerRank) : 0;
+                          const rawDateStr    = dateCol ? String(row.raw_data?.[dateCol] ?? '').trim() : '';
+                          const signedAt      = parseCsvDate(rawDateStr);
+                          // Financement (colonne Q, index 16)
+                          const rawFin        = financingCol ? String(row.raw_data?.[financingCol] ?? '').trim() : '';
+                          const isMensualites = /alma|sofinco|floa|cofidis/i.test(rawFin);
+                          const paymentType   = isMensualites ? 'mensualites' : 'comptant';
+                          const monthMatch    = rawFin.match(/(\d{2,})\s*[xXmM]/);
+                          const paymentMonths = isMensualites && monthMatch ? parseInt(monthMatch[1]) : null;
 
                           if (existingDeal) {
                             await supabase.from('deals').update({
@@ -1677,20 +1763,25 @@ export default function Finance() {
                               amount: saleAmount > 0 ? saleAmount : existingDeal.amount,
                               ...(rawPack ? { product: rawPack } : {}),
                               commission_actual: comDirect,
+                              signed_at: signedAt,
+                              payment_type: paymentType as any,
+                              ...(paymentMonths ? { payment_months: paymentMonths } : {}),
                             }).eq('id', existingDeal.id);
                             dealsValidated++;
                           } else {
                             dealsToCreate.push({
                               user_id: effectiveId,
                               contact_id: contactId,
-                              amount: saleAmount ?? 0,
+                              amount: saleAmount,
                               product: rawPack,
                               status: 'livree' as const,
-                              signed_at: new Date(`${selectedImport.period}-15T12:00:00.000Z`).toISOString(),
+                              signed_at: signedAt,
                               sold_by: row.is_owner_row ? null : (row.matched_member_id || null),
                               notes: trvMarker,
                               commission_direct: comDirect,
                               commission_actual: comDirect,
+                              payment_type: paymentType as any,
+                              ...(paymentMonths ? { payment_months: paymentMonths } : {}),
                             });
                           }
                         }
