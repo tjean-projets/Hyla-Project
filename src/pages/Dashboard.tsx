@@ -806,12 +806,15 @@ export default function Dashboard() {
             {/* CTA : toutes conditions remplies */}
             {conditionsMet === conditionsTotal && conditionsTotal > 0 ? (
               <div className="mt-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3">
-                <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 mb-1">
+                <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 mb-2">
                   🎉 Vous remplissez toutes les conditions pour passer {nextLevel.label} !
                 </p>
-                <p className="text-[10px] text-emerald-600 dark:text-emerald-500">
-                  Contactez votre responsable Hyla pour valider votre passage de niveau.
-                </p>
+                <a
+                  href="/parametres"
+                  className="inline-block w-full text-center text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-3 py-2 transition-colors"
+                >
+                  Passer au niveau supérieur →
+                </a>
               </div>
             ) : (
               <div className="mt-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl p-3">
