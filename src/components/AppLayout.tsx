@@ -840,8 +840,8 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
       )}
 
       {/* ── Main Content ── */}
-      <main key={location.pathname} className={cn('md:ml-[220px] pb-20 md:pb-0 animate-page-in', isImpersonating && 'pt-10')}>
-        <div className="p-4 md:p-8">{children}</div>
+      <main className={cn('md:ml-[220px] pb-20 md:pb-0', isImpersonating && 'pt-10')}>
+        <div key={location.pathname} className="p-4 md:p-8 animate-page-in">{children}</div>
       </main>
 
       {/* ── Mobile Bottom Nav ── */}
