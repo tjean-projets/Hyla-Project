@@ -1412,16 +1412,20 @@ export default function Finance() {
                   )}
                   <button
                     onClick={async () => {
-                      if (!user) return;
+                      if (!user) { toast({ title: 'Non connecté', variant: 'destructive' }); return; }
+                      if (!effectiveId) { toast({ title: 'effectiveId manquant', variant: 'destructive' }); return; }
+                      if (!selectedImport?.id) { toast({ title: 'Import non sélectionné', variant: 'destructive' }); return; }
+                      toast({ title: '⏳ Re-consolidation en cours...', description: `Import ${selectedImport.period} — ID ${selectedImport.id.slice(0,8)}` });
                       const myLevel = (settings as any)?.hyla_level || 'manager';
 
                       // 0. Recalculer les montants Hyla pour toutes les lignes matchées
-                      // (les anciennes lignes peuvent avoir amount=0, le RPC filtre AND amount>0)
-                      const { data: allRows } = await supabase
+                      const { data: allRows, error: allRowsErr } = await supabase
                         .from('commission_import_rows')
                         .select('id, is_owner_row, match_status, matched_member_id, amount')
                         .eq('import_id', selectedImport.id)
                         .in('match_status', ['auto', 'manuel']);
+                      if (allRowsErr) { toast({ title: 'Erreur lecture lignes', description: allRowsErr.message, variant: 'destructive' }); return; }
+                      toast({ title: `✅ ${allRows?.length ?? 0} lignes matchées trouvées` });
 
                       if (allRows && allRows.length > 0) {
                         const ownerRows = allRows.filter((r: any) => r.is_owner_row);
@@ -1448,6 +1452,7 @@ export default function Finance() {
                       }
 
                       // 1. Supprimer TOUTES les anciennes commissions (source='import') pour cette période
+                      toast({ title: '🗑 Suppression anciennes commissions...' });
                       await supabase.from('commissions')
                         .delete()
                         .eq('user_id', effectiveId)
@@ -1521,9 +1526,10 @@ export default function Finance() {
                         }
                       }
 
+                      toast({ title: `💰 Insertion ${toInsert.length} commission(s)...` });
                       if (toInsert.length > 0) {
                         const { error: insertErr } = await supabase.from('commissions').insert(toInsert);
-                        if (insertErr) { toast({ title: 'Erreur insertion', description: insertErr.message, variant: 'destructive' }); return; }
+                        if (insertErr) { toast({ title: 'Erreur insertion commissions', description: insertErr.message, variant: 'destructive' }); return; }
                       }
 
                       // 4. Contacts + Deals depuis les lignes TRV
