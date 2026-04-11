@@ -459,8 +459,9 @@ export default function Deals() {
   });
 
   const selectedPeriod = `${selectedYear}-${selectedMonth}`;
+  // 'signee' = estimé (manuel) + 'livree' = confirmé par TRV
   const signedInPeriod = deals.filter((d: any) => {
-    if (d.status !== 'signee') return false;
+    if (d.status !== 'signee' && d.status !== 'livree') return false;
     const dateStr = d.signed_at || d.created_at;
     return dateStr && dateStr.startsWith(selectedPeriod);
   });

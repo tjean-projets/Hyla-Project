@@ -644,51 +644,65 @@ export default function Finance() {
           }
         }
 
-        // ── Création des deals (ventes) depuis le TRV ──
-        // Vérifier si des deals TRV existent déjà pour cette période
+        // ── Validation des deals existants par le TRV ──
+        // Le workflow normal : les deals sont créés manuellement au fil du mois,
+        // l'import TRV vient les confirmer (statut → 'livree', commission confirmée).
+        // Si aucun deal existant trouvé → création automatique en fallback.
         const trvNoteMarker = `TRV ${flow.period}`;
-        const { data: existingTRVDeals } = await supabase
+        const periodStart = `${flow.period}-01`;
+        const periodEnd = `${flow.period}-31`;
+
+        const { data: allContacts } = await supabase
+          .from('contacts').select('id, first_name, last_name').eq('user_id', effectiveId);
+
+        const { data: existingDeals } = await supabase
           .from('deals')
-          .select('id')
+          .select('id, contact_id, status, signed_at, notes')
           .eq('user_id', effectiveId)
-          .ilike('notes', `%${trvNoteMarker}%`);
+          .in('status', ['signee', 'livree', 'en_cours', 'en_attente'])
+          .gte('signed_at', periodStart)
+          .lte('signed_at', periodEnd);
 
-        if (!existingTRVDeals || existingTRVDeals.length === 0) {
-          // Charger tous les contacts pour faire le lien deal ↔ client
-          const { data: allContacts } = await supabase
-            .from('contacts')
-            .select('id, first_name, last_name')
-            .eq('user_id', effectiveId);
+        const priceCol = flow.mapping.amount_col;
+        const seenDealClients = new Set<string>();
+        let validated = 0;
+        const dealsToCreate: any[] = [];
 
-          const priceCol = flow.mapping.amount_col;
-          const seenDealClients = new Set<string>();
-          const dealsToInsert: any[] = [];
+        for (const r of matchResults) {
+          if (r.match_status === 'non_reconnu') continue;
 
-          for (const r of matchResults) {
-            if (r.match_status === 'non_reconnu') continue;
+          const rawClientName = clientNameCol ? String(r.raw_data[clientNameCol] ?? '').trim() : '';
+          const clientKey = normalizeStr(rawClientName || `row-${Math.random()}`);
+          if (seenDealClients.has(clientKey)) continue;
+          seenDealClients.add(clientKey);
 
-            // Prix machine depuis le CSV
+          // Chercher le contact correspondant
+          let contactId: string | null = null;
+          if (rawClientName && allContacts) {
+            const { first: cFirst, last: cLast } = parseClientName(rawClientName);
+            const normName = normalizeStr(`${cFirst} ${cLast}`);
+            const matched = allContacts.find(c =>
+              matchScore(normalizeStr(`${c.first_name ?? ''} ${c.last_name ?? ''}`), normName) >= 75
+            );
+            contactId = matched?.id || null;
+          }
+
+          // Chercher un deal existant pour ce client dans la période
+          const existingDeal = (existingDeals || []).find(d => d.contact_id && d.contact_id === contactId);
+
+          if (existingDeal) {
+            // Valider le deal existant
+            await supabase.from('deals').update({
+              status: 'livree',
+              notes: existingDeal.notes ? `${existingDeal.notes} • ${trvNoteMarker}` : trvNoteMarker,
+              commission_actual: r.is_owner_row ? r.amount : 0,
+            }).eq('id', existingDeal.id);
+            validated++;
+          } else {
+            // Fallback : créer le deal si pas trouvé (nouveau compte ou deal non encore créé)
             const rawPriceStr = priceCol && r.raw_data[priceCol] != null ? String(r.raw_data[priceCol]) : '';
             const saleAmount = parseAmount(rawPriceStr) || 0;
-
-            // Nom client depuis le CSV
-            const rawClientName = clientNameCol ? String(r.raw_data[clientNameCol] ?? '').trim() : '';
-            const clientKey = normalizeStr(rawClientName || `row-${Math.random()}`);
-            if (seenDealClients.has(clientKey)) continue;
-            seenDealClients.add(clientKey);
-
-            // Trouver le contact correspondant
-            let contactId: string | null = null;
-            if (rawClientName && allContacts) {
-              const { first: cFirst, last: cLast } = parseClientName(rawClientName);
-              const normName = normalizeStr(`${cFirst} ${cLast}`);
-              const matched = allContacts.find(c =>
-                matchScore(normalizeStr(`${c.first_name ?? ''} ${c.last_name ?? ''}`), normName) >= 75
-              );
-              contactId = matched?.id || null;
-            }
-
-            dealsToInsert.push({
+            dealsToCreate.push({
               user_id: effectiveId,
               contact_id: contactId,
               amount: saleAmount,
@@ -700,14 +714,12 @@ export default function Finance() {
               commission_actual: 0,
             });
           }
-
-          if (dealsToInsert.length > 0) {
-            await supabase.from('deals').insert(dealsToInsert);
-          }
-          return dealsToInsert.length;
         }
 
-        return toInsert?.length ?? 0;
+        if (dealsToCreate.length > 0) {
+          await supabase.from('deals').insert(dealsToCreate);
+        }
+        return validated + dealsToCreate.length;
       } catch (contactErr) {
         // Ne pas faire échouer tout l'import pour un problème de création de contacts/deals
         console.warn('Création contacts/deals ignorée :', contactErr);
@@ -719,6 +731,7 @@ export default function Finance() {
       queryClient.invalidateQueries({ queryKey: ['commissions'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
 
       // Save mapping profile + name associations for future auto-mapping
       if (user) {
