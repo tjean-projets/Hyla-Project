@@ -707,7 +707,14 @@ export default function Deals() {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">Aucune vente</td></tr>
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                      {deals.length === 0
+                        ? 'Aucune vente en base de données'
+                        : `${deals.length} vente(s) en base — aucune sur ${MONTHS_FR[parseInt(selectedMonth === 'all' ? '0' : selectedMonth) - 1] || 'ce mois'} ${selectedYear}`
+                      }
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
