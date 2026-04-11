@@ -702,7 +702,7 @@ export default function Deals() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-                      {new Date(deal.created_at).toLocaleDateString('fr-FR')}
+                      {new Date((deal as any).signed_at || deal.created_at).toLocaleDateString('fr-FR')}
                     </td>
                   </tr>
                 ))}

@@ -1540,8 +1540,11 @@ export default function Finance() {
                         const addrCol      = rawKeys.find(k => /adresse|address/i.test(k)) || null;
                         const cpCol        = rawKeys.find(k => /^cp$|codepostal|postal/i.test(k)) || null;
                         const cityCol      = rawKeys.find(k => /ville|city/i.test(k)) || null;
-                        const priceCol     = rawKeys.find(col => {
-                          const samples = (updatedRows || []).slice(0, 20).map((r: any) => r.raw_data?.[col]).filter(Boolean);
+                        // Colonne prix : d'abord depuis le mapping sauvegardé, sinon détection par valeurs sur lignes matchées
+                        const savedAmountCol = (selectedImport.column_mapping as any)?.amount_col || null;
+                        const priceCol = savedAmountCol || rawKeys.find(col => {
+                          const matched = (updatedRows || []).filter((r: any) => r.match_status !== 'non_reconnu');
+                          const samples = matched.slice(0, 20).map((r: any) => r.raw_data?.[col]).filter(Boolean);
                           if (samples.length < 2) return false;
                           const hits = samples.filter((v: any) => { const p = parseAmount(String(v)); return p >= 500 && p <= 9000; }).length;
                           return hits / samples.length > 0.3;
@@ -1615,7 +1618,7 @@ export default function Finance() {
                         // ── B. Créer/valider les deals ──
                         const trvMarker = `TRV ${selectedImport.period}`;
                         const { data: existingDeals } = await supabase
-                          .from('deals').select('id, contact_id, status, notes')
+                          .from('deals').select('id, contact_id, status, notes, amount')
                           .eq('user_id', effectiveId)
                           .ilike('notes', `%${trvMarker}%`);
 
@@ -1623,22 +1626,13 @@ export default function Finance() {
                         const dealsToCreate: any[] = [];
                         let dealsValidated = 0;
                         let ownerRank = 0;
-                        let dbgTotal = (updatedRows || []).length;
-                        let dbgMatched = 0;
-                        let dbgPassedDedup = 0;
-                        let dbgFoundExisting = 0;
-                        let dbgFirstClientKey = '';
-                        let dbgFirstRawClient = '';
 
                         for (const row of (updatedRows || [])) {
                           if (row.match_status === 'non_reconnu') continue;
-                          dbgMatched++;
                           const rawClient = clientNameCol ? String(row.raw_data?.[clientNameCol] ?? '').trim() : '';
                           const clientKey = normalizeStr(rawClient || String(row.id));
-                          if (dbgMatched === 1) { dbgFirstRawClient = rawClient; dbgFirstClientKey = clientKey; }
                           if (seenClients.has(clientKey)) continue;
                           seenClients.add(clientKey);
-                          dbgPassedDedup++;
 
                           if (row.is_owner_row) ownerRank++;
 
@@ -1664,9 +1658,9 @@ export default function Finance() {
                           const comDirect  = row.is_owner_row ? getPersonalSaleCommission(ownerRank) : 0;
 
                           if (existingDeal) {
-                            dbgFoundExisting++;
                             await supabase.from('deals').update({
                               status: 'livree',
+                              amount: saleAmount > 0 ? saleAmount : existingDeal.amount,
                               commission_actual: comDirect,
                             }).eq('id', existingDeal.id);
                             dealsValidated++;
@@ -1697,15 +1691,12 @@ export default function Finance() {
                         queryClient.invalidateQueries({ queryKey: ['deals'] });
                         queryClient.invalidateQueries({ queryKey: ['contacts'] });
 
-                        // Résumé lisible pour diagnostiquer
                         const summary = [
-                          `[dbg: ${dbgTotal}L ${dbgMatched}M ${dbgPassedDedup}PD ${dbgFoundExisting}FE | clientKey0="${dbgFirstClientKey}" rawClient0="${dbgFirstRawClient}"]`,
                           contactsToInsert.length > 0 ? `${contactsToInsert.length} contact(s) créé(s)` : null,
                           dealsCreated > 0            ? `${dealsCreated} vente(s) créée(s)` : null,
                           dealsValidated > 0          ? `${dealsValidated} vente(s) validée(s)` : null,
-                          dealsCreated === 0 && dealsValidated === 0 ? 'Aucune vente traitée' : null,
                         ].filter(Boolean).join(' · ');
-                        toast({ title: 'Re-consolidation terminée', description: summary || 'Commissions mises à jour', duration: 15000 });
+                        toast({ title: '✅ Re-consolidation terminée', description: summary || 'Commissions mises à jour' });
                       } catch (dealErr) {
                         toast({ title: 'Erreur contacts/deals', description: String((dealErr as Error)?.message || dealErr), variant: 'destructive' });
                       }
