@@ -543,17 +543,18 @@ export default function Finance() {
         const phoneCol      = findCol(['tph', 'tel', 'telephone', 'portable', 'mobile']);
         const emailCol      = findCol(['mail', 'email', 'courriel']);
 
+        // Parse "NOM PRENOM" → last word = prénom, reste = nom (utilisé contacts + deals)
+        const parseClientName = (raw: string) => {
+          const parts = raw.trim().split(/\s+/);
+          if (parts.length === 1) return { first: '', last: raw.trim() };
+          const first = parts[parts.length - 1];
+          const last = parts.slice(0, -1).join(' ');
+          const toTitle = (s: string) =>
+            s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('-');
+          return { first: toTitle(first), last: toTitle(last) };
+        };
+
         if (clientNameCol && effectiveId) {
-          // Parse "NOM PRENOM" → last word = prénom, reste = nom
-          const parseClientName = (raw: string) => {
-            const parts = raw.trim().split(/\s+/);
-            if (parts.length === 1) return { first: '', last: raw.trim() };
-            const first = parts[parts.length - 1];
-            const last = parts.slice(0, -1).join(' ');
-            const toTitle = (s: string) =>
-              s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('-');
-            return { first: toTitle(first), last: toTitle(last) };
-          };
 
           // ── Collect candidates (déduplique dans le fichier lui-même d'abord) ──
           type ClientCandidate = {
@@ -639,13 +640,77 @@ export default function Finance() {
 
             if (toInsert.length > 0) {
               await supabase.from('contacts').insert(toInsert);
-              return toInsert.length; // retourne le nombre créés
             }
           }
         }
+
+        // ── Création des deals (ventes) depuis le TRV ──
+        // Vérifier si des deals TRV existent déjà pour cette période
+        const trvNoteMarker = `TRV ${flow.period}`;
+        const { data: existingTRVDeals } = await supabase
+          .from('deals')
+          .select('id')
+          .eq('user_id', effectiveId)
+          .ilike('notes', `%${trvNoteMarker}%`);
+
+        if (!existingTRVDeals || existingTRVDeals.length === 0) {
+          // Charger tous les contacts pour faire le lien deal ↔ client
+          const { data: allContacts } = await supabase
+            .from('contacts')
+            .select('id, first_name, last_name')
+            .eq('user_id', effectiveId);
+
+          const priceCol = flow.mapping.amount_col;
+          const seenDealClients = new Set<string>();
+          const dealsToInsert: any[] = [];
+
+          for (const r of matchResults) {
+            if (r.match_status === 'non_reconnu') continue;
+
+            // Prix machine depuis le CSV
+            const rawPriceStr = priceCol && r.raw_data[priceCol] != null ? String(r.raw_data[priceCol]) : '';
+            const saleAmount = parseAmount(rawPriceStr) || 0;
+
+            // Nom client depuis le CSV
+            const rawClientName = clientNameCol ? String(r.raw_data[clientNameCol] ?? '').trim() : '';
+            const clientKey = normalizeStr(rawClientName || `row-${Math.random()}`);
+            if (seenDealClients.has(clientKey)) continue;
+            seenDealClients.add(clientKey);
+
+            // Trouver le contact correspondant
+            let contactId: string | null = null;
+            if (rawClientName && allContacts) {
+              const { first: cFirst, last: cLast } = parseClientName(rawClientName);
+              const normName = normalizeStr(`${cFirst} ${cLast}`);
+              const matched = allContacts.find(c =>
+                matchScore(normalizeStr(`${c.first_name ?? ''} ${c.last_name ?? ''}`), normName) >= 75
+              );
+              contactId = matched?.id || null;
+            }
+
+            dealsToInsert.push({
+              user_id: effectiveId,
+              contact_id: contactId,
+              amount: saleAmount,
+              status: 'livree' as const,
+              signed_at: new Date(`${flow.period}-15T12:00:00.000Z`).toISOString(),
+              sold_by: r.is_owner_row ? null : (r.matched_member?.id || null),
+              notes: trvNoteMarker,
+              commission_direct: r.is_owner_row ? r.amount : 0,
+              commission_actual: 0,
+            });
+          }
+
+          if (dealsToInsert.length > 0) {
+            await supabase.from('deals').insert(dealsToInsert);
+          }
+          return dealsToInsert.length;
+        }
+
+        return toInsert?.length ?? 0;
       } catch (contactErr) {
-        // Ne pas faire échouer tout l'import pour un problème de création de contacts
-        console.warn('Création contacts clients ignorée :', contactErr);
+        // Ne pas faire échouer tout l'import pour un problème de création de contacts/deals
+        console.warn('Création contacts/deals ignorée :', contactErr);
       }
       return 0;
     },
