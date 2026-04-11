@@ -1625,14 +1625,20 @@ export default function Finance() {
                         let ownerRank = 0;
                         let dbgTotal = (updatedRows || []).length;
                         let dbgMatched = 0;
+                        let dbgPassedDedup = 0;
+                        let dbgFoundExisting = 0;
+                        let dbgFirstClientKey = '';
+                        let dbgFirstRawClient = '';
 
                         for (const row of (updatedRows || [])) {
                           if (row.match_status === 'non_reconnu') continue;
                           dbgMatched++;
                           const rawClient = clientNameCol ? String(row.raw_data?.[clientNameCol] ?? '').trim() : '';
                           const clientKey = normalizeStr(rawClient || String(row.id));
+                          if (dbgMatched === 1) { dbgFirstRawClient = rawClient; dbgFirstClientKey = clientKey; }
                           if (seenClients.has(clientKey)) continue;
                           seenClients.add(clientKey);
+                          dbgPassedDedup++;
 
                           if (row.is_owner_row) ownerRank++;
 
@@ -1658,6 +1664,7 @@ export default function Finance() {
                           const comDirect  = row.is_owner_row ? getPersonalSaleCommission(ownerRank) : 0;
 
                           if (existingDeal) {
+                            dbgFoundExisting++;
                             await supabase.from('deals').update({
                               status: 'livree',
                               commission_actual: comDirect,
@@ -1693,7 +1700,7 @@ export default function Finance() {
 
                         // Résumé lisible pour diagnostiquer
                         const summary = [
-                          `[dbg: ${dbgTotal} lignes, ${dbgMatched} matchées, clientCol=${clientNameCol ?? 'null'}, priceCol=${priceCol ?? 'null'}]`,
+                          `[dbg: ${dbgTotal}L ${dbgMatched}M ${dbgPassedDedup}PD ${dbgFoundExisting}FE | clientKey0="${dbgFirstClientKey}" rawClient0="${dbgFirstRawClient}"]`,
                           contactsToInsert.length > 0 ? `${contactsToInsert.length} contact(s) créé(s)` : null,
                           dealsCreated > 0            ? `${dealsCreated} vente(s) créée(s)` : null,
                           dealsValidated > 0          ? `${dealsValidated} vente(s) validée(s)` : null,
