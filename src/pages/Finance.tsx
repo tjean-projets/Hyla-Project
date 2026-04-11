@@ -1367,22 +1367,15 @@ export default function Finance() {
                         }
                       }
 
-                      // 1. Supprimer les anciennes commissions de ce manager pour cette période
-                      // (sinon le RPC tente de re-insérer des lignes déjà existantes à 0€ → conflit silencieux)
+                      // 1. Supprimer TOUTES les anciennes commissions (source='import') pour cette période
                       await supabase.from('commissions')
                         .delete()
                         .eq('user_id', effectiveId)
                         .eq('period', selectedImport.period)
                         .eq('source', 'import');
 
-                      // 2. Re-run SQL consolidation (commissions du manager)
-                      const { error: rpcErr } = await supabase.rpc('consolidate_import_commissions', { p_import_id: selectedImport.id });
-                      if (rpcErr) { toast({ title: 'Erreur', description: rpcErr.message, variant: 'destructive' }); return; }
-
-                      // 2. Re-déclencher la cascade MLM vers les membres liés
-                      // Supprimer les cascades précédentes de cet import
                       const linkedIds = allTreeMembers
-                        .filter((m: any) => m.linked_user_id && m.linked_user_id !== user.id)
+                        .filter((m: any) => m.linked_user_id && m.linked_user_id !== effectiveId)
                         .map((m: any) => m.linked_user_id as string);
                       for (const linkedId of linkedIds) {
                         await supabase.from('commissions')
@@ -1392,58 +1385,71 @@ export default function Finance() {
                           .eq('source', 'import');
                       }
 
-                      // Re-créer les cascades depuis les lignes corrigées
+                      // 2. Récupérer les lignes matchées avec leur montant recalculé
                       const { data: updatedRows } = await supabase
                         .from('commission_import_rows')
                         .select('*, team_members:matched_member_id(id, linked_user_id, first_name, last_name)')
                         .eq('import_id', selectedImport.id);
 
-                      const cascadeCommissions: any[] = [];
+                      // 3. Créer les commissions directement (bypass RPC — contrôle total sur user_id/status/source)
+                      const toInsert: any[] = [];
+                      let ownerRankCounter = 0;
+
                       for (const row of (updatedRows || [])) {
-                        if (row.is_owner_row || row.match_status === 'non_reconnu' || !row.matched_member_id) continue;
-                        const member = allTreeMembers.find((m: any) => m.id === row.matched_member_id);
-                        if (!member?.linked_user_id || member.linked_user_id === user.id) continue;
+                        if (row.match_status === 'non_reconnu') continue;
 
-                        cascadeCommissions.push({
-                          user_id: member.linked_user_id,
-                          type: 'directe',
-                          amount: row.amount,
-                          period: selectedImport.period,
-                          status: 'validee',
-                          source: 'import',
-                          team_member_id: null,
-                          notes: `Re-import réseau par ${profile?.full_name || 'manager'}`,
-                        });
-
-                        // Cascade réseau pour les sous-membres à toute profondeur
-                        if (member.linked_user_id && member.linked_user_id !== user.id) {
-                          const subRows = (updatedRows || []).filter((sr: any) => {
-                            const subM = allTreeMembers.find((m: any) => m.id === sr.matched_member_id);
-                            return subM?.owner_user_id === member.linked_user_id && sr.matched_member_id !== member.id && !sr.is_owner_row && sr.match_status !== 'non_reconnu';
+                        if (row.is_owner_row) {
+                          ownerRankCounter++;
+                          const amount = getPersonalSaleCommission(ownerRankCounter);
+                          toInsert.push({
+                            user_id: effectiveId,
+                            type: 'directe',
+                            amount,
+                            period: selectedImport.period,
+                            status: 'validee',
+                            source: 'import',
+                            team_member_id: null,
+                            notes: `Vente perso rank ${ownerRankCounter} — re-consolidation`,
                           });
-                          for (const sr of subRows) {
-                            cascadeCommissions.push({
+                        } else if (row.matched_member_id) {
+                          const amount = getRecrueCommission(myLevel);
+                          toInsert.push({
+                            user_id: effectiveId,
+                            type: 'reseau',
+                            amount,
+                            period: selectedImport.period,
+                            status: 'validee',
+                            source: 'import',
+                            team_member_id: row.matched_member_id,
+                            notes: `Commission recrue re-consolidation`,
+                          });
+
+                          // Cascade vers le compte lié du recrue
+                          const member = allTreeMembers.find((m: any) => m.id === row.matched_member_id);
+                          if (member?.linked_user_id && member.linked_user_id !== effectiveId) {
+                            toInsert.push({
                               user_id: member.linked_user_id,
-                              type: 'reseau',
-                              amount: sr.amount,
+                              type: 'directe',
+                              amount,
                               period: selectedImport.period,
                               status: 'validee',
                               source: 'import',
-                              team_member_id: sr.matched_member_id,
-                              notes: `Commission réseau re-importée`,
+                              team_member_id: null,
+                              notes: `Re-import réseau par ${profile?.full_name || 'manager'}`,
                             });
                           }
                         }
                       }
 
-                      if (cascadeCommissions.length > 0) {
-                        await supabase.from('commissions').insert(cascadeCommissions);
+                      if (toInsert.length > 0) {
+                        const { error: insertErr } = await supabase.from('commissions').insert(toInsert);
+                        if (insertErr) { toast({ title: 'Erreur insertion', description: insertErr.message, variant: 'destructive' }); return; }
                       }
 
                       queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
                       queryClient.invalidateQueries({ queryKey: ['commissions'] });
                       queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
-                      toast({ title: 'Commissions re-consolidées', description: cascadeCommissions.length > 0 ? `${cascadeCommissions.length} commission(s) cascadée(s) à l'équipe` : undefined });
+                      toast({ title: 'Commissions re-consolidées', description: `${toInsert.length} commission(s) créée(s)` });
                       setSelectedImport(null);
                       setImportRows([]);
                     }}
