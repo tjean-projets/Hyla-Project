@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS, HYLA_PRODUCTS, HYLA_COMMISSION_SCALE, getHylaCommission } from '@/lib/supabase';
-import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
+import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Clock, TrendingUp, Download, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -383,6 +383,7 @@ function exportToCSV(rows: Record<string, any>[], filename: string) {
 export default function Deals() {
   const { user } = useAuth();
   const effectiveId = useEffectiveUserId();
+  const { profile: effectiveProfile } = useEffectiveProfile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const now = new Date();
@@ -698,7 +699,9 @@ export default function Deals() {
                           {(deal as any).seller.first_name} {(deal as any).seller.last_name}
                         </span>
                       ) : (
-                        <span className="text-muted-foreground/40 text-xs">—</span>
+                        <span className="text-xs bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full font-medium">
+                          {effectiveProfile?.full_name?.split(' ')[0] ?? 'Moi'}
+                        </span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
