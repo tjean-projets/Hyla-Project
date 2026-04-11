@@ -1536,7 +1536,8 @@ export default function Finance() {
                       try {
                         const rawKeys = Object.keys((updatedRows || [])[0]?.raw_data || {});
                         // Diagnostic temporaire : afficher les colonnes disponibles
-                        toast({ title: '🔍 Colonnes CSV', description: rawKeys.slice(0, 8).join(' | ') || 'aucune', duration: 20000 });
+                        const savedAmtColDbg = (selectedImport.column_mapping as any)?.amount_col || 'vide';
+                        alert(`Colonnes CSV (${rawKeys.length}):\n${rawKeys.join('\n')}\n\ncolumn_mapping.amount_col = "${savedAmtColDbg}"`);
                         const nk = (s: string) => normalizeStr(s).replace(/[^a-z0-9]/g, '');
                         const clientNameCol = rawKeys.find(k => ['nomduclient','nomclient','client','acheteur'].some(kw => nk(k).includes(kw))) || null;
                         const emailCol     = rawKeys.find(k => /mail|email|courriel/i.test(k)) || null;
