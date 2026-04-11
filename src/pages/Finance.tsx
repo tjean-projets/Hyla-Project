@@ -1216,42 +1216,75 @@ export default function Finance() {
                     </div>
                   )}
 
-                  {/* Rows */}
-                  <div className="space-y-1 max-h-60 overflow-y-auto">
-                    {importRows.map((row: any, i: number) => (
-                      <div key={row.id} className={`p-2.5 rounded-lg text-xs ${
-                        row.match_status === 'auto' ? 'bg-green-50' :
-                        row.match_status === 'manuel' ? 'bg-amber-50' : 'bg-red-50'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div className="min-w-0 flex-1">
-                            <span className="font-medium text-foreground block">{row.details || 'Sans nom'}</span>
-                            {row.is_owner_row && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Moi</span>}
+                  {/* Rows — matchés individuels + non-matchés groupés par nom */}
+                  {(() => {
+                    const matchedRows = importRows.filter((r: any) => r.match_status !== 'non_reconnu');
+                    const unmatchedRows = importRows.filter((r: any) => r.match_status === 'non_reconnu' && !r.is_owner_row);
+
+                    // Grouper les non-matchés par nom (details)
+                    const unmatchedGroups = unmatchedRows.reduce((acc: Record<string, any>, row: any) => {
+                      const key = (row.details || 'Sans nom').trim();
+                      if (!acc[key]) acc[key] = { name: key, rows: [], total: 0 };
+                      acc[key].rows.push(row);
+                      acc[key].total += row.amount || 0;
+                      return acc;
+                    }, {});
+
+                    const refreshRows = async () => {
+                      const { data: rows } = await supabase
+                        .from('commission_import_rows').select('*').eq('import_id', selectedImport.id).order('created_at');
+                      setImportRows(rows || []);
+                    };
+
+                    return (
+                      <div className="space-y-1 max-h-72 overflow-y-auto">
+                        {/* Matchés */}
+                        {matchedRows.map((row: any) => (
+                          <div key={row.id} className={`p-2.5 rounded-lg text-xs ${
+                            row.match_status === 'auto' ? 'bg-green-50' : 'bg-amber-50'
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              <div className="min-w-0 flex-1">
+                                <span className="font-medium text-foreground block">{row.details || 'Sans nom'}</span>
+                                {row.is_owner_row && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Moi</span>}
+                              </div>
+                              <span className="font-semibold text-foreground ml-2">{(row.amount || 0).toLocaleString('fr-FR')} €</span>
+                            </div>
                           </div>
-                          <span className="font-semibold text-foreground ml-2">{(row.amount || 0).toLocaleString('fr-FR')} €</span>
-                        </div>
-                        {/* Re-match dropdown for unmatched */}
-                        {row.match_status === 'non_reconnu' && !row.is_owner_row && (
-                          <div className="mt-1.5">
+                        ))}
+
+                        {/* Non-matchés groupés par nom */}
+                        {Object.values(unmatchedGroups).map((group: any) => (
+                          <div key={group.name} className="p-2.5 rounded-lg text-xs bg-red-50 border border-red-100">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="font-semibold text-foreground">{group.name}</span>
+                              <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
+                                {group.rows.length > 1 && (
+                                  <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">
+                                    {group.rows.length} ventes
+                                  </span>
+                                )}
+                                <span className="font-semibold text-foreground">{group.total.toLocaleString('fr-FR')} €</span>
+                              </div>
+                            </div>
                             <select
                               className="w-full text-[11px] border border-red-200 rounded-lg px-2 py-1.5 bg-card"
                               value=""
                               onChange={async (e) => {
                                 const val = e.target.value;
                                 if (!val) return;
+                                // Appliquer à TOUTES les lignes du groupe
+                                const ids = group.rows.map((r: any) => r.id);
                                 if (val === '__owner__') {
                                   await supabase.from('commission_import_rows').update({
                                     is_owner_row: true, match_status: 'auto', match_confidence: 100,
-                                  }).eq('id', row.id);
+                                  }).in('id', ids);
                                 } else {
                                   await supabase.from('commission_import_rows').update({
                                     matched_member_id: val, match_status: 'manuel', match_confidence: 100,
-                                  }).eq('id', row.id);
+                                  }).in('id', ids);
                                 }
-                                // Refresh rows
-                                const { data: rows } = await supabase
-                                  .from('commission_import_rows').select('*').eq('import_id', selectedImport.id).order('created_at');
-                                setImportRows(rows || []);
+                                await refreshRows();
                               }}
                             >
                               <option value="">Associer à un membre...</option>
@@ -1261,10 +1294,10 @@ export default function Finance() {
                               ))}
                             </select>
                           </div>
-                        )}
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
 
                   {/* Re-consolidate button */}
                   {importRows.some((r: any) => r.match_status === 'non_reconnu') && (
