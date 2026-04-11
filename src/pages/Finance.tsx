@@ -1535,9 +1535,12 @@ export default function Finance() {
                       // 4. Contacts + Deals depuis les lignes TRV
                       try {
                         const rawKeys = Object.keys((updatedRows || [])[0]?.raw_data || {});
-                        // Diagnostic temporaire : afficher les colonnes disponibles
+                        // Diagnostic : afficher la 1ère ligne matchée avec ses valeurs
+                        const firstMatchedRow = (updatedRows || []).find((r: any) => r.match_status !== 'non_reconnu');
+                        const rd = firstMatchedRow?.raw_data || {};
                         const savedAmtColDbg = (selectedImport.column_mapping as any)?.amount_col || 'vide';
-                        alert(`Colonnes CSV (${rawKeys.length}):\n${rawKeys.join('\n')}\n\ncolumn_mapping.amount_col = "${savedAmtColDbg}"`);
+                        const colLines = Object.entries(rd).map(([k, v]) => `${k}: ${v}`).join('\n');
+                        alert(`1ère ligne matchée (amount_col="${savedAmtColDbg}"):\n\n${colLines}`);
                         const nk = (s: string) => normalizeStr(s).replace(/[^a-z0-9]/g, '');
                         const clientNameCol = rawKeys.find(k => ['nomduclient','nomclient','client','acheteur'].some(kw => nk(k).includes(kw))) || null;
                         const emailCol     = rawKeys.find(k => /mail|email|courriel/i.test(k)) || null;
