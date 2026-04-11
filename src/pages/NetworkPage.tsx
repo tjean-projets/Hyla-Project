@@ -183,6 +183,7 @@ function MemberForm({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members-dash'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       toast({ title: isEdit ? 'Membre modifié' : 'Membre ajouté' });
       onSuccess();
@@ -201,6 +202,7 @@ function MemberForm({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      queryClient.invalidateQueries({ queryKey: ['team-members-dash'] });
       toast({ title: 'Membre supprimé' });
       onDelete?.();
     },
