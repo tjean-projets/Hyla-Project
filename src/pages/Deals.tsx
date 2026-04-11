@@ -385,11 +385,16 @@ export default function Deals() {
   const effectiveId = useEffectiveUserId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth() + 1).padStart(2, '0'));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingDeal, setEditingDeal] = useState<any | null>(null);
   const [view, setView] = useState<'list' | 'kanban'>('list');
+
+  const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
   const [drawerDeal, setDrawerDeal] = useState<any | null>(null);
 
   const { data: deals = [], isLoading } = useQuery({
@@ -453,14 +458,21 @@ export default function Deals() {
     return matchesSearch && matchesStatus;
   });
 
-  const totalMois = deals.filter((d: any) => d.status === 'signee').reduce((sum: number, d: any) => sum + d.amount, 0);
-  const nbSignees = deals.filter((d: any) => d.status === 'signee').length;
+  const selectedPeriod = `${selectedYear}-${selectedMonth}`;
+  const signedInPeriod = deals.filter((d: any) => {
+    if (d.status !== 'signee') return false;
+    const dateStr = d.signed_at || d.created_at;
+    return dateStr && dateStr.startsWith(selectedPeriod);
+  });
+
+  const totalMois = signedInPeriod.reduce((sum: number, d: any) => sum + d.amount, 0);
+  const nbSignees = signedInPeriod.length;
   const commissionEstimee = getHylaCommission(nbSignees);
 
-  // Pending deals with sold_by → commission réseau estimée (30€/vente pour manager)
+  // Pending deals with sold_by → commission réseau estimée
   const pendingDeals = deals.filter((d: any) => d.status === 'en_cours' || d.status === 'en_attente');
   const pendingWithSeller = pendingDeals.filter((d: any) => d.sold_by);
-  const pendingReseauEstim = pendingWithSeller.length * 30; // 30€ réseau/vente manager
+  const pendingReseauEstim = pendingWithSeller.length * 30;
 
   return (
     <AppLayout
@@ -522,7 +534,7 @@ export default function Deals() {
         {/* KPI cards */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
-            <p className="text-[10px] text-muted-foreground uppercase font-semibold">Machines vendues</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-semibold">Machines vendues — {MONTHS_FR[parseInt(selectedMonth) - 1]} {selectedYear}</p>
             <p className="text-2xl font-bold text-foreground mt-1">{nbSignees}</p>
           </div>
           <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl p-4 text-white">
@@ -598,6 +610,25 @@ export default function Deals() {
 
         {/* Toolbar */}
         <div className="flex flex-col md:flex-row gap-3">
+          {/* Filtres mois/année pour les KPIs */}
+          <div className="flex gap-2">
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {MONTHS_FR.map((m, i) => (
+                  <SelectItem key={i} value={String(i + 1).padStart(2, '0')}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[2024, 2025, 2026, 2027].map(y => (
+                  <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
