@@ -1526,16 +1526,17 @@ export default function Finance() {
                         if (insertErr) { toast({ title: 'Erreur insertion', description: insertErr.message, variant: 'destructive' }); return; }
                       }
 
-                      // 4. Créer/valider les deals depuis les lignes TRV
+                      // 4. Contacts + Deals depuis les lignes TRV
                       try {
-                        const { data: allContacts } = await supabase
-                          .from('contacts').select('id, first_name, last_name').eq('user_id', effectiveId);
-
-                        // Détecter colonne nom client et prix depuis raw_data
                         const rawKeys = Object.keys((updatedRows || [])[0]?.raw_data || {});
-                        const normKey = (s: string) => normalizeStr(s).replace(/[^a-z0-9]/g, '');
-                        const clientNameCol = rawKeys.find(k => ['nomduclient','nomclient','client','acheteur'].some(kw => normKey(k).includes(kw))) || null;
-                        const priceCol = rawKeys.find(col => {
+                        const nk = (s: string) => normalizeStr(s).replace(/[^a-z0-9]/g, '');
+                        const clientNameCol = rawKeys.find(k => ['nomduclient','nomclient','client','acheteur'].some(kw => nk(k).includes(kw))) || null;
+                        const emailCol     = rawKeys.find(k => /mail|email|courriel/i.test(k)) || null;
+                        const phoneCol     = rawKeys.find(k => /tph|tel|telephone|portable|mobile/i.test(k)) || null;
+                        const addrCol      = rawKeys.find(k => /adresse|address/i.test(k)) || null;
+                        const cpCol        = rawKeys.find(k => /^cp$|codepostal|postal/i.test(k)) || null;
+                        const cityCol      = rawKeys.find(k => /ville|city/i.test(k)) || null;
+                        const priceCol     = rawKeys.find(col => {
                           const samples = (updatedRows || []).slice(0, 20).map((r: any) => r.raw_data?.[col]).filter(Boolean);
                           if (samples.length < 2) return false;
                           const hits = samples.filter((v: any) => { const p = parseAmount(String(v)); return p >= 500 && p <= 9000; }).length;
@@ -1549,24 +1550,74 @@ export default function Finance() {
                           return { first: toTitle(parts[parts.length - 1]), last: toTitle(parts.slice(0, -1).join(' ')) };
                         };
 
+                        // ── A. Créer les contacts manquants ──
+                        const { data: existingContacts } = await supabase
+                          .from('contacts').select('id, first_name, last_name, email, phone')
+                          .eq('user_id', effectiveId);
+
+                        const seenContactKeys = new Set<string>();
+                        const contactsToInsert: any[] = [];
+
+                        if (clientNameCol) {
+                          for (const row of (updatedRows || [])) {
+                            if (row.match_status === 'non_reconnu') continue;
+                            const rawName = String(row.raw_data?.[clientNameCol] ?? '').trim();
+                            if (!rawName) continue;
+                            const normName = normalizeStr(rawName);
+                            if (seenContactKeys.has(normName)) continue;
+                            seenContactKeys.add(normName);
+
+                            const alreadyExists = (existingContacts || []).some((c: any) =>
+                              matchScore(normalizeStr(`${c.first_name ?? ''} ${c.last_name ?? ''}`), normName) >= 85
+                            );
+                            if (alreadyExists) continue;
+
+                            const { first, last } = parseClientName(rawName);
+                            const email = emailCol ? (String(row.raw_data?.[emailCol] ?? '').trim().toLowerCase() || null) : null;
+                            const phone = phoneCol ? (String(row.raw_data?.[phoneCol] ?? '').replace(/\s/g, '') || null) : null;
+                            const addr  = addrCol  ? (String(row.raw_data?.[addrCol]  ?? '').trim() || null) : null;
+                            const cp    = cpCol    ? (String(row.raw_data?.[cpCol]    ?? '').trim() || null) : null;
+                            const city  = cityCol  ? (String(row.raw_data?.[cityCol]  ?? '').trim() || null) : null;
+                            contactsToInsert.push({
+                              user_id: effectiveId,
+                              first_name: first || 'Inconnu',
+                              last_name: last,
+                              email,
+                              phone,
+                              address: [addr, cp, city].filter(Boolean).join(', ') || null,
+                              status: 'cliente' as const,
+                              source: 'import_trv',
+                            });
+                          }
+                          if (contactsToInsert.length > 0) {
+                            await supabase.from('contacts').insert(contactsToInsert);
+                          }
+                        }
+
+                        // Recharger les contacts après création
+                        const { data: allContacts } = await supabase
+                          .from('contacts').select('id, first_name, last_name').eq('user_id', effectiveId);
+
+                        // ── B. Créer/valider les deals ──
                         const trvMarker = `TRV ${selectedImport.period}`;
                         const { data: existingDeals } = await supabase
                           .from('deals').select('id, contact_id, status, notes')
                           .eq('user_id', effectiveId)
-                          .in('status', ['signee', 'livree', 'en_cours', 'en_attente'])
-                          .gte('signed_at', `${selectedImport.period}-01`)
-                          .lte('signed_at', `${selectedImport.period}-31`);
+                          .ilike('notes', `%${trvMarker}%`);
 
                         const seenClients = new Set<string>();
                         const dealsToCreate: any[] = [];
                         let dealsValidated = 0;
+                        let ownerRank = 0;
 
                         for (const row of (updatedRows || [])) {
                           if (row.match_status === 'non_reconnu') continue;
                           const rawClient = clientNameCol ? String(row.raw_data?.[clientNameCol] ?? '').trim() : '';
-                          const clientKey = normalizeStr(rawClient || row.id);
+                          const clientKey = normalizeStr(rawClient || String(row.id));
                           if (seenClients.has(clientKey)) continue;
                           seenClients.add(clientKey);
+
+                          if (row.is_owner_row) ownerRank++;
 
                           let contactId: string | null = null;
                           if (rawClient && allContacts) {
@@ -1578,14 +1629,16 @@ export default function Finance() {
                           }
 
                           const existingDeal = (existingDeals || []).find((d: any) => d.contact_id && d.contact_id === contactId);
+                          const saleAmount = priceCol ? parseAmount(String(row.raw_data?.[priceCol] ?? '')) : 0;
+                          const comDirect  = row.is_owner_row ? getPersonalSaleCommission(ownerRank) : 0;
+
                           if (existingDeal) {
                             await supabase.from('deals').update({
                               status: 'livree',
-                              notes: existingDeal.notes ? `${existingDeal.notes} • ${trvMarker}` : trvMarker,
+                              commission_actual: comDirect,
                             }).eq('id', existingDeal.id);
                             dealsValidated++;
                           } else {
-                            const saleAmount = priceCol ? parseAmount(String(row.raw_data?.[priceCol] ?? '')) : 0;
                             dealsToCreate.push({
                               user_id: effectiveId,
                               contact_id: contactId,
@@ -1594,25 +1647,26 @@ export default function Finance() {
                               signed_at: new Date(`${selectedImport.period}-15T12:00:00.000Z`).toISOString(),
                               sold_by: row.is_owner_row ? null : (row.matched_member_id || null),
                               notes: trvMarker,
-                              commission_direct: 0,
-                              commission_actual: 0,
+                              commission_direct: comDirect,
+                              commission_actual: comDirect,
                             });
                           }
                         }
 
                         if (dealsToCreate.length > 0) {
                           const { error: dealErr } = await supabase.from('deals').insert(dealsToCreate);
-                          if (dealErr) toast({ title: 'Erreur deals', description: dealErr.message, variant: 'destructive' });
+                          if (dealErr) throw new Error(dealErr.message);
                         }
                         queryClient.invalidateQueries({ queryKey: ['deals'] });
+                        queryClient.invalidateQueries({ queryKey: ['contacts'] });
                       } catch (dealErr) {
-                        toast({ title: 'Erreur deals', description: String((dealErr as Error)?.message || dealErr), variant: 'destructive' });
+                        toast({ title: 'Erreur contacts/deals', description: String((dealErr as Error)?.message || dealErr), variant: 'destructive' });
                       }
 
                       queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
                       queryClient.invalidateQueries({ queryKey: ['commissions'] });
                       queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
-                      toast({ title: 'Commissions re-consolidées', description: `${toInsert.length} commission(s) + ${0} deal(s)` });
+                      toast({ title: 'Re-consolidation terminée', description: `Commissions, contacts et ventes mis à jour` });
                       setSelectedImport(null);
                       setImportRows([]);
                     }}
