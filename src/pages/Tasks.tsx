@@ -37,6 +37,7 @@ function TaskForm({
   contacts: any[];
 }) {
   const { user } = useAuth();
+  const effectiveId = useEffectiveUserId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEdit = !!initialData;
@@ -71,7 +72,7 @@ function TaskForm({
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
       const payload = {
-        user_id: user.id,
+        user_id: effectiveId,
         title: form.title,
         type: form.type as any,
         status: form.status as any,

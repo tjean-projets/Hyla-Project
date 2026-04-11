@@ -46,6 +46,7 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, isInTeam, onAdd
   onAddToTeam?: (contact: Contact) => void;
 }) {
   const { user } = useAuth();
+  const effectiveId = useEffectiveUserId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEdit = !!initialData;
@@ -81,7 +82,7 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, isInTeam, onAdd
       const { data } = await supabase
         .from('contacts')
         .select('id, first_name, last_name, phone, email')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveId)
         .ilike('last_name', `%${lastName}%`)
         .limit(3);
       if (!data) return;
@@ -104,7 +105,7 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, isInTeam, onAdd
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
       const { error } = await supabase.from('appointments').insert({
-        user_id: user.id,
+        user_id: effectiveId,
         contact_id: initialData!.id,
         title: rdvForm.title,
         type: rdvForm.type as any,
@@ -127,7 +128,7 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, isInTeam, onAdd
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
       const { error } = await supabase.from('tasks').insert({
-        user_id: user.id,
+        user_id: effectiveId,
         contact_id: initialData!.id,
         title: taskForm.title,
         type: taskForm.type as any,
@@ -168,7 +169,7 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, isInTeam, onAdd
         if (error) throw error;
       } else {
         const { error } = await supabase.from('contacts').insert({
-          user_id: user.id,
+          user_id: effectiveId,
           ...form,
           pipeline_stage_id: form.pipeline_stage_id || null,
         });
@@ -919,7 +920,7 @@ export default function Contacts() {
                 if (s.id) {
                   await supabase.from('pipeline_stages').update({ name: s.name, color: s.color, position: i + 1 }).eq('id', s.id);
                 } else {
-                  await supabase.from('pipeline_stages').insert({ user_id: user.id, name: s.name, color: s.color, position: i + 1 });
+                  await supabase.from('pipeline_stages').insert({ user_id: effectiveId, name: s.name, color: s.color, position: i + 1 });
                 }
               }
               queryClient.invalidateQueries({ queryKey: ['pipeline-stages'] });

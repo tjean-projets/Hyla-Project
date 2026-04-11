@@ -33,6 +33,7 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
   onDelete?: () => void;
 }) {
   const { user } = useAuth();
+  const effectiveId = useEffectiveUserId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEdit = !!initialData;
@@ -108,7 +109,7 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
         if (error) throw error;
       } else {
         const { data: newDeal, error } = await supabase.from('deals').insert({
-          user_id: user.id,
+          user_id: effectiveId,
           contact_id: form.contact_id || null,
           amount: parseFloat(form.amount) || 0,
           product: form.product || null,
@@ -134,7 +135,7 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           .from('commissions').select('id').eq('deal_id', dealId).maybeSingle();
         if (!existing) {
           await supabase.from('commissions').insert({
-            user_id: user.id,
+            user_id: effectiveId,
             period,
             type: 'directe',
             amount,

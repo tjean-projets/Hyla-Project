@@ -74,6 +74,7 @@ function MemberForm({
   onDelete?: () => void;
 }) {
   const { user } = useAuth();
+  const effectiveId = useEffectiveUserId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEdit = !!initialData;
@@ -104,7 +105,7 @@ function MemberForm({
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
       const payload = {
-        user_id: user.id,
+        user_id: effectiveId,
         first_name: form.first_name,
         last_name: form.last_name,
         internal_id: form.internal_id || null,
@@ -137,7 +138,7 @@ function MemberForm({
         const { data: newContact, error: contactError } = await supabase
           .from('contacts')
           .insert({
-            user_id: user.id,
+            user_id: effectiveId,
             first_name: form.first_name,
             last_name: form.last_name,
             phone: form.phone || null,
@@ -1656,7 +1657,7 @@ export default function NetworkPage() {
         await supabase.from('team_challenges').update({ status: 'terminé' }).eq('id', activeChallenge.id);
       }
       const { error } = await supabase.from('team_challenges').insert({
-        user_id: user.id,
+        user_id: effectiveId,
         title: challengeForm.title,
         description: challengeForm.description || null,
         objective_type: challengeForm.objective_type,

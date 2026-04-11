@@ -410,7 +410,7 @@ export default function Finance() {
           // Supprimer commissions manager
           await supabase.from('commissions')
             .delete()
-            .eq('user_id', user.id)
+            .eq('user_id', effectiveId)
             .eq('period', flow.period)
             .eq('source', 'import');
           // Supprimer commissions cascadées aux membres liés

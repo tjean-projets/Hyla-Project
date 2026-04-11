@@ -348,7 +348,7 @@ export default function SettingsPage() {
       const { error } = await supabase
         .from('objectif_form_config')
         .upsert({
-          user_id: user.id,
+          user_id: effectiveUserId,
           questions: questions as unknown as Record<string, unknown>[],
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' });
@@ -397,7 +397,7 @@ export default function SettingsPage() {
     setSavingLevel(true);
     const { error } = await supabase
       .from('user_settings')
-      .upsert({ user_id: user.id, hyla_level: level, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+      .upsert({ user_id: effectiveUserId, hyla_level: level, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
     setSavingLevel(false);
     if (error) {
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
@@ -414,7 +414,7 @@ export default function SettingsPage() {
     const { error } = await supabase
       .from('user_settings')
       .upsert({
-        user_id: user.id,
+        user_id: effectiveUserId,
         monthly_sales_target: parseInt(monthlySalesTarget, 10) || 0,
         monthly_ca_target: parseInt(monthlyCaTarget, 10) || 0,
         updated_at: new Date().toISOString(),
@@ -1052,21 +1052,25 @@ export default function SettingsPage() {
                 <button
                   disabled={purgeConfirm !== 'SUPPRIMER' || purging}
                   onClick={async () => {
-                    if (!user) return;
+                    if (!user || !effectiveUserId) return;
+                    if (isImpersonating) {
+                      toast({ title: 'Action bloquée', description: 'Impossible de purger les données en mode impersonation.', variant: 'destructive' });
+                      return;
+                    }
                     setPurging(true);
                     try {
                       // Delete in order (foreign keys)
-                      await supabase.from('commission_import_rows').delete().filter('import_id', 'in', `(select id from commission_imports where user_id='${user.id}')`);
-                      await supabase.from('commission_imports').delete().eq('user_id', user.id);
-                      await supabase.from('commissions').delete().eq('user_id', user.id);
-                      await supabase.from('deals').delete().eq('user_id', user.id);
-                      await supabase.from('tasks').delete().eq('user_id', user.id);
-                      await supabase.from('member_objectives').delete().filter('member_id', 'in', `(select id from team_members where user_id='${user.id}')`);
-                      await supabase.from('team_members').delete().eq('user_id', user.id);
-                      await supabase.from('contacts').delete().eq('user_id', user.id);
-                      await supabase.from('pipeline_stages').delete().eq('user_id', user.id);
-                      await supabase.from('public_leads').delete().eq('profile_id', user.id);
-                      await supabase.from('calendar_events').delete().eq('user_id', user.id);
+                      await supabase.from('commission_import_rows').delete().filter('import_id', 'in', `(select id from commission_imports where user_id='${effectiveUserId}')`);
+                      await supabase.from('commission_imports').delete().eq('user_id', effectiveUserId);
+                      await supabase.from('commissions').delete().eq('user_id', effectiveUserId);
+                      await supabase.from('deals').delete().eq('user_id', effectiveUserId);
+                      await supabase.from('tasks').delete().eq('user_id', effectiveUserId);
+                      await supabase.from('member_objectives').delete().filter('member_id', 'in', `(select id from team_members where user_id='${effectiveUserId}')`);
+                      await supabase.from('team_members').delete().eq('user_id', effectiveUserId);
+                      await supabase.from('contacts').delete().eq('user_id', effectiveUserId);
+                      await supabase.from('pipeline_stages').delete().eq('user_id', effectiveUserId);
+                      await supabase.from('public_leads').delete().eq('profile_id', effectiveUserId);
+                      await supabase.from('calendar_events').delete().eq('user_id', effectiveUserId);
                       queryClient.invalidateQueries();
                       toast({ title: 'Données supprimées', description: 'Toutes vos données ont été effacées.' });
                       setShowPurge(false);

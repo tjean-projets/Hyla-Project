@@ -164,7 +164,7 @@ export default function CalendarPage() {
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
       const { error } = await supabase.from('appointments').insert({
-        user_id: user.id,
+        user_id: effectiveId,
         title: form.title,
         type: form.type as any,
         date: form.date,
