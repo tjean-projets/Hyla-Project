@@ -803,7 +803,7 @@ export default function Finance() {
           const paymentType   = isMensualites ? 'mensualites' : 'comptant';
           const monthMatch    = rawFin.match(/(\d{2,})\s*[xXmM]/);
           const paymentMonths = isMensualites && monthMatch ? parseInt(monthMatch[1]) : null;
-          const providerMatch = rawFin.match(/\b(alma|sofinco|floa|cofidis)\b/i);
+          const providerMatch = rawFin.match(/(alma|sofinco|floa|cofidis)/i);
           const financingProvider = providerMatch ? providerMatch[1].toUpperCase() : null;
 
           // Date réelle depuis la colonne D (ou colonne nommée "date")
@@ -1819,7 +1819,7 @@ export default function Finance() {
                           const paymentType   = isMensualites ? 'mensualites' : 'comptant';
                           const monthMatch    = rawFin.match(/(\d{2,})\s*[xXmM]/);
                           const paymentMonths = isMensualites && monthMatch ? parseInt(monthMatch[1]) : null;
-                          const provMatch     = rawFin.match(/\b(alma|sofinco|floa|cofidis)\b/i);
+                          const provMatch     = rawFin.match(/(alma|sofinco|floa|cofidis)/i);
                           const finProvider   = provMatch ? provMatch[1].toUpperCase() : null;
 
                           if (existingDeal) {
