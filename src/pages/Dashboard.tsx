@@ -816,23 +816,6 @@ export default function Dashboard() {
         {/* ── Guide de démarrage ── */}
         <GettingStartedWidget />
 
-        {/* ── Barème rapide ── */}
-        <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-foreground">Barème ventes</p>
-            <Target className="h-3.5 w-3.5 text-muted-foreground" />
-          </div>
-          <div className="flex gap-1.5 overflow-x-auto">
-            {HYLA_COMMISSION_SCALE.map((s, i) => (
-              <div key={i} className={`flex-shrink-0 text-center px-2.5 py-1.5 rounded-lg text-[10px] font-medium border ${
-                nbSignees >= s.machines ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-muted border-border text-muted-foreground'
-              }`}>
-                <div className="font-bold text-xs">{s.commission}€</div>
-                <div>{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* ── Chart Ventes mensuelles ── */}
         <div className="bg-card rounded-2xl p-5 shadow-sm border border-border">
