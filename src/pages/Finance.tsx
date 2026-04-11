@@ -1623,9 +1623,12 @@ export default function Finance() {
                         const dealsToCreate: any[] = [];
                         let dealsValidated = 0;
                         let ownerRank = 0;
+                        let dbgTotal = (updatedRows || []).length;
+                        let dbgMatched = 0;
 
                         for (const row of (updatedRows || [])) {
                           if (row.match_status === 'non_reconnu') continue;
+                          dbgMatched++;
                           const rawClient = clientNameCol ? String(row.raw_data?.[clientNameCol] ?? '').trim() : '';
                           const clientKey = normalizeStr(rawClient || String(row.id));
                           if (seenClients.has(clientKey)) continue;
@@ -1690,12 +1693,13 @@ export default function Finance() {
 
                         // Résumé lisible pour diagnostiquer
                         const summary = [
+                          `[dbg: ${dbgTotal} lignes, ${dbgMatched} matchées, clientCol=${clientNameCol ?? 'null'}, priceCol=${priceCol ?? 'null'}]`,
                           contactsToInsert.length > 0 ? `${contactsToInsert.length} contact(s) créé(s)` : null,
                           dealsCreated > 0            ? `${dealsCreated} vente(s) créée(s)` : null,
                           dealsValidated > 0          ? `${dealsValidated} vente(s) validée(s)` : null,
                           dealsCreated === 0 && dealsValidated === 0 ? 'Aucune vente traitée' : null,
                         ].filter(Boolean).join(' · ');
-                        toast({ title: 'Re-consolidation terminée', description: summary || 'Commissions mises à jour' });
+                        toast({ title: 'Re-consolidation terminée', description: summary || 'Commissions mises à jour', duration: 15000 });
                       } catch (dealErr) {
                         toast({ title: 'Erreur contacts/deals', description: String((dealErr as Error)?.message || dealErr), variant: 'destructive' });
                       }
