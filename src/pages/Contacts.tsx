@@ -455,7 +455,7 @@ export default function Contacts() {
       if (!effectiveId) return [];
       const { data } = await supabase
         .from('contacts')
-        .select('*')
+        .select('*, deals(id, sold_by, status)')
         .eq('user_id', effectiveId)
         .order('created_at', { ascending: false });
       return data || [];
@@ -534,8 +534,12 @@ export default function Contacts() {
   });
 
   // Onglets CRM vs Clients TRV — déclarés AVANT filtered
-  const crmContacts    = contacts.filter(c => c.status !== 'cliente');
-  const clientContacts = contacts.filter(c => c.status === 'cliente');
+  const crmContacts = contacts.filter(c => c.status !== 'cliente');
+  // "Mes clients" = acheteurs ayant au moins une vente directe du titulaire (sold_by IS NULL)
+  const clientContacts = contacts.filter(c =>
+    c.status === 'cliente' &&
+    (c as any).deals?.some((d: any) => d.sold_by === null || d.sold_by === undefined)
+  );
   const tabContacts    = contactTab === 'crm' ? crmContacts : contactTab === 'clients' ? clientContacts : contacts;
 
   const filtered = tabContacts.filter((c) => {
