@@ -1689,11 +1689,10 @@ export default function Finance() {
                         if (dealsToCreate.length > 0) {
                           const { error: dealErr } = await supabase.from('deals').insert(dealsToCreate);
                           if (dealErr) {
-                            toast({ title: '❌ Erreur INSERT deals', description: dealErr.message, variant: 'destructive' });
-                            // On ne throw pas — les commissions sont déjà créées, on loggue juste
-                          } else {
-                            dealsCreated = dealsToCreate.length;
+                            // On throw pour que le catch extérieur affiche l'erreur clairement
+                            throw new Error(`INSERT deals échoué: ${dealErr.message} (code: ${dealErr.code})`);
                           }
+                          dealsCreated = dealsToCreate.length;
                         }
                         queryClient.invalidateQueries({ queryKey: ['deals'] });
                         queryClient.invalidateQueries({ queryKey: ['contacts'] });
