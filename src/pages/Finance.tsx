@@ -1659,9 +1659,16 @@ export default function Finance() {
                           }
                         }
 
+                        toast({ title: `🔍 Deals à créer: ${dealsToCreate.length} | Existants: ${existingDeals?.length ?? 0} | Validés: ${dealsValidated}` });
+
                         if (dealsToCreate.length > 0) {
                           const { error: dealErr } = await supabase.from('deals').insert(dealsToCreate);
-                          if (dealErr) throw new Error(dealErr.message);
+                          if (dealErr) {
+                            toast({ title: '❌ Erreur INSERT deals', description: dealErr.message, variant: 'destructive' });
+                            throw new Error(dealErr.message);
+                          } else {
+                            toast({ title: `✅ ${dealsToCreate.length} deal(s) créé(s)` });
+                          }
                         }
                         queryClient.invalidateQueries({ queryKey: ['deals'] });
                         queryClient.invalidateQueries({ queryKey: ['contacts'] });
