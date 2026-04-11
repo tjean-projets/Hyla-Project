@@ -186,10 +186,9 @@ export default function Finance() {
     reader.onload = (evt) => {
       try {
         const rawBytes = new Uint8Array(evt.target?.result as ArrayBuffer);
-        // Détecter BOM UTF-8 (EF BB BF) — sinon forcer UTF-8 (codepage 65001)
-        const hasUtf8Bom = rawBytes[0] === 0xEF && rawBytes[1] === 0xBB && rawBytes[2] === 0xBF;
-        const data = hasUtf8Bom ? rawBytes.slice(3) : rawBytes;
-        const workbook = XLSX.read(data, { type: 'array', codepage: 65001 });
+        // UTF-8 via TextDecoder (plus fiable que codepage XLSX pour les CSV français)
+        const csvText = new TextDecoder('utf-8').decode(rawBytes);
+        const workbook = XLSX.read(csvText, { type: 'string' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
         // ── Trouver la vraie ligne d'en-tête (contient VENDEUR ou NOM DU CLIENT) ──
@@ -1536,6 +1535,8 @@ export default function Finance() {
                       // 4. Contacts + Deals depuis les lignes TRV
                       try {
                         const rawKeys = Object.keys((updatedRows || [])[0]?.raw_data || {});
+                        // Diagnostic temporaire : afficher les colonnes disponibles
+                        toast({ title: '🔍 Colonnes CSV', description: rawKeys.slice(0, 8).join(' | ') || 'aucune', duration: 20000 });
                         const nk = (s: string) => normalizeStr(s).replace(/[^a-z0-9]/g, '');
                         const clientNameCol = rawKeys.find(k => ['nomduclient','nomclient','client','acheteur'].some(kw => nk(k).includes(kw))) || null;
                         const emailCol     = rawKeys.find(k => /mail|email|courriel/i.test(k)) || null;
