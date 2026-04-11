@@ -185,8 +185,11 @@ export default function Finance() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const rawBytes = new Uint8Array(evt.target?.result as ArrayBuffer);
+        // Détecter BOM UTF-8 (EF BB BF) — sinon forcer UTF-8 (codepage 65001)
+        const hasUtf8Bom = rawBytes[0] === 0xEF && rawBytes[1] === 0xBB && rawBytes[2] === 0xBF;
+        const data = hasUtf8Bom ? rawBytes.slice(3) : rawBytes;
+        const workbook = XLSX.read(data, { type: 'array', codepage: 65001 });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
         // ── Trouver la vraie ligne d'en-tête (contient VENDEUR ou NOM DU CLIENT) ──
@@ -1540,15 +1543,18 @@ export default function Finance() {
                         const addrCol      = rawKeys.find(k => /adresse|address/i.test(k)) || null;
                         const cpCol        = rawKeys.find(k => /^cp$|codepostal|postal/i.test(k)) || null;
                         const cityCol      = rawKeys.find(k => /ville|city/i.test(k)) || null;
-                        // Colonne prix : d'abord depuis le mapping sauvegardé, sinon détection par valeurs sur lignes matchées
+                        // Colonne prix : 1) mapping sauvegardé, 2) nom de colonne, 3) valeurs sur lignes matchées
                         const savedAmountCol = (selectedImport.column_mapping as any)?.amount_col || null;
-                        const priceCol = savedAmountCol || rawKeys.find(col => {
-                          const matched = (updatedRows || []).filter((r: any) => r.match_status !== 'non_reconnu');
-                          const samples = matched.slice(0, 20).map((r: any) => r.raw_data?.[col]).filter(Boolean);
-                          if (samples.length < 2) return false;
-                          const hits = samples.filter((v: any) => { const p = parseAmount(String(v)); return p >= 500 && p <= 9000; }).length;
-                          return hits / samples.length > 0.3;
-                        }) || null;
+                        const nkCol = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
+                        const priceCol = (savedAmountCol && rawKeys.includes(savedAmountCol) ? savedAmountCol : null)
+                          || rawKeys.find(k => /prix.*vente|prixvente|prix|montant|price|amount/i.test(nkCol(k)))
+                          || rawKeys.find(col => {
+                            const matched = (updatedRows || []).filter((r: any) => r.match_status !== 'non_reconnu');
+                            const samples = matched.slice(0, 30).map((r: any) => r.raw_data?.[col]).filter(Boolean);
+                            if (samples.length < 2) return false;
+                            const hits = samples.filter((v: any) => { const p = parseAmount(String(v)); return p >= 500 && p <= 9000; }).length;
+                            return hits / samples.length > 0.3;
+                          }) || null;
 
                         const parseClientName = (raw: string) => {
                           const parts = raw.trim().split(/\s+/);
