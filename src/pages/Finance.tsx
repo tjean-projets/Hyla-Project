@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
-import { supabase, IMPORT_STATUS_LABELS, IMPORT_STATUS_COLORS } from '@/lib/supabase';
+import { supabase, IMPORT_STATUS_LABELS, IMPORT_STATUS_COLORS, getPersonalSaleCommission, getRecrueCommission } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Upload, FileSpreadsheet, CheckCircle, AlertTriangle, XCircle, Trash2,
@@ -289,13 +289,15 @@ export default function Finance() {
     const { rawData, mapping } = flow;
     // Utilise le nom du profil pour identifier les lignes perso
     const ownerName = profile?.full_name || '';
+    const myLevel = (settings as any)?.hyla_level || 'manager';
+    // Compteur de rang pour les ventes perso (barème glissant)
+    let ownerRank = 0;
 
     const results = rawData.map((row) => {
       const firstName = mapping.firstname_col ? String(row[mapping.firstname_col] || '').trim() : '';
       const lastName = String(row[mapping.name_col] || '').trim();
       const rowName = firstName ? `${firstName} ${lastName}` : lastName;
       const rowId = String(row[mapping.id_col] || '').trim();
-      const amount = parseAmount(String(row[mapping.amount_col] || '0'));
 
       // Détection owner robuste : gère "NOM Prénom" vs "Prénom NOM" (format CSV Hyla)
       const isOwner = ownerName ? (() => {
@@ -346,24 +348,38 @@ export default function Finance() {
         }
       }
 
+      const matchedMember = bestMatch?.confidence && bestMatch.confidence >= 60 ? bestMatch.member : null;
+      const matchStatus = isOwner ? 'auto' as const :
+        (bestMatch?.confidence || 0) >= 85 ? 'auto' as const :
+        (bestMatch?.confidence || 0) >= 60 ? 'manuel' as const :
+        'non_reconnu' as const;
+
+      // Commission calculée sur le barème Hyla (pas le prix machine du CSV)
+      let commissionAmount: number;
+      if (isOwner) {
+        ownerRank++;
+        commissionAmount = getPersonalSaleCommission(ownerRank);
+      } else if (matchedMember) {
+        commissionAmount = getRecrueCommission(myLevel);
+      } else {
+        commissionAmount = 0; // non_reconnu : pas de commission tant que non associé
+      }
+
       return {
         raw_data: row,
         row_name: rowName,
-        amount,
+        amount: commissionAmount,
         is_owner_row: isOwner,
-        matched_member: bestMatch?.confidence && bestMatch.confidence >= 60 ? bestMatch.member : null,
+        matched_member: matchedMember,
         match_confidence: bestMatch?.confidence || 0,
-        match_status: isOwner ? 'auto' as const :
-          (bestMatch?.confidence || 0) >= 85 ? 'auto' as const :
-          (bestMatch?.confidence || 0) >= 60 ? 'manuel' as const :
-          'non_reconnu' as const,
+        match_status: matchStatus,
       };
     });
 
     setMatchResults(results);
     setCorrectionOpen(new Set());
     setFlow({ ...flow, step: 'matching' });
-  }, [flow, allTreeMembers, profile]);
+  }, [flow, allTreeMembers, profile, settings]);
 
   // Auto-déclenche le matching quand on saute l'étape mapping (TRV reconnu / mapping sauvegardé)
   // Attend que allTreeMembers soit chargé (isSuccess) pour éviter un matching avec équipe vide
@@ -1273,15 +1289,26 @@ export default function Finance() {
                               onChange={async (e) => {
                                 const val = e.target.value;
                                 if (!val) return;
-                                // Appliquer à TOUTES les lignes du groupe
                                 const ids = group.rows.map((r: any) => r.id);
+                                const myLevel = (settings as any)?.hyla_level || 'manager';
+
                                 if (val === '__owner__') {
-                                  await supabase.from('commission_import_rows').update({
-                                    is_owner_row: true, match_status: 'auto', match_confidence: 100,
-                                  }).in('id', ids);
+                                  // Barème glissant : compter les lignes déjà propriétaire dans cet import
+                                  const existingOwnerCount = importRows.filter((r: any) => r.is_owner_row).length;
+                                  // Mettre à jour chaque ligne avec son rang exact
+                                  for (let i = 0; i < ids.length; i++) {
+                                    const rank = existingOwnerCount + i + 1;
+                                    await supabase.from('commission_import_rows').update({
+                                      is_owner_row: true, match_status: 'auto', match_confidence: 100,
+                                      amount: getPersonalSaleCommission(rank),
+                                    }).eq('id', ids[i]);
+                                  }
                                 } else {
+                                  // Commission recrue fixe par niveau
+                                  const recrueAmount = getRecrueCommission(myLevel);
                                   await supabase.from('commission_import_rows').update({
                                     matched_member_id: val, match_status: 'manuel', match_confidence: 100,
+                                    amount: recrueAmount,
                                   }).in('id', ids);
                                 }
                                 await refreshRows();
