@@ -457,9 +457,9 @@ export default function Deals() {
     const name = d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : '';
     const matchesSearch = !search || `${name} ${d.product || ''}`.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
-    // Filtre par mois : basé sur signed_at ou created_at
+    // Filtre par mois (sauf si "all" sélectionné)
     const dateStr = d.signed_at || d.created_at;
-    const matchesPeriod = dateStr && dateStr.startsWith(selectedPeriod);
+    const matchesPeriod = selectedMonth === 'all' || (dateStr && dateStr.startsWith(selectedPeriod));
     return matchesSearch && matchesStatus && matchesPeriod;
   });
 
@@ -620,6 +620,7 @@ export default function Deals() {
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
               <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">Tous les mois</SelectItem>
                 {MONTHS_FR.map((m, i) => (
                   <SelectItem key={i} value={String(i + 1).padStart(2, '0')}>{m}</SelectItem>
                 ))}
