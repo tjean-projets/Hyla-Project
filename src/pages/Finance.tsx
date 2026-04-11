@@ -1631,11 +1631,19 @@ export default function Finance() {
 
                           let contactId: string | null = null;
                           if (rawClient && allContacts) {
+                            // Compare les deux ordres (CSV = "NOM PRENOM", DB = first_name + last_name)
                             const { first: cf, last: cl } = parseClientName(rawClient);
-                            const norm = normalizeStr(`${cf} ${cl}`);
-                            contactId = (allContacts as any[]).find(c =>
-                              matchScore(normalizeStr(`${c.first_name ?? ''} ${c.last_name ?? ''}`), norm) >= 75
-                            )?.id || null;
+                            const normParsed  = normalizeStr(`${cf} ${cl}`);
+                            const normRaw     = normalizeStr(rawClient);
+                            const found = (allContacts as any[]).find(c => {
+                              const s1 = normalizeStr(`${c.first_name ?? ''} ${c.last_name ?? ''}`);
+                              const s2 = normalizeStr(`${c.last_name ?? ''} ${c.first_name ?? ''}`);
+                              return matchScore(s1, normParsed) >= 75
+                                  || matchScore(s2, normParsed) >= 75
+                                  || matchScore(s1, normRaw)    >= 75
+                                  || matchScore(s2, normRaw)    >= 75;
+                            });
+                            contactId = found?.id || null;
                           }
 
                           const existingDeal = (existingDeals || []).find((d: any) => d.contact_id && d.contact_id === contactId);
@@ -1652,7 +1660,7 @@ export default function Finance() {
                             dealsToCreate.push({
                               user_id: effectiveId,
                               contact_id: contactId,
-                              amount: saleAmount,
+                              amount: saleAmount || null,
                               status: 'livree' as const,
                               signed_at: new Date(`${selectedImport.period}-15T12:00:00.000Z`).toISOString(),
                               sold_by: row.is_owner_row ? null : (row.matched_member_id || null),
@@ -1663,15 +1671,26 @@ export default function Finance() {
                           }
                         }
 
+                        let dealsCreated = 0;
                         if (dealsToCreate.length > 0) {
-                          const { error: dealErr } = await supabase.from('deals').insert(dealsToCreate);
+                          const { error: dealErr, data: dealData } = await supabase.from('deals').insert(dealsToCreate).select('id');
                           if (dealErr) {
                             toast({ title: '❌ Erreur INSERT deals', description: dealErr.message, variant: 'destructive' });
                             throw new Error(dealErr.message);
                           }
+                          dealsCreated = dealData?.length ?? dealsToCreate.length;
                         }
                         queryClient.invalidateQueries({ queryKey: ['deals'] });
                         queryClient.invalidateQueries({ queryKey: ['contacts'] });
+
+                        // Résumé lisible pour diagnostiquer
+                        const summary = [
+                          contactsToInsert.length > 0 ? `${contactsToInsert.length} contact(s) créé(s)` : null,
+                          dealsCreated > 0            ? `${dealsCreated} vente(s) créée(s)` : null,
+                          dealsValidated > 0          ? `${dealsValidated} vente(s) validée(s)` : null,
+                          dealsCreated === 0 && dealsValidated === 0 ? 'Aucune vente traitée' : null,
+                        ].filter(Boolean).join(' · ');
+                        toast({ title: 'Re-consolidation terminée', description: summary || 'Commissions mises à jour' });
                       } catch (dealErr) {
                         toast({ title: 'Erreur contacts/deals', description: String((dealErr as Error)?.message || dealErr), variant: 'destructive' });
                       }
@@ -1679,7 +1698,6 @@ export default function Finance() {
                       queryClient.invalidateQueries({ queryKey: ['commission-imports'] });
                       queryClient.invalidateQueries({ queryKey: ['commissions'] });
                       queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
-                      toast({ title: 'Re-consolidation terminée', description: `Commissions, contacts et ventes mis à jour` });
                       setSelectedImport(null);
                       setImportRows([]);
                     }}
