@@ -1674,7 +1674,7 @@ export default function Finance() {
                             dealsToCreate.push({
                               user_id: effectiveId,
                               contact_id: contactId,
-                              amount: saleAmount || null,
+                              amount: saleAmount ?? 0,
                               status: 'livree' as const,
                               signed_at: new Date(`${selectedImport.period}-15T12:00:00.000Z`).toISOString(),
                               sold_by: row.is_owner_row ? null : (row.matched_member_id || null),
