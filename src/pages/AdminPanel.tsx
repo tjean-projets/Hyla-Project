@@ -44,10 +44,23 @@ interface UserStats {
   contacts: number;
 }
 
-// Sub-component for academie settings to use hooks properly
-function AcademieSettings({ userId, onToggle, updating }: {
+// Composant toggle générique
+function AdminToggle({ on, onClick, disabled }: { on: boolean; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${on ? 'bg-emerald-500' : 'bg-gray-300'} disabled:opacity-50`}
+    >
+      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
+    </button>
+  );
+}
+
+// Sub-component for user feature settings
+function UserFeatureSettings({ userId, onToggle, updating }: {
   userId: string;
-  onToggle: (field: 'respire_academie_access' | 'can_grant_academie_access', currentValue: boolean) => void;
+  onToggle: (field: 'respire_academie_access' | 'can_grant_academie_access' | 'challenges_disabled', currentValue: boolean) => void;
   updating: string | null;
 }) {
   const { data: settings } = useQuery({
@@ -55,7 +68,7 @@ function AcademieSettings({ userId, onToggle, updating }: {
     queryFn: async () => {
       const { data } = await supabase
         .from('user_settings')
-        .select('respire_academie_access, can_grant_academie_access')
+        .select('respire_academie_access, can_grant_academie_access, challenges_disabled')
         .eq('user_id', userId)
         .maybeSingle();
       return data;
@@ -65,39 +78,46 @@ function AcademieSettings({ userId, onToggle, updating }: {
 
   const hasAccess = settings?.respire_academie_access === true;
   const canGrant = settings?.can_grant_academie_access === true;
+  const challengesDisabled = settings?.challenges_disabled === true;
 
   return (
-    <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-3 border border-emerald-100 dark:border-emerald-900/30">
-      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mb-2 font-semibold uppercase flex items-center gap-1.5">
-        <GraduationCap className="h-3.5 w-3.5" />
-        Respire Académie
-      </p>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium">Accès Académie</p>
-            <p className="text-[10px] text-gray-500">Voir Formation et Carte</p>
+    <div className="space-y-2">
+      {/* Respire Académie */}
+      <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-3 border border-emerald-100 dark:border-emerald-900/30">
+        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mb-2 font-semibold uppercase flex items-center gap-1.5">
+          <GraduationCap className="h-3.5 w-3.5" />
+          Respire Académie
+        </p>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium">Accès Académie</p>
+              <p className="text-[10px] text-gray-500">Voir Formation et Carte</p>
+            </div>
+            <AdminToggle on={hasAccess} onClick={() => onToggle('respire_academie_access', hasAccess)} disabled={updating === userId + 'respire_academie_access'} />
           </div>
-          <button
-            onClick={() => onToggle('respire_academie_access', hasAccess)}
-            disabled={updating === userId + 'respire_academie_access'}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${hasAccess ? 'bg-emerald-500' : 'bg-gray-300'} disabled:opacity-50`}
-          >
-            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${hasAccess ? 'translate-x-4' : 'translate-x-0.5'}`} />
-          </button>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium">Peut accorder l'accès</p>
+              <p className="text-[10px] text-gray-500">Admin Académie</p>
+            </div>
+            <AdminToggle on={canGrant} onClick={() => onToggle('can_grant_academie_access', canGrant)} disabled={updating === userId + 'can_grant_academie_access'} />
+          </div>
         </div>
+      </div>
+
+      {/* Challenges */}
+      <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-3 border border-amber-100 dark:border-amber-900/30">
+        <p className="text-[10px] text-amber-600 dark:text-amber-400 mb-2 font-semibold uppercase flex items-center gap-1.5">
+          <BookOpen className="h-3.5 w-3.5" />
+          Challenges Hyla
+        </p>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium">Peut accorder l'accès</p>
-            <p className="text-[10px] text-gray-500">Admin Académie</p>
+            <p className="text-xs font-medium">Désactiver les challenges</p>
+            <p className="text-[10px] text-gray-500">Masque Countdown et Rookie</p>
           </div>
-          <button
-            onClick={() => onToggle('can_grant_academie_access', canGrant)}
-            disabled={updating === userId + 'can_grant_academie_access'}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${canGrant ? 'bg-emerald-500' : 'bg-gray-300'} disabled:opacity-50`}
-          >
-            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${canGrant ? 'translate-x-4' : 'translate-x-0.5'}`} />
-          </button>
+          <AdminToggle on={challengesDisabled} onClick={() => onToggle('challenges_disabled', challengesDisabled)} disabled={updating === userId + 'challenges_disabled'} />
         </div>
       </div>
     </div>
@@ -167,16 +187,18 @@ export default function AdminPanel() {
     toast({ title: 'Plan mis à jour' });
   }
 
-  async function toggleAcademieAccess(userId: string, field: 'respire_academie_access' | 'can_grant_academie_access', currentValue: boolean) {
+  async function toggleAcademieAccess(userId: string, field: 'respire_academie_access' | 'can_grant_academie_access' | 'challenges_disabled', currentValue: boolean) {
     setAcademieUpdating(userId + field);
     try {
-      // Upsert user_settings
       const { error } = await supabase
         .from('user_settings')
         .upsert({ user_id: userId, [field]: !currentValue }, { onConflict: 'user_id' });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['admin-user-settings', userId] });
-      toast({ title: !currentValue ? 'Accès accordé' : 'Accès retiré' });
+      const label = field === 'challenges_disabled'
+        ? (!currentValue ? 'Challenges désactivés' : 'Challenges réactivés')
+        : (!currentValue ? 'Accès accordé' : 'Accès retiré');
+      toast({ title: label });
     } catch {
       toast({ title: 'Erreur', variant: 'destructive' });
     }
@@ -378,8 +400,8 @@ export default function AdminPanel() {
                     </div>
                   </div>
 
-                  {/* Respire Académie */}
-                  <AcademieSettings
+                  {/* Fonctionnalités */}
+                  <UserFeatureSettings
                     userId={selectedUser.id}
                     onToggle={(field, current) => toggleAcademieAccess(selectedUser.id, field, current)}
                     updating={academieUpdating}

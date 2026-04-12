@@ -98,12 +98,30 @@ export default function Dashboard() {
       if (!effectiveId) return null;
       const { data } = await supabase
         .from('user_settings')
-        .select('monthly_sales_target, monthly_ca_target, hyla_level')
+        .select('monthly_sales_target, monthly_ca_target, hyla_level, challenges_disabled')
         .eq('user_id', effectiveId)
         .maybeSingle();
       return data;
     },
     enabled: !!effectiveId,
+  });
+
+  // Compteur de ventes validées par TRV import — pour les challenges Hyla
+  // On compte les commission_import_rows (is_owner_row = true) du user
+  const challengesDisabled = (userSettings as any)?.challenges_disabled === true;
+  const { data: trvValidatedCount = 0 } = useQuery({
+    queryKey: ['trv-validated-sales', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return 0;
+      // Compter les lignes de l'import TRV qui correspondent au user lui-même
+      const { count } = await supabase
+        .from('commission_import_rows')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_owner_row', true);
+      return count ?? 0;
+    },
+    enabled: !!effectiveId && !challengesDisabled,
+    staleTime: 300000,
   });
 
   const { data: myManagerChallenge } = useQuery({
@@ -245,6 +263,7 @@ export default function Dashboard() {
   const commissionAffichee = commTotal > 0 ? commTotal : getHylaCommission(nbSignees);
 
   // Challenge calculations (centralisé via HYLA_CHALLENGES)
+  // Compteur basé sur les ventes validées par import TRV uniquement (données fiables)
   const startDate = profileData
     ? new Date((profileData as any).challenge_start_date || profileData.created_at)
     : new Date();
@@ -253,15 +272,15 @@ export default function Dashboard() {
   const countdownEnd = new Date(startDate);
   countdownEnd.setMonth(countdownEnd.getMonth() + HYLA_CHALLENGES.countdown.months);
   const countdownDaysLeft = Math.max(0, Math.ceil((countdownEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-  const countdownActive = countdownDaysLeft > 0;
-  const countdownSales = Math.min(nbSignees, HYLA_CHALLENGES.countdown.target);
+  const countdownActive = !challengesDisabled && countdownDaysLeft > 0;
+  const countdownSales = Math.min(trvValidatedCount, HYLA_CHALLENGES.countdown.target);
   const countdownPct = Math.round((countdownSales / HYLA_CHALLENGES.countdown.target) * 100);
 
   const rookieEnd = new Date(startDate);
   rookieEnd.setMonth(rookieEnd.getMonth() + HYLA_CHALLENGES.rookie.months);
   const rookieDaysLeft = Math.max(0, Math.ceil((rookieEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-  const rookieActive = rookieDaysLeft > 0 && nbSignees < HYLA_CHALLENGES.rookie.target;
-  const rookieSales = Math.min(nbSignees, HYLA_CHALLENGES.rookie.target);
+  const rookieActive = !challengesDisabled && rookieDaysLeft > 0 && trvValidatedCount < HYLA_CHALLENGES.rookie.target;
+  const rookieSales = Math.min(trvValidatedCount, HYLA_CHALLENGES.rookie.target);
   const rookiePct = Math.round((rookieSales / HYLA_CHALLENGES.rookie.target) * 100);
 
   // Chart data — ventilation réelle des ventes signées par mois

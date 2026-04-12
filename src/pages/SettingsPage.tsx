@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppLayout, ALL_MOBILE_TABS } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, HYLA_LEVELS, type HylaLevel } from '@/lib/supabase';
@@ -274,6 +274,79 @@ export default function SettingsPage() {
   };
   const [selectedTabs, setSelectedTabs] = useState<string[]>(getInitialTabs);
   const [navDragOver, setNavDragOver] = useState<number | null>(null);
+
+  // Touch drag-to-reorder (long press iOS-style)
+  const touchDragRef = useRef<{ index: number; startY: number; itemHeightPx: number } | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [activeDragIndex, setActiveDragIndex] = useState<number | null>(null);
+  const [touchDragOverIndex, setTouchDragOverIndex] = useState<number | null>(null);
+  const navListRef = useRef<HTMLDivElement>(null);
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handleTouchStart = useCallback((index: number, e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const itemEl = e.currentTarget as HTMLElement;
+    const itemRect = itemEl.getBoundingClientRect();
+    cancelLongPress();
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTimerRef.current = null;
+      // Haptic feedback si disponible
+      navigator.vibrate?.(40);
+      touchDragRef.current = { index, startY: touch.clientY, itemHeightPx: itemRect.height + 6 };
+      setActiveDragIndex(index);
+      setTouchDragOverIndex(index);
+    }, 450);
+  }, [cancelLongPress]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchDragRef.current) {
+      // Pas encore en mode drag → annuler le long press si on bouge trop
+      cancelLongPress();
+      return;
+    }
+    // e.preventDefault() géré par le listener natif non-passif
+    const touch = e.touches[0];
+    const delta = touch.clientY - touchDragRef.current.startY;
+    const steps = Math.round(delta / touchDragRef.current.itemHeightPx);
+    const newIdx = Math.max(0, Math.min(selectedTabs.length - 1, touchDragRef.current.index + steps));
+    setTouchDragOverIndex(newIdx);
+  }, [cancelLongPress, selectedTabs.length]);
+
+  const handleTouchEnd = useCallback(() => {
+    cancelLongPress();
+    if (touchDragRef.current !== null && touchDragOverIndex !== null) {
+      const from = touchDragRef.current.index;
+      const to = touchDragOverIndex;
+      if (from !== to) {
+        const arr = [...selectedTabs];
+        const [moved] = arr.splice(from, 1);
+        arr.splice(to, 0, moved);
+        setSelectedTabs(arr);
+        saveNav(arr);
+      }
+    }
+    touchDragRef.current = null;
+    setActiveDragIndex(null);
+    setTouchDragOverIndex(null);
+  }, [cancelLongPress, selectedTabs, touchDragOverIndex]);
+
+  // Non-passive touchmove listener pour bloquer le scroll pendant le drag
+  useEffect(() => {
+    const el = navListRef.current;
+    if (!el) return;
+    const onNativeTouchMove = (e: TouchEvent) => {
+      if (!touchDragRef.current) return;
+      e.preventDefault();
+    };
+    el.addEventListener('touchmove', onNativeTouchMove, { passive: false });
+    return () => el.removeEventListener('touchmove', onNativeTouchMove);
+  }, []);
 
   // Sauvegarde + application immédiate (pas de rechargement)
   const saveNav = (tabs: string[]) => {
@@ -918,7 +991,7 @@ export default function SettingsPage() {
             )}
           </div>
           <p className="text-xs text-muted-foreground mb-4">
-            Active les onglets de ton choix et glisse-les pour les réordonner. Les 4 premiers apparaissent dans la barre, le reste dans le menu "Plus".
+            Active les onglets de ton choix. Sur mobile, <strong>reste appuyé</strong> sur un onglet puis glisse pour le réordonner.
           </p>
 
           {/* Live preview */}
@@ -957,19 +1030,37 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* Banner mode réorganisation actif */}
+          {activeDragIndex !== null && (
+            <div className="flex items-center justify-center gap-2 py-1.5 mb-2 bg-blue-500 text-white rounded-xl text-xs font-semibold animate-fade-in">
+              <GripVertical className="h-3.5 w-3.5" />
+              Glisse pour réordonner — relâche pour placer
+            </div>
+          )}
+
           {/* All tabs — actifs d'abord (drag), puis inactifs */}
-          <div className="space-y-1.5">
+          <div
+            ref={navListRef}
+            className="space-y-1.5"
+            style={{ touchAction: 'auto' }}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
+          >
             <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-2">Tous les onglets</p>
 
-            {/* Actifs — draggables */}
+            {/* Actifs — draggables (desktop HTML5 + mobile long-press) */}
             {selectedTabs.map((path, index) => {
               const tab = availableTabs.find(t => t.to === path);
               if (!tab) return null;
               const Icon = tab.icon;
               const isInBar = index < 4;
+              const isBeingDragged = activeDragIndex === index;
+              const isDropTarget = touchDragOverIndex === index && activeDragIndex !== null && activeDragIndex !== index;
               return (
                 <div
                   key={path}
+                  /* ── Desktop drag ── */
                   draggable
                   onDragStart={(e) => {
                     e.dataTransfer.setData('text/plain', String(index));
@@ -989,13 +1080,19 @@ export default function SettingsPage() {
                     setSelectedTabs(arr);
                     saveNav(arr);
                   }}
-                  className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 cursor-grab active:cursor-grabbing select-none transition-all ${
-                    navDragOver === index
+                  /* ── Mobile long-press ── */
+                  onTouchStart={(e) => handleTouchStart(index, e)}
+                  className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 cursor-grab active:cursor-grabbing select-none transition-all duration-150 ${
+                    isBeingDragged
+                      ? 'bg-blue-100 dark:bg-blue-900/40 border-2 border-blue-500 shadow-lg scale-[1.02] z-10 relative'
+                      : isDropTarget
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-400'
+                      : navDragOver === index
                       ? 'bg-blue-100 dark:bg-blue-950/40 border-2 border-blue-400'
                       : 'bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-200 dark:border-blue-800'
                   }`}
                 >
-                  <GripVertical className="h-4 w-4 text-blue-300 flex-shrink-0" />
+                  <GripVertical className={`h-4 w-4 flex-shrink-0 ${isBeingDragged ? 'text-blue-500' : 'text-blue-300'}`} />
                   <span className={`text-[10px] font-bold w-4 flex-shrink-0 ${isInBar ? 'text-blue-500' : 'text-muted-foreground'}`}>
                     {index + 1}
                   </span>
@@ -1005,6 +1102,7 @@ export default function SettingsPage() {
                     <span className="text-[9px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">Plus</span>
                   )}
                   <button
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => {
                       const arr = selectedTabs.filter(t => t !== path);
                       setSelectedTabs(arr);
