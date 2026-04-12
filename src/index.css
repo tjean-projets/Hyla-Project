@@ -228,6 +228,19 @@ a, button, input, select, textarea {
   transition: all 0.15s ease-out;
 }
 
+/* Eliminate 300ms tap delay on mobile — allows fast tapping without blocking scroll */
+a, button, label, [role="button"] {
+  touch-action: manipulation;
+}
+
+/* Mobile: prevent page-level horizontal overflow that freezes vertical scroll */
+@media (max-width: 767px) {
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+}
+
 /* Active press effect on all buttons */
 button:active:not(:disabled) {
   transform: scale(0.97);

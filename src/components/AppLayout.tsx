@@ -903,7 +903,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
       )}
 
       {/* ── Main Content ── */}
-      <main className={cn('md:ml-[220px] pb-20 md:pb-0', isImpersonating && 'pt-10')}>
+      <main className={cn('md:ml-[220px] pb-20 md:pb-0 overflow-x-hidden', isImpersonating && 'pt-10')}>
         <div key={location.pathname} className="p-4 md:p-8 animate-page-in">{children}</div>
       </main>
 

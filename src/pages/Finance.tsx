@@ -6,7 +6,7 @@ import { supabase, IMPORT_STATUS_LABELS, IMPORT_STATUS_COLORS, getPersonalSaleCo
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Upload, FileSpreadsheet, CheckCircle, AlertTriangle, XCircle, Trash2,
-  FileText, Receipt, ChevronRight, RefreshCw, Network,
+  FileText, Receipt, ChevronRight, ChevronLeft, RefreshCw, Network,
 } from 'lucide-react';
 import { BulkImportDialog } from '@/components/BulkImportDialog';
 import { Button } from '@/components/ui/button';
@@ -1956,13 +1956,32 @@ export default function Finance() {
           <>
             {/* Period selector */}
             <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Période de facturation</Label>
-              <Input
-                type="month"
-                value={invoicePeriod}
-                onChange={(e) => setInvoicePeriod(e.target.value)}
-                className="h-11"
-              />
+              <Label className="text-xs text-muted-foreground mb-2 block text-center">Période de facturation</Label>
+              <div className="flex items-center justify-center gap-4">
+                <button
+                  onClick={() => {
+                    const d = new Date(invoicePeriod + '-01');
+                    d.setMonth(d.getMonth() - 1);
+                    setInvoicePeriod(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                  }}
+                  className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-muted/80 active:scale-95 transition-all"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="text-base font-semibold text-foreground capitalize min-w-[130px] text-center">
+                  {new Date(invoicePeriod + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                </span>
+                <button
+                  onClick={() => {
+                    const d = new Date(invoicePeriod + '-01');
+                    d.setMonth(d.getMonth() + 1);
+                    setInvoicePeriod(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                  }}
+                  className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-muted/80 active:scale-95 transition-all"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             {/* Invoice summary */}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
@@ -205,6 +205,17 @@ export default function Tasks() {
   const [view, setView] = useState<'list' | 'kanban'>('list');
   const [draggingTask, setDraggingTask] = useState<any>(null);
 
+  // ── List touch-drag reorder ──
+  const [listOrder, setListOrder] = useState<string[]>([]);
+  const [activeDragIdx, setActiveDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const listDragRef = useRef<{ active: boolean; fromIdx: number; startY: number } | null>(null);
+  const listLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Kanban long-press ──
+  const kanbanLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const { data: tasks = [], isLoading: tasksLoading } = useQuery({
     queryKey: ['tasks', effectiveId],
     queryFn: async () => {
@@ -246,11 +257,24 @@ export default function Tasks() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
   });
 
-  const filtered = tasks.filter((t: any) => {
+  const filtered = useMemo(() => tasks.filter((t: any) => {
     if (filter === 'active') return t.status === 'a_faire' || t.status === 'en_cours';
     if (filter === 'done') return t.status === 'terminee';
     return true;
-  });
+  }), [tasks, filter]);
+
+  // Sync listOrder when tasks/filter change and not dragging
+  useEffect(() => {
+    if (activeDragIdx === null) {
+      setListOrder(filtered.map((t: any) => t.id));
+    }
+  }, [filtered]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const orderedFiltered = useMemo(() => {
+    if (listOrder.length === 0) return filtered;
+    const map = new Map(filtered.map((t: any) => [t.id, t]));
+    return listOrder.map(id => map.get(id)).filter(Boolean) as any[];
+  }, [listOrder, filtered]);
 
   const handleCloseForm = () => {
     setShowForm(false);
@@ -261,6 +285,57 @@ export default function Tasks() {
     setEditingTask(task);
     setShowForm(true);
   };
+
+  // List touch-drag handlers
+  const handleListTouchMove = useCallback((e: TouchEvent) => {
+    if (!listDragRef.current?.active) {
+      if (listLongPressRef.current) {
+        clearTimeout(listLongPressRef.current);
+        listLongPressRef.current = null;
+      }
+      return;
+    }
+    e.preventDefault();
+    const currentY = e.touches[0].clientY;
+    const delta = currentY - listDragRef.current.startY;
+    const itemHeightPx = 80;
+    const steps = Math.round(delta / itemHeightPx);
+    const len = orderedFiltered.length;
+    const newIdx = Math.max(0, Math.min(len - 1, listDragRef.current.fromIdx + steps));
+    setDragOverIdx(newIdx);
+  }, [orderedFiltered.length]);
+
+  const handleListTouchEnd = useCallback(() => {
+    if (listLongPressRef.current) {
+      clearTimeout(listLongPressRef.current);
+      listLongPressRef.current = null;
+    }
+    if (!listDragRef.current?.active) return;
+    const from = listDragRef.current.fromIdx;
+    const to = dragOverIdx ?? from;
+    if (from !== to) {
+      const newOrder = [...listOrder];
+      const [moved] = newOrder.splice(from, 1);
+      newOrder.splice(to, 0, moved);
+      setListOrder(newOrder);
+    }
+    listDragRef.current = null;
+    setActiveDragIdx(null);
+    setDragOverIdx(null);
+  }, [dragOverIdx, listOrder]);
+
+  useEffect(() => {
+    const el = listContainerRef.current;
+    if (!el) return;
+    el.addEventListener('touchmove', handleListTouchMove, { passive: false });
+    el.addEventListener('touchend', handleListTouchEnd);
+    el.addEventListener('touchcancel', handleListTouchEnd);
+    return () => {
+      el.removeEventListener('touchmove', handleListTouchMove);
+      el.removeEventListener('touchend', handleListTouchEnd);
+      el.removeEventListener('touchcancel', handleListTouchEnd);
+    };
+  }, [handleListTouchMove, handleListTouchEnd]);
 
   return (
     <AppLayout
@@ -301,17 +376,41 @@ export default function Tasks() {
 
         {view === 'list' && tasksLoading && <SkeletonTable rows={5} />}
         {view === 'list' && !tasksLoading && (
-        <div className="space-y-2">
-          {filtered.map((task: any) => (
+        <div ref={listContainerRef} className="space-y-2">
+          {activeDragIdx !== null && (
+            <p className="text-[11px] text-blue-500 text-center py-1 font-medium">↕ Glisse pour réordonner</p>
+          )}
+          {orderedFiltered.map((task: any, idx: number) => {
+            const isBeingDragged = activeDragIdx === idx;
+            const isDropTarget = dragOverIdx === idx && activeDragIdx !== null && activeDragIdx !== idx;
+            return (
             <div
               key={task.id}
-              className="bg-card rounded-2xl shadow-sm border border-border p-4 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer active:scale-[0.99]"
-              onClick={() => handleOpenEdit(task)}
+              className={`bg-card rounded-2xl shadow-sm border p-4 flex items-center gap-4 transition-all duration-150 ${
+                isBeingDragged
+                  ? 'border-blue-400 shadow-lg scale-[1.02] opacity-80 z-10 relative'
+                  : isDropTarget
+                  ? 'border-green-400 shadow-md'
+                  : 'border-border hover:shadow-md cursor-pointer active:scale-[0.99]'
+              }`}
+              onClick={() => { if (activeDragIdx === null) handleOpenEdit(task); }}
+              onTouchStart={(e) => {
+                listLongPressRef.current = setTimeout(() => {
+                  navigator.vibrate?.(40);
+                  listDragRef.current = { active: true, fromIdx: idx, startY: e.touches[0].clientY };
+                  setActiveDragIdx(idx);
+                  setDragOverIdx(idx);
+                }, 450);
+              }}
             >
+              {/* Grip handle */}
+              <div className={`flex-shrink-0 ${activeDragIdx !== null ? 'text-blue-400' : 'text-gray-300'}`}>
+                <GripVertical className="h-5 w-5" />
+              </div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (task.status !== 'terminee') completeTask.mutate(task.id);
+                  if (task.status !== 'terminee' && activeDragIdx === null) completeTask.mutate(task.id);
                 }}
                 className={`h-7 w-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                   task.status === 'terminee' ? 'bg-green-500 border-green-500' : 'border-gray-300 hover:border-green-400'
@@ -340,13 +439,14 @@ export default function Tasks() {
                 </span>
               )}
             </div>
-          ))}
-          {filtered.length === 0 && <p className="text-center py-12 text-muted-foreground">Aucune tâche</p>}
+            );
+          })}
+          {orderedFiltered.length === 0 && <p className="text-center py-12 text-muted-foreground">Aucune tâche</p>}
         </div>
         )}
 
         {view === 'kanban' && (
-          <div className="flex gap-3 overflow-x-auto pb-4">
+          <div className="flex gap-3 overflow-x-auto pb-4" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain auto' }}>
             {[
               { status: 'a_faire', label: 'À faire', color: '#3b82f6', bgColor: 'bg-blue-50' },
               { status: 'en_cours', label: 'En cours', color: '#f59e0b', bgColor: 'bg-amber-50' },
@@ -389,7 +489,24 @@ export default function Tasks() {
                           (e.currentTarget as HTMLElement).style.opacity = '0.5';
                         }}
                         onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
-                        onTouchStart={() => setDraggingTask(task)}
+                        onTouchStart={() => {
+                          kanbanLongPressRef.current = setTimeout(() => {
+                            navigator.vibrate?.(40);
+                            setDraggingTask(task);
+                          }, 400);
+                        }}
+                        onTouchEnd={() => {
+                          if (kanbanLongPressRef.current) {
+                            clearTimeout(kanbanLongPressRef.current);
+                            kanbanLongPressRef.current = null;
+                          }
+                        }}
+                        onTouchMove={() => {
+                          if (kanbanLongPressRef.current) {
+                            clearTimeout(kanbanLongPressRef.current);
+                            kanbanLongPressRef.current = null;
+                          }
+                        }}
                         onClick={() => handleOpenEdit(task)}
                         className={`bg-card rounded-xl border p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.98] ${
                           task.due_date && new Date(task.due_date) < new Date() && task.status !== 'terminee'

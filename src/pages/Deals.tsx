@@ -786,7 +786,7 @@ export default function Deals() {
 
         {/* Kanban */}
         {view === 'kanban' && isLoading && (
-          <div className="flex gap-3 overflow-x-auto pb-4">
+          <div className="flex gap-3 overflow-x-auto pb-4" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain auto' }}>
             {[0, 1, 2].map((i) => (
               <div key={i} className="min-w-[220px] flex-shrink-0 space-y-2">
                 <div className="h-8 rounded-xl bg-muted animate-pulse" />
@@ -797,7 +797,7 @@ export default function Deals() {
           </div>
         )}
         {view === 'kanban' && !isLoading && (
-          <div className="flex gap-3 overflow-x-auto pb-4">
+          <div className="flex gap-3 overflow-x-auto pb-4" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain auto' }}>
             {KANBAN_COLS.map(col => {
               const colDeals = filtered.filter((d: any) => d.status === col.status);
               return (

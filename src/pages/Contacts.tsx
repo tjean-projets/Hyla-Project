@@ -760,7 +760,7 @@ export default function Contacts() {
         {/* Pipeline / Kanban view */}
         {view === 'pipeline' && (
           <>
-            <div className="flex gap-4 overflow-x-auto pb-4">
+            <div className="flex gap-4 overflow-x-auto pb-4" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain auto' }}>
               {contactsByStage.map((stage) => (
                 <div
                   key={stage.id}

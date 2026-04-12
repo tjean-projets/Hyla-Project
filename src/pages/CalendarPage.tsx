@@ -513,6 +513,7 @@ export default function CalendarPage() {
                     <div
                       key={idx}
                       onClick={() => inMonth && setSelectedDay(new Date(calMonth.getFullYear(), calMonth.getMonth(), dayNum))}
+                      style={{ touchAction: 'manipulation' }}
                       className={cn(
                         'rounded-xl border min-h-[48px] flex flex-col items-center pt-1.5 pb-1 px-0.5 transition-colors',
                         !inMonth && 'opacity-25 cursor-default border-border/50 bg-muted/30',

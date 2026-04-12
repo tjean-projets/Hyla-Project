@@ -441,19 +441,27 @@ export default function Commissions() {
         {/* ── Graphique ── */}
         <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4">Évolution mensuelle</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={months}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
-                formatter={(value: number) => `${value.toLocaleString('fr-FR')} €`}
-              />
-              <Bar dataKey="Directes" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Réseau" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {/* Scrollable on mobile so each month has enough width */}
+          <div className="overflow-x-auto -mx-1 px-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div style={{ minWidth: 600 }}>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={months} barCategoryGap="25%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={45}
+                    tickFormatter={(v: number) => v === 0 ? '0' : `${(v / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}
+                    formatter={(value: number) => `${value.toLocaleString('fr-FR')} €`}
+                  />
+                  <Bar dataKey="Directes" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                  <Bar dataKey="Réseau" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground text-center mt-1 md:hidden">← Glisse pour voir tous les mois →</p>
         </div>
 
         {/* ── Déclaration micro-entreprise ── */}
