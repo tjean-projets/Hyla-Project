@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import OnboardingGuide from '@/components/OnboardingGuide';
 import GettingStartedWidget from '@/components/GettingStartedWidget';
 import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
@@ -899,7 +899,104 @@ export default function Dashboard() {
         )}
       </div>
 
+        {/* ── Calculatrice commissions ── */}
+        <CommissionCalculator />
+
       <OnboardingGuide />
     </AppLayout>
+  );
+}
+
+/* ── Calculatrice commissions personnelles ── */
+function CommissionCalculator() {
+  const [nbVentes, setNbVentes] = useState(5);
+
+  const breakdown = useMemo(() => {
+    const rows = [];
+    for (let i = 1; i <= nbVentes; i++) {
+      const com = i === 1 ? 300 : i === 2 ? 350 : i === 3 ? 400 : i <= 7 ? 450 : 500;
+      rows.push({ rank: i, com });
+    }
+    return rows;
+  }, [nbVentes]);
+
+  const total = breakdown.reduce((s, r) => s + r.com, 0);
+
+  return (
+    <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Simulateur de commissions</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Ventes personnelles du mois</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xl font-bold text-[#3b82f6]">{total.toLocaleString('fr-FR')} €</p>
+          <p className="text-[10px] text-muted-foreground">{nbVentes} vente{nbVentes > 1 ? 's' : ''}</p>
+        </div>
+      </div>
+
+      {/* Slider */}
+      <div className="mb-4">
+        <input
+          type="range"
+          min={1}
+          max={12}
+          value={nbVentes}
+          onChange={e => setNbVentes(Number(e.target.value))}
+          className="w-full h-2 rounded-full appearance-none cursor-pointer"
+          style={{
+            background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((nbVentes - 1) / 11) * 100}%, #e5e7eb ${((nbVentes - 1) / 11) * 100}%, #e5e7eb 100%)`,
+          }}
+        />
+        <div className="flex justify-between text-[9px] text-muted-foreground mt-1 px-0.5">
+          {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
+            <span key={n} className={n === nbVentes ? 'text-[#3b82f6] font-bold' : ''}>{n}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Détail par vente */}
+      <div className="space-y-1.5">
+        {breakdown.map(({ rank, com }, idx) => {
+          const cumul = breakdown.slice(0, idx + 1).reduce((s, r) => s + r.com, 0);
+          const barPct = Math.round((com / 500) * 100);
+          return (
+            <div key={rank} className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground w-12 flex-shrink-0">
+                Vente {rank}
+              </span>
+              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#3b82f6] to-indigo-500 transition-all"
+                  style={{ width: `${barPct}%` }}
+                />
+              </div>
+              <span className="text-[10px] font-semibold text-[#3b82f6] w-14 text-right flex-shrink-0">
+                +{com} €
+              </span>
+              <span className="text-[10px] text-muted-foreground w-16 text-right flex-shrink-0">
+                = {cumul.toLocaleString('fr-FR')} €
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Message motivant */}
+      {nbVentes >= 8 && (
+        <div className="mt-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl p-2.5 text-center">
+          <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+            🔥 À partir de la 8ème vente : 500€ par machine !
+          </p>
+        </div>
+      )}
+      {nbVentes === 5 && (
+        <div className="mt-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl p-2.5 text-center">
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+            🎯 5 ventes = objectif Challenge Countdown débloqué (+800€)
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

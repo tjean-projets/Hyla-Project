@@ -391,7 +391,11 @@ export default function Tasks() {
                         onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
                         onTouchStart={() => setDraggingTask(task)}
                         onClick={() => handleOpenEdit(task)}
-                        className="bg-card rounded-xl border border-border p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.98]"
+                        className={`bg-card rounded-xl border p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.98] ${
+                          task.due_date && new Date(task.due_date) < new Date() && task.status !== 'terminee'
+                            ? 'border-red-300 dark:border-red-800'
+                            : 'border-border'
+                        }`}
                       >
                         <div className="flex items-start gap-2">
                           <GripVertical className="h-4 w-4 text-gray-300 mt-0.5 flex-shrink-0" />
