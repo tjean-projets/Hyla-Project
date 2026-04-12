@@ -637,7 +637,13 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
   const profile = effectiveProfile || authProfile;
   const { isTrial, trialDaysLeft } = usePlan();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // ⚠️ isImpersonating doit être connu AVANT isAdmin pour éviter la fuite des droits admin
+  const impersonation = useImpersonationSafe();
+  const isImpersonating = impersonation?.isImpersonating ?? false;
   const isAdmin = isSuperAdmin(user?.email);
+  // Admin réel uniquement si pas en mode impersonation
+  const isRealAdmin = !isImpersonating && isAdmin;
 
   const effectiveId = useEffectiveUserId();
 
@@ -655,7 +661,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
     enabled: !!effectiveId,
     staleTime: 60000,
   });
-  const isManager = isAdmin || profile?.role === 'manager' || profile?.role === 'admin' || (teamCount != null && teamCount > 0);
+  const isManager = isRealAdmin || profile?.role === 'manager' || profile?.role === 'admin' || (teamCount != null && teamCount > 0);
 
   // Check Respire Académie access
   const { data: academieSettings } = useQuery({
@@ -670,9 +676,9 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
       return data;
     },
     enabled: !!effectiveId,
-    staleTime: 60000,
+    staleTime: 0,
   });
-  const hasAcademieAccess = isAdmin || academieSettings?.respire_academie_access === true;
+  const hasAcademieAccess = isRealAdmin || academieSettings?.respire_academie_access === true;
 
   // Amounts visibility toggle
   const { visible: amountsVisible, toggle: toggleAmounts } = useAmounts();
@@ -680,8 +686,6 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
   // Use global theme — variant prop is now ignored, kept for backwards compat
   const themeCtx = useThemeSafe();
   const isDark = themeCtx?.isDark ?? (variant === 'dark');
-  const impersonation = useImpersonationSafe();
-  const isImpersonating = impersonation?.isImpersonating ?? false;
 
   return (
     <div className={cn('min-h-screen bg-background')}>
