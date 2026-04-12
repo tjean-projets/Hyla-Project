@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ImpersonationProvider } from "./hooks/useImpersonation";
 import { ThemeProvider } from "./hooks/useTheme";
+import { AmountsProvider } from "./contexts/AmountsContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Pages statiques (petites, nécessaires immédiatement)
@@ -35,6 +36,7 @@ const PublicSurveyPage = lazy(() => import("./pages/PublicSurveyPage"));
 const FormationPage = lazy(() => import("./pages/FormationPage"));
 const MapPage = lazy(() => import("./pages/MapPage"));
 const RespireAcademiePage = lazy(() => import("./pages/RespireAcademiePage"));
+const SimulateurPage = lazy(() => import("./pages/SimulateurPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Partner pages lazy-loadées
@@ -117,6 +119,7 @@ function AppRoutes() {
         <Route path="/formation" element={<ProtectedRoute><FormationPage /></ProtectedRoute>} />
         <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} />
         <Route path="/academie" element={<ProtectedRoute><RespireAcademiePage /></ProtectedRoute>} />
+        <Route path="/simulateur" element={<ProtectedRoute><SimulateurPage /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
 
         {/* Partner routes */}
@@ -145,7 +148,9 @@ const App = () => (
         <AuthProvider>
           <ThemeProvider>
             <ImpersonationProvider>
-              <AppRoutes />
+              <AmountsProvider>
+                <AppRoutes />
+              </AmountsProvider>
             </ImpersonationProvider>
           </ThemeProvider>
         </AuthProvider>

@@ -20,6 +20,9 @@ import {
   GraduationCap,
   MapPin,
   BookOpen,
+  Calculator,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,6 +35,7 @@ import { useImpersonationSafe } from '@/hooks/useImpersonation';
 import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
 import { usePlan } from '@/hooks/usePlan';
 import { useThemeSafe } from '@/hooks/useTheme';
+import { useAmounts } from '@/contexts/AmountsContext';
 import { BarChart3 } from 'lucide-react';
 import {
   Dialog,
@@ -593,6 +597,7 @@ const sidebarLinks = [
   { to: '/network', icon: Network, label: 'Équipes' },
   { to: '/academie', icon: BookOpen, label: 'Académie', academieOnly: true },
   { to: '/commissions', icon: TrendingUp, label: 'Commissions' },
+  { to: '/simulateur', icon: Calculator, label: 'Simulateur' },
   { to: '/tasks', icon: CheckSquare, label: 'Tâches' },
   { to: '/calendar', icon: Calendar, label: 'Calendrier' },
   { to: '/finance', icon: Wallet, label: 'Finance' },
@@ -668,6 +673,9 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
     staleTime: 60000,
   });
   const hasAcademieAccess = isAdmin || academieSettings?.respire_academie_access === true;
+
+  // Amounts visibility toggle
+  const { visible: amountsVisible, toggle: toggleAmounts } = useAmounts();
 
   // Use global theme — variant prop is now ignored, kept for backwards compat
   const themeCtx = useThemeSafe();
@@ -808,6 +816,13 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             {actions && <div className="flex items-center gap-1">{actions}</div>}
+            <button
+              onClick={toggleAmounts}
+              className={cn('p-2 rounded-xl transition-colors', amountsVisible ? 'text-muted-foreground hover:text-foreground' : 'text-amber-500 bg-amber-50 dark:bg-amber-950/30')}
+              title={amountsVisible ? 'Masquer les montants' : 'Afficher les montants'}
+            >
+              {amountsVisible ? <Eye className="h-4.5 w-4.5 h-[18px] w-[18px]" /> : <EyeOff className="h-[18px] w-[18px]" />}
+            </button>
             <GlobalSearch isDark={isDark} />
             <NotificationCenter user={user} profile={profile} isDark={isDark} />
             <button
@@ -856,8 +871,15 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
         'hidden md:flex items-center justify-between ml-[220px] px-8 py-4 border-b bg-background border-border'
       )}>
         <h1 className={cn('text-xl font-bold text-foreground')}>{title}</h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {actions}
+          <button
+            onClick={toggleAmounts}
+            className={cn('p-2 rounded-xl transition-colors', amountsVisible ? 'text-muted-foreground hover:text-foreground hover:bg-muted' : 'text-amber-500 bg-amber-50 dark:bg-amber-950/30')}
+            title={amountsVisible ? 'Masquer les montants' : 'Afficher les montants'}
+          >
+            {amountsVisible ? <Eye className="h-[18px] w-[18px]" /> : <EyeOff className="h-[18px] w-[18px]" />}
+          </button>
           <GlobalSearch isDark={isDark} />
           <NotificationCenter user={user} profile={profile} isDark={isDark} />
           <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6] flex items-center justify-center text-white text-sm font-bold cursor-pointer">
