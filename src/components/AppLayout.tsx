@@ -616,7 +616,7 @@ function getMobileNavLinks() {
       const tabs = paths
         .map(p => ALL_MOBILE_TABS.find(l => l.to === p))
         .filter(Boolean) as typeof ALL_MOBILE_TABS;
-      if (tabs.length === 5) return tabs;
+      if (tabs.length >= 2) return tabs;
     }
   } catch {}
   return sidebarLinks.slice(0, 5);
@@ -916,6 +916,15 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
 function MobileBottomNav({ isDark, isManager = true }: { isDark: boolean; isManager?: boolean }) {
   const location = useLocation();
   const [showMore, setShowMore] = useState(false);
+  const [, forceUpdate] = useState(0);
+
+  // Réagit immédiatement quand les préférences de nav changent (depuis Paramètres)
+  useEffect(() => {
+    const handler = () => forceUpdate(n => n + 1);
+    window.addEventListener('hyla_nav_updated', handler);
+    return () => window.removeEventListener('hyla_nav_updated', handler);
+  }, []);
+
   const mainTabs = getMobileNavLinks().slice(0, 4);
   const otherTabs = ALL_MOBILE_TABS.filter(t => !mainTabs.some(m => m.to === t.to));
   // Add settings to other tabs

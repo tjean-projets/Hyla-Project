@@ -3,7 +3,8 @@ import { AppLayout, ALL_MOBILE_TABS } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, HYLA_LEVELS, type HylaLevel } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint, Eye, Target, CreditCard, TrendingUp } from 'lucide-react';
+import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint, Eye, Target, CreditCard, TrendingUp, MoreHorizontal } from 'lucide-react';
+import { useRespireAcademie } from '@/hooks/useRespireAcademie';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -257,14 +258,28 @@ export default function SettingsPage() {
   const [savingLevel, setSavingLevel] = useState(false);
 
   // Mobile nav customization
+  const { hasAccess: hasAcademieAccess } = useRespireAcademie();
+  const availableTabs = ALL_MOBILE_TABS.filter(t => !(t as any).academieOnly || hasAcademieAccess);
+
   const getInitialTabs = () => {
     try {
       const saved = localStorage.getItem('hyla_mobile_tabs');
-      if (saved) return JSON.parse(saved) as string[];
+      if (saved) {
+        const paths = JSON.parse(saved) as string[];
+        // Filtre les onglets qui n'existent plus dans la liste disponible
+        return paths.filter(p => ALL_MOBILE_TABS.some(t => t.to === p));
+      }
     } catch {}
-    return ALL_MOBILE_TABS.slice(0, 5).map(t => t.to);
+    return availableTabs.slice(0, 5).map(t => t.to);
   };
   const [selectedTabs, setSelectedTabs] = useState<string[]>(getInitialTabs);
+  const [navDragOver, setNavDragOver] = useState<number | null>(null);
+
+  // Sauvegarde + application immédiate (pas de rechargement)
+  const saveNav = (tabs: string[]) => {
+    localStorage.setItem('hyla_mobile_tabs', JSON.stringify(tabs));
+    window.dispatchEvent(new Event('hyla_nav_updated'));
+  };
 
   useEffect(() => {
     if (profile) {
@@ -893,132 +908,148 @@ export default function SettingsPage() {
 
         {/* Mobile Nav Customization */}
         <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <Smartphone className="h-4 w-4 text-blue-600" />
-            <h3 className="text-base font-semibold text-foreground">Barre de navigation</h3>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Smartphone className="h-4 w-4 text-blue-600" />
+              <h3 className="text-base font-semibold text-foreground">Barre de navigation</h3>
+            </div>
+            {selectedTabs.length >= 2 && (
+              <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">Appliqué ✓</span>
+            )}
           </div>
           <p className="text-xs text-muted-foreground mb-4">
-            Choisis 5 onglets et leur ordre pour la barre du bas sur mobile.
+            Active les onglets de ton choix et glisse-les pour les réordonner. Les 4 premiers apparaissent dans la barre, le reste dans le menu "Plus".
           </p>
 
-          {/* Selected tabs (drag to reorder) */}
-          <div className="space-y-1.5 mb-4">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase">Onglets actifs (maintiens et glisse)</p>
+          {/* Live preview */}
+          <div className="mb-4 rounded-2xl border border-border bg-muted/40 overflow-hidden">
+            <p className="text-[9px] font-semibold text-muted-foreground uppercase px-3 pt-2.5 pb-1.5">Aperçu de ta barre</p>
+            <div className="flex items-center justify-around border-t border-border bg-card px-2 py-2">
+              {selectedTabs.slice(0, 4).map((path) => {
+                const tab = availableTabs.find(t => t.to === path);
+                if (!tab) return null;
+                const Icon = tab.icon;
+                return (
+                  <div key={path} className="flex flex-col items-center gap-0.5 px-2">
+                    <div className="p-1.5 rounded-xl bg-[#3b82f6]/10">
+                      <Icon className="h-4 w-4 text-[#3b82f6]" />
+                    </div>
+                    <span className="text-[9px] font-medium text-[#3b82f6]">{tab.label}</span>
+                  </div>
+                );
+              })}
+              {/* "Plus" slot si ≥ 5 tabs sélectionnés */}
+              {selectedTabs.length >= 5 && (
+                <div className="flex flex-col items-center gap-0.5 px-2">
+                  <div className="p-1.5 rounded-xl">
+                    <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <span className="text-[9px] font-medium text-muted-foreground">Plus</span>
+                </div>
+              )}
+              {/* Slots vides */}
+              {Array.from({ length: Math.max(0, 4 - selectedTabs.length) }).map((_, i) => (
+                <div key={i} className="flex flex-col items-center gap-0.5 px-2 opacity-20">
+                  <div className="p-1.5 rounded-xl border-2 border-dashed border-muted-foreground h-[34px] w-[34px]" />
+                  <span className="text-[9px] text-muted-foreground">—</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* All tabs — actifs d'abord (drag), puis inactifs */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-2">Tous les onglets</p>
+
+            {/* Actifs — draggables */}
             {selectedTabs.map((path, index) => {
-              const tab = ALL_MOBILE_TABS.find(t => t.to === path);
+              const tab = availableTabs.find(t => t.to === path);
               if (!tab) return null;
               const Icon = tab.icon;
+              const isInBar = index < 4;
               return (
                 <div
                   key={path}
                   draggable
-                  onDragStart={(e) => { e.dataTransfer.setData('text/plain', String(index)); (e.currentTarget as HTMLElement).style.opacity = '0.5'; }}
-                  onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
-                  onDragOver={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).style.borderColor = '#3b82f6'; }}
-                  onDragLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = '#bfdbfe'; }}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', String(index));
+                    (e.currentTarget as HTMLElement).style.opacity = '0.4';
+                  }}
+                  onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; setNavDragOver(null); }}
+                  onDragOver={(e) => { e.preventDefault(); setNavDragOver(index); }}
+                  onDragLeave={() => setNavDragOver(null)}
                   onDrop={(e) => {
                     e.preventDefault();
-                    (e.currentTarget as HTMLElement).style.borderColor = '#bfdbfe';
+                    setNavDragOver(null);
                     const from = parseInt(e.dataTransfer.getData('text/plain'));
-                    const to = index;
-                    if (from === to) return;
+                    if (from === index) return;
                     const arr = [...selectedTabs];
                     const [moved] = arr.splice(from, 1);
-                    arr.splice(to, 0, moved);
+                    arr.splice(index, 0, moved);
                     setSelectedTabs(arr);
+                    saveNav(arr);
                   }}
-                  onTouchStart={(e) => {
-                    const el = e.currentTarget as HTMLElement;
-                    const touch = e.touches[0];
-                    const rect = el.getBoundingClientRect();
-                    el.dataset.dragIndex = String(index);
-                    el.dataset.startY = String(touch.clientY);
-                    el.dataset.offsetY = String(touch.clientY - rect.top);
-                    el.style.zIndex = '50';
-                    el.style.transition = 'none';
-                  }}
-                  onTouchMove={(e) => {
-                    e.preventDefault();
-                    const el = e.currentTarget as HTMLElement;
-                    const touch = e.touches[0];
-                    const parent = el.parentElement;
-                    if (!parent) return;
-                    const siblings = Array.from(parent.querySelectorAll('[draggable]')) as HTMLElement[];
-                    const currentIdx = parseInt(el.dataset.dragIndex || '0');
-                    // Find which sibling we're hovering over
-                    for (let i = 0; i < siblings.length; i++) {
-                      if (i === currentIdx) continue;
-                      const sRect = siblings[i].getBoundingClientRect();
-                      if (touch.clientY > sRect.top && touch.clientY < sRect.bottom) {
-                        const arr = [...selectedTabs];
-                        const [moved] = arr.splice(currentIdx, 1);
-                        arr.splice(i, 0, moved);
-                        setSelectedTabs(arr);
-                        el.dataset.dragIndex = String(i);
-                        break;
-                      }
-                    }
-                  }}
-                  onTouchEnd={(e) => {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.zIndex = '';
-                    el.style.transition = '';
-                  }}
-                  className="flex items-center gap-2 bg-blue-50 border-2 border-blue-200 rounded-xl px-3 py-3 cursor-grab active:cursor-grabbing select-none touch-none"
+                  className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 cursor-grab active:cursor-grabbing select-none transition-all ${
+                    navDragOver === index
+                      ? 'bg-blue-100 dark:bg-blue-950/40 border-2 border-blue-400'
+                      : 'bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-200 dark:border-blue-800'
+                  }`}
                 >
                   <GripVertical className="h-4 w-4 text-blue-300 flex-shrink-0" />
-                  <span className="text-xs text-blue-400 font-bold w-4">{index + 1}</span>
-                  <Icon className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-800 flex-1">{tab.label}</span>
+                  <span className={`text-[10px] font-bold w-4 flex-shrink-0 ${isInBar ? 'text-blue-500' : 'text-muted-foreground'}`}>
+                    {index + 1}
+                  </span>
+                  <Icon className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                  <span className="text-sm font-medium text-blue-900 dark:text-blue-100 flex-1">{tab.label}</span>
+                  {!isInBar && (
+                    <span className="text-[9px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">Plus</span>
+                  )}
                   <button
-                    onClick={(e) => { e.stopPropagation(); setSelectedTabs(selectedTabs.filter(t => t !== path)); }}
-                    className="p-1.5 text-red-400 hover:text-red-600"
+                    onClick={() => {
+                      const arr = selectedTabs.filter(t => t !== path);
+                      setSelectedTabs(arr);
+                      saveNav(arr);
+                    }}
+                    className="p-1 text-blue-300 hover:text-red-500 transition-colors flex-shrink-0"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               );
             })}
+
+            {/* Séparateur */}
+            {availableTabs.some(t => !selectedTabs.includes(t.to)) && (
+              <div className="flex items-center gap-2 py-1">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-[9px] text-muted-foreground uppercase font-semibold">Désactivés</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+            )}
+
+            {/* Inactifs — tap pour ajouter */}
+            {availableTabs.filter(t => !selectedTabs.includes(t.to)).map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.to}
+                  onClick={() => {
+                    const arr = [...selectedTabs, tab.to];
+                    setSelectedTabs(arr);
+                    saveNav(arr);
+                  }}
+                  className="flex items-center gap-2.5 w-full bg-muted/50 border border-dashed border-border rounded-xl px-3 py-2.5 hover:bg-muted transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-sm font-medium text-muted-foreground">{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Available tabs to add */}
-          {selectedTabs.length < 5 && (
-            <div className="space-y-1.5 mb-4">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase">Disponibles</p>
-              {ALL_MOBILE_TABS.filter(t => !selectedTabs.includes(t.to)).map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.to}
-                    onClick={() => {
-                      if (selectedTabs.length < 5) {
-                        setSelectedTabs([...selectedTabs, tab.to]);
-                      }
-                    }}
-                    className="flex items-center gap-2 w-full bg-muted border border-border rounded-xl px-3 py-2.5 hover:bg-muted transition-colors"
-                  >
-                    <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-foreground">{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          <button
-            onClick={() => {
-              localStorage.setItem('hyla_mobile_tabs', JSON.stringify(selectedTabs));
-              toast({ title: 'Navigation sauvegardée', description: 'Recharge la page pour voir les changements.' });
-            }}
-            disabled={selectedTabs.length !== 5}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
-          >
-            <Save className="h-4 w-4" />
-            Sauvegarder la navigation
-          </button>
-          {selectedTabs.length !== 5 && (
-            <p className="text-[10px] text-red-500 text-center mt-1">Sélectionne exactement 5 onglets</p>
+          {selectedTabs.length < 2 && (
+            <p className="text-[11px] text-amber-600 text-center mt-3 font-medium">Active au moins 2 onglets</p>
           )}
         </div>
         {/* Purge Data — hidden when impersonating */}
