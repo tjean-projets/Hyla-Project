@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
 import { SkeletonTable } from '@/components/ui/skeleton-card';
+import { ContactDrawer } from '@/components/ContactDrawer';
 
 type Contact = Tables<'contacts'>;
 
@@ -448,6 +449,7 @@ export default function Contacts() {
   const [showStageManager, setShowStageManager] = useState(false);
   const [editStages, setEditStages] = useState<{id?: string, name: string, color: string, position: number}[]>([]);
   const [draggingContact, setDraggingContact] = useState<Contact | null>(null);
+  const [drawerContact, setDrawerContact] = useState<Contact | null>(null);
 
   const { data: contacts = [], isLoading } = useQuery({
     queryKey: ['contacts', effectiveId],
@@ -706,7 +708,7 @@ export default function Contacts() {
               </thead>
               <tbody className="divide-y divide-border">
                 {filtered.map((contact) => (
-                  <tr key={contact.id} className="hover:bg-muted cursor-pointer" onClick={() => setEditingContact(contact)}>
+                  <tr key={contact.id} className="hover:bg-muted cursor-pointer" onClick={() => setDrawerContact(contact)}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-foreground">{contact.first_name} {contact.last_name}</span>
@@ -937,6 +939,11 @@ export default function Contacts() {
           </button>
         </DialogContent>
       </Dialog>
+      <ContactDrawer
+        contact={drawerContact}
+        onClose={() => setDrawerContact(null)}
+        onEdit={(c) => { setEditingContact(c); setShowForm(true); setDrawerContact(null); }}
+      />
     </AppLayout>
   );
 }
