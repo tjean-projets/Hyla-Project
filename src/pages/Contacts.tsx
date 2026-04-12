@@ -790,7 +790,7 @@ export default function Contacts() {
                         onTouchStart={() => setDraggingContact(contact)}
                         className="bg-card rounded-2xl border border-border p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                         onClick={() => {
-                          if (!draggingContact) setEditingContact(contact);
+                          if (!draggingContact) setDrawerContact(contact);
                         }}
                       >
                         <div className="flex items-center gap-2">
