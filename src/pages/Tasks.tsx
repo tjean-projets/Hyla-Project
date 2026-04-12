@@ -366,7 +366,10 @@ export default function Tasks() {
                     if (taskId) {
                       const updates: any = { status: col.status };
                       if (col.status === 'terminee') updates.completed_at = new Date().toISOString();
-                      await supabase.from('tasks').update(updates).eq('id', taskId);
+                      const { error } = await supabase.from('tasks').update(updates).eq('id', taskId);
+                      if (error) {
+                        toast({ title: 'Erreur', description: 'Impossible de déplacer la tâche. Réessaie.', variant: 'destructive' });
+                      }
                       queryClient.invalidateQueries({ queryKey: ['tasks'] });
                     }
                   }}
@@ -456,7 +459,8 @@ export default function Tasks() {
                 onClick={async () => {
                   const updates: any = { status: col.status };
                   if (col.status === 'terminee') updates.completed_at = new Date().toISOString();
-                  await supabase.from('tasks').update(updates).eq('id', draggingTask.id);
+                  const { error } = await supabase.from('tasks').update(updates).eq('id', draggingTask.id);
+                  if (error) toast({ title: 'Erreur', description: 'Impossible de déplacer la tâche.', variant: 'destructive' });
                   queryClient.invalidateQueries({ queryKey: ['tasks'] });
                   setDraggingTask(null);
                 }}

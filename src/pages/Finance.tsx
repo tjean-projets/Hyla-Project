@@ -26,7 +26,6 @@ function normalizeStr(s: string): string {
 // Parse amounts correctly for both French (1.234,56) and English (1,234.56) formats
 function parseAmount(raw: string): number {
   const s = String(raw || '0').trim();
-  // Keep only digits, dots, commas, minus
   const cleaned = s.replace(/[^\d.,\-]/g, '');
   if (!cleaned || cleaned === '-') return 0;
 
@@ -34,13 +33,22 @@ function parseAmount(raw: string): number {
   const commaIdx = cleaned.lastIndexOf(',');
 
   if (commaIdx > dotIdx) {
-    // Comma is the decimal separator → French format: 1.234,56 or 1234,56
+    const afterComma = cleaned.slice(commaIdx + 1);
+    // "1,234" → comma suivi exactement de 3 chiffres sans point = séparateur de milliers
+    if (/^\d{3}$/.test(afterComma) && !cleaned.includes('.')) {
+      return parseFloat(cleaned.replace(/,/g, '')) || 0;
+    }
+    // Sinon virgule = séparateur décimal (format français 1.234,56 ou 1234,56)
     return parseFloat(cleaned.replace(/\./g, '').replace(',', '.')) || 0;
   } else if (dotIdx > commaIdx) {
-    // Dot is the decimal separator → English format: 1,234.56 or 1234.56
+    const afterDot = cleaned.slice(dotIdx + 1);
+    // "1.234" → point suivi exactement de 3 chiffres sans virgule = séparateur de milliers
+    if (/^\d{3}$/.test(afterDot) && !cleaned.includes(',')) {
+      return parseFloat(cleaned.replace(/\./g, '')) || 0;
+    }
+    // Sinon point = séparateur décimal (format anglais 1,234.56)
     return parseFloat(cleaned.replace(/,/g, '')) || 0;
   } else {
-    // No thousands separator, just convert comma → dot
     return parseFloat(cleaned.replace(',', '.')) || 0;
   }
 }

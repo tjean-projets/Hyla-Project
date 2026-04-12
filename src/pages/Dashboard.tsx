@@ -27,7 +27,7 @@ export default function Dashboard() {
   const { profile } = useEffectiveProfile();
   const [showChallenge, setShowChallenge] = useState<'countdown' | 'rookie' | null>(null);
 
-  const { data: kpis, isLoading: kpisLoading } = useQuery({
+  const { data: kpis, isLoading: kpisLoading, isError: kpisError } = useQuery({
     queryKey: ['dashboard-kpis', effectiveId],
     queryFn: async () => {
       if (!effectiveId) return null;
@@ -566,6 +566,17 @@ export default function Dashboard() {
               <div className="sm:col-span-2"><SkeletonKPI /></div>
             </div>
             <SkeletonKPI />
+          </div>
+        ) : kpisError ? (
+          <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-2xl p-4 text-center">
+            <p className="text-sm font-semibold text-red-700 dark:text-red-400 mb-1">Impossible de charger les données</p>
+            <p className="text-xs text-red-500 dark:text-red-500 mb-3">Une erreur est survenue. Vérifie ta connexion et réessaie.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="text-xs font-semibold text-red-700 dark:text-red-400 underline"
+            >
+              Recharger la page
+            </button>
           </div>
         ) : (
         <div className="space-y-3">

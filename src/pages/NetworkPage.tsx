@@ -104,6 +104,24 @@ function MemberForm({
   const mutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
+
+      // Vérification anti-circularité : le parrain choisi ne doit pas être
+      // lui-même parrainé (directement ou indirectement) par le membre en cours d'édition
+      if (isEdit && initialData && form.sponsor_id) {
+        const { data: allMembers } = await supabase
+          .from('team_members').select('id, sponsor_id').eq('user_id', effectiveId);
+        const membersMap = Object.fromEntries((allMembers || []).map((m: any) => [m.id, m.sponsor_id]));
+        // Remonter la chaîne depuis le parrain proposé
+        let cursor = form.sponsor_id;
+        const visited = new Set<string>();
+        while (cursor) {
+          if (cursor === initialData.id) throw new Error('Parrainage circulaire détecté — ce membre est déjà dans la lignée du parrain sélectionné.');
+          if (visited.has(cursor)) break;
+          visited.add(cursor);
+          cursor = membersMap[cursor];
+        }
+      }
+
       const payload = {
         user_id: effectiveId,
         first_name: form.first_name,

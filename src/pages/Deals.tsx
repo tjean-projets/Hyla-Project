@@ -447,7 +447,30 @@ export default function Deals() {
   });
 
   const handleStatusChange = async (dealId: string, status: string) => {
-    await supabase.from('deals').update({ status }).eq('id', dealId);
+    const updates: any = { status };
+    if (status === 'signee') updates.signed_at = new Date().toISOString();
+    await supabase.from('deals').update(updates).eq('id', dealId);
+
+    // Créer la commission si passage à "signée" (vérif anti-doublon par deal_id)
+    if (status === 'signee' && effectiveId) {
+      const deal = deals.find((d: any) => d.id === dealId);
+      if (deal) {
+        const { data: existing } = await supabase
+          .from('commissions').select('id').eq('deal_id', dealId).maybeSingle();
+        if (!existing) {
+          await supabase.from('commissions').insert({
+            user_id: effectiveId,
+            period: new Date().toISOString().slice(0, 7),
+            type: 'directe',
+            amount: deal.amount,
+            source: 'vente',
+            deal_id: dealId,
+            status: 'validee',
+            notes: deal.product ? `Vente ${deal.product}` : null,
+          });
+        }
+      }
+    }
     queryClient.invalidateQueries({ queryKey: ['deals'] });
     setDrawerDeal(null);
   };

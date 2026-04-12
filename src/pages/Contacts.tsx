@@ -188,6 +188,20 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, isInTeam, onAdd
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!initialData) return;
+      // Vérifier les données liées avant suppression
+      const [{ count: dealsCount }, { count: tasksCount }] = await Promise.all([
+        supabase.from('deals').select('id', { count: 'exact', head: true }).eq('contact_id', initialData.id),
+        supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('contact_id', initialData.id),
+      ]);
+      const linked: string[] = [];
+      if ((dealsCount ?? 0) > 0) linked.push(`${dealsCount} vente${dealsCount! > 1 ? 's' : ''}`);
+      if ((tasksCount ?? 0) > 0) linked.push(`${tasksCount} tâche${tasksCount! > 1 ? 's' : ''}`);
+      if (linked.length > 0) {
+        const ok = window.confirm(
+          `Ce contact a ${linked.join(' et ')} associé${linked.length > 1 ? 'es' : 'e'}.\nSupprimer quand même ? Les données liées seront orphelines.`
+        );
+        if (!ok) return;
+      }
       const { error } = await supabase.from('contacts').delete().eq('id', initialData.id);
       if (error) throw error;
     },
