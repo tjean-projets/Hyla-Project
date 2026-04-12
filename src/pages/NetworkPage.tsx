@@ -19,6 +19,7 @@ import { useImpersonation } from '@/hooks/useImpersonation';
 import { useNavigate } from 'react-router-dom';
 import { useThemeSafe } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
+import { useRespireAcademie } from '@/hooks/useRespireAcademie';
 import type { Tables } from '@/integrations/supabase/types';
 
 type TeamMember = Tables<'team_members'>;
@@ -344,6 +345,98 @@ function MemberForm({
         </button>
       )}
     </form>
+  );
+}
+
+/* ── Respire Académie Panel ── */
+function RespireAcademiePanel({ member }: { member: TeamMember }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const linkedUserId = (member as any).linked_user_id as string | null;
+
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ['member-academie-settings', linkedUserId],
+    queryFn: async () => {
+      if (!linkedUserId) return null;
+      const { data } = await supabase
+        .from('user_settings')
+        .select('respire_academie_access')
+        .eq('user_id', linkedUserId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!linkedUserId,
+    staleTime: 0,
+  });
+
+  const hasAccess = settings?.respire_academie_access === true;
+
+  const toggle = useMutation({
+    mutationFn: async (newValue: boolean) => {
+      const { error } = await supabase.rpc('grant_academie_access', {
+        p_target_user_id: linkedUserId,
+        p_value: newValue,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_, newValue) => {
+      queryClient.invalidateQueries({ queryKey: ['member-academie-settings', linkedUserId] });
+      toast({ title: newValue ? '✅ Accès Académie accordé' : 'Accès Académie retiré' });
+    },
+    onError: (e: any) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  if (!linkedUserId) {
+    return (
+      <div className="bg-muted rounded-xl p-4 text-center">
+        <p className="text-sm text-muted-foreground">Ce membre n'a pas encore de compte Hyla Assistant.</p>
+        <p className="text-xs text-muted-foreground mt-1">Lie d'abord son compte via le bouton "Hyla Assistant".</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-2xl p-4 border border-emerald-100 dark:border-emerald-900/30">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-400 flex items-center justify-center">
+            <span className="text-white text-lg">🎓</span>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Respire Académie</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">Formation & Carte des distributeurs</p>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl animate-pulse" />
+        ) : (
+          <div className="flex items-center justify-between bg-white dark:bg-emerald-950/30 rounded-xl px-4 py-3 border border-emerald-200 dark:border-emerald-800">
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                {member.first_name} {member.last_name}
+              </p>
+              <p className={`text-xs font-medium mt-0.5 ${hasAccess ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                {hasAccess ? '✓ A accès à l\'Académie' : '✗ Pas d\'accès'}
+              </p>
+            </div>
+            <button
+              onClick={() => toggle.mutate(!hasAccess)}
+              disabled={toggle.isPending}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${hasAccess ? 'bg-emerald-500' : 'bg-gray-300'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${hasAccess ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground text-center">
+        {hasAccess
+          ? `${member.first_name} peut voir la Formation et la Carte Respire.`
+          : `Active pour donner accès à ${member.first_name} à la section Respire Académie.`}
+      </p>
+    </div>
   );
 }
 
@@ -1469,11 +1562,13 @@ export default function NetworkPage() {
   const effectiveId = useEffectiveUserId();
   const { startImpersonation } = useImpersonation();
   const navigate = useNavigate();
+  const { canGrant: canGrantAcademie } = useRespireAcademie();
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [objectifsMember, setObjectifsMember] = useState<TeamMember | null>(null);
   const [assistantMember, setAssistantMember] = useState<TeamMember | null>(null);
+  const [academieMember, setAcademieMember] = useState<TeamMember | null>(null);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [expandedTeamIds, setExpandedTeamIds] = useState<Set<string>>(new Set());
   const [subMemberToEdit, setSubMemberToEdit] = useState<{ member: TeamMember; parentName: string } | null>(null);
@@ -1774,6 +1869,19 @@ export default function NetworkPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Respire Académie dialog */}
+      <Dialog open={!!academieMember} onOpenChange={(open) => { if (!open) setAcademieMember(null); }}>
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-lg">🎓</span>
+              Respire Académie — {academieMember?.first_name} {academieMember?.last_name}
+            </DialogTitle>
+          </DialogHeader>
+          {academieMember && <RespireAcademiePanel member={academieMember} />}
+        </DialogContent>
+      </Dialog>
+
       {/* Hyla Assistant dialog */}
       <Dialog open={!!assistantMember} onOpenChange={(open) => { if (!open) setAssistantMember(null); }}>
         <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg">
@@ -1953,6 +2061,15 @@ export default function NetworkPage() {
                       <Target className="h-3.5 w-3.5" />
                       Objectifs
                     </button>
+                    {canGrantAcademie && (member as any).linked_user_id && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setAcademieMember(member); }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 active:scale-[0.97] transition-colors"
+                      >
+                        <span className="text-xs">🎓</span>
+                        Respire Académie
+                      </button>
+                    )}
                     {(member as any).linked_user_id ? (
                       <button
                         onClick={(e) => {
