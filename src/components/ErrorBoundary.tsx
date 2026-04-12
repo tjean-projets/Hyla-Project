@@ -23,6 +23,14 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[ErrorBoundary]', error, info.componentStack);
+    // Chunk introuvable après un nouveau déploiement Vercel → rechargement forcé
+    const isChunkError =
+      error?.message?.includes('Failed to fetch dynamically imported module') ||
+      error?.message?.includes('Importing a module script failed') ||
+      error?.name === 'ChunkLoadError';
+    if (isChunkError) {
+      window.location.reload();
+    }
   }
 
   componentDidUpdate(prevProps: Props) {
