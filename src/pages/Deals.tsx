@@ -38,12 +38,15 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
   const queryClient = useQueryClient();
   const isEdit = !!initialData;
 
+  const todayStr = () => new Date().toISOString().slice(0, 10);
+
   const [form, setForm] = useState({
     contact_id: '', amount: '', product: '', deal_type: '', status: 'en_cours' as Deal['status'], notes: '', sold_by: '',
     loss_reason: '', loss_reason_category: '',
     payment_type: 'comptant' as 'comptant' | 'mensualites',
     payment_months: '',
     bank_fees_offered: false,
+    signed_at_date: todayStr(), // date saisie manuellement (YYYY-MM-DD)
   });
 
   useEffect(() => {
@@ -61,6 +64,9 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
         payment_type: initialData.payment_type || 'comptant',
         payment_months: initialData.payment_months?.toString() || '',
         bank_fees_offered: initialData.bank_fees_offered || false,
+        signed_at_date: initialData.signed_at
+          ? initialData.signed_at.slice(0, 10)
+          : todayStr(),
       });
     }
   }, [initialData]);
@@ -103,7 +109,14 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           ...paymentFields,
         };
         if (form.status === 'signee' && !initialData.signed_at) {
-          updateData.signed_at = new Date().toISOString();
+          updateData.signed_at = form.signed_at_date
+            ? new Date(form.signed_at_date + 'T12:00:00').toISOString()
+            : new Date().toISOString();
+        } else if (form.status === 'signee' && initialData.signed_at) {
+          // Permettre de corriger la date même après création
+          updateData.signed_at = form.signed_at_date
+            ? new Date(form.signed_at_date + 'T12:00:00').toISOString()
+            : initialData.signed_at;
         }
         const { error } = await supabase.from('deals').update(updateData).eq('id', initialData.id);
         if (error) throw error;
@@ -117,7 +130,11 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           status: form.status,
           notes: form.notes || null,
           sold_by: form.sold_by || null,
-          signed_at: form.status === 'signee' ? new Date().toISOString() : null,
+          signed_at: form.status === 'signee'
+            ? (form.signed_at_date
+                ? new Date(form.signed_at_date + 'T12:00:00').toISOString()
+                : new Date().toISOString())
+            : null,
           loss_reason: form.status === 'annulee' ? (form.loss_reason || null) : null,
           loss_reason_category: form.status === 'annulee' ? (form.loss_reason_category || null) : null,
           ...paymentFields,
@@ -316,6 +333,21 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           </div>
         )}
       </div>
+
+      {/* Date de signature — affichée uniquement si statut = Signée */}
+      {form.status === 'signee' && (
+        <div>
+          <Label>Date de signature</Label>
+          <input
+            type="date"
+            value={form.signed_at_date}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={e => setForm({ ...form, signed_at_date: e.target.value })}
+            className="w-full h-11 px-3 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <p className="text-[10px] text-muted-foreground mt-1">Par défaut : aujourd'hui. Modifie si la vente a été signée à une autre date.</p>
+        </div>
+      )}
 
       <div>
         <Label>Notes</Label>
