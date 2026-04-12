@@ -195,6 +195,8 @@ export default function AdminPanel() {
         .upsert({ user_id: userId, [field]: !currentValue }, { onConflict: 'user_id' });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['admin-user-settings', userId] });
+      // Invalide aussi le cache du hook useRespireAcademie pour que le bouton disparaisse immédiatement
+      queryClient.invalidateQueries({ queryKey: ['respire-academie-access', userId] });
       const label = field === 'challenges_disabled'
         ? (!currentValue ? 'Challenges désactivés' : 'Challenges réactivés')
         : (!currentValue ? 'Accès accordé' : 'Accès retiré');

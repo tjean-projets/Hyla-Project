@@ -19,7 +19,7 @@ export function useRespireAcademie() {
       return data;
     },
     enabled: !!effectiveId,
-    staleTime: 60000,
+    staleTime: 0,
   });
 
   const hasAccess = isSuperAdmin(user?.email) || settings?.respire_academie_access === true;
