@@ -908,12 +908,12 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
       </main>
 
       {/* ── Mobile Bottom Nav ── */}
-      <MobileBottomNav isDark={isDark} isManager={isManager} />
+      <MobileBottomNav isDark={isDark} isManager={isManager} hasAcademieAccess={hasAcademieAccess} />
     </div>
   );
 }
 
-function MobileBottomNav({ isDark, isManager = true }: { isDark: boolean; isManager?: boolean }) {
+function MobileBottomNav({ isDark, isManager = true, hasAcademieAccess = false }: { isDark: boolean; isManager?: boolean; hasAcademieAccess?: boolean }) {
   const location = useLocation();
   const [showMore, setShowMore] = useState(false);
   const [, forceUpdate] = useState(0);
@@ -925,8 +925,12 @@ function MobileBottomNav({ isDark, isManager = true }: { isDark: boolean; isMana
     return () => window.removeEventListener('hyla_nav_updated', handler);
   }, []);
 
-  const mainTabs = getMobileNavLinks().slice(0, 4);
-  const otherTabs = ALL_MOBILE_TABS.filter(t => !mainTabs.some(m => m.to === t.to));
+  // Filtrer les onglets selon les droits d'accès
+  const allowedTabs = ALL_MOBILE_TABS.filter(t => !(t as any).academieOnly || hasAcademieAccess);
+  const mainTabs = getMobileNavLinks()
+    .filter(t => !(t as any).academieOnly || hasAcademieAccess)
+    .slice(0, 4);
+  const otherTabs = allowedTabs.filter(t => !mainTabs.some(m => m.to === t.to));
   // Add settings to other tabs
   const moreItems = [...otherTabs, { to: '/settings', icon: Settings, label: 'Paramètres' }];
 

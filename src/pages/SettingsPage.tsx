@@ -267,7 +267,7 @@ export default function SettingsPage() {
       if (saved) {
         const paths = JSON.parse(saved) as string[];
         // Filtre les onglets qui n'existent plus dans la liste disponible
-        return paths.filter(p => ALL_MOBILE_TABS.some(t => t.to === p));
+        return paths.filter(p => availableTabs.some(t => t.to === p));
       }
     } catch {}
     return availableTabs.slice(0, 5).map(t => t.to);
