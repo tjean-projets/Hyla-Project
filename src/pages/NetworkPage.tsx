@@ -2061,7 +2061,7 @@ export default function NetworkPage() {
                       <Target className="h-3.5 w-3.5" />
                       Objectifs
                     </button>
-                    {canGrantAcademie && (member as any).linked_user_id && (
+                    {canGrantAcademie && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setAcademieMember(member); }}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 active:scale-[0.97] transition-colors"
