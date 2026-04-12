@@ -10,13 +10,13 @@
   "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "/Hyla_assistant_logo_512x512.png",
+      "src": "/Hyla_logo_bold.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/Hyla_assistant_logo_512x512.png",
+      "src": "/Hyla_logo_bold.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

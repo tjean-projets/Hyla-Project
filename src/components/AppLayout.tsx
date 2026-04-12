@@ -692,9 +692,9 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
         <div className="px-5 py-6">
           <div className="flex items-center gap-2.5">
             <img
-              src="/Hyla_assistant_logo_512x512.png"
+              src="/Hyla_logo_bold.png"
               alt="Hyla"
-              className="h-9 w-9 object-contain drop-shadow-lg"
+              className="h-9 w-9 object-contain brightness-0 invert"
             />
             <span className="text-[17px] font-bold text-white tracking-tight">Hyla</span>
           </div>
@@ -808,9 +808,9 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
         <div className="flex h-14 items-center justify-between px-4 gap-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <img
-              src="/Hyla_assistant_logo_512x512.png"
+              src="/Hyla_logo_bold.png"
               alt="Hyla"
-              className="h-8 w-8 object-contain drop-shadow flex-shrink-0"
+              className="h-8 w-8 object-contain flex-shrink-0"
             />
             <h1 className={cn('text-sm font-semibold text-foreground truncate')}>{title}</h1>
           </div>

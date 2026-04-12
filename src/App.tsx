@@ -64,7 +64,7 @@ function AppSpinner() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
         <div className="relative">
-          <img src="/Hyla_assistant_logo_512x512.png" alt="Hyla" className="h-12 w-12 object-contain drop-shadow-lg" />
+          <img src="/Hyla_logo_bold.png" alt="Hyla" className="h-12 w-12 object-contain" />
           <div className="absolute -inset-1.5 rounded-[18px] border-2 border-[#3b82f6]/30 border-t-[#3b82f6] animate-spin" />
         </div>
       </div>
