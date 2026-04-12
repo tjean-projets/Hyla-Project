@@ -142,11 +142,7 @@ export function CommissionCalculator() {
         </div>
       </div>
 
-      {/* Tab content — hauteur fixe pour éviter les sauts lors du changement d'onglet */}
-      <div
-        className="px-4 pb-4 h-[380px] overflow-y-auto overscroll-contain"
-        style={{ scrollbarWidth: 'thin', scrollbarColor: '#e2e8f0 transparent' }}
-      >
+      <div className="px-4 pb-4">
 
         {/* ── TAB PERSO ── */}
         {tab === 'perso' && (
