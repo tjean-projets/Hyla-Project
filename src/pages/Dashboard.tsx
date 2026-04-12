@@ -106,22 +106,34 @@ export default function Dashboard() {
     enabled: !!effectiveId,
   });
 
-  // Compteur de ventes validées par TRV import — pour les challenges Hyla
-  // On compte les commission_import_rows (is_owner_row = true) du user
   const challengesDisabled = (userSettings as any)?.challenges_disabled === true;
+
+  // Compteur de ventes validées par TRV import — pour les challenges Hyla
+  // Source fiable : commissions.type='directe' + import_row_id IS NOT NULL + status='validee'
+  // (= commissions consolidées depuis un import TRV, pas les saisies manuelles)
+  const challengeStartPeriod = (() => {
+    const d = profileData
+      ? new Date((profileData as any).challenge_start_date || profileData.created_at)
+      : new Date();
+    return d.toISOString().slice(0, 7); // "YYYY-MM"
+  })();
+
   const { data: trvValidatedCount = 0 } = useQuery({
-    queryKey: ['trv-validated-sales', effectiveId],
+    queryKey: ['trv-validated-sales', effectiveId, challengeStartPeriod],
     queryFn: async () => {
       if (!effectiveId) return 0;
-      // Compter les lignes de l'import TRV qui correspondent au user lui-même
       const { count } = await supabase
-        .from('commission_import_rows')
+        .from('commissions')
         .select('id', { count: 'exact', head: true })
-        .eq('is_owner_row', true);
+        .eq('user_id', effectiveId)
+        .eq('type', 'directe')
+        .eq('status', 'validee')
+        .not('import_row_id', 'is', null)
+        .gte('period', challengeStartPeriod);
       return count ?? 0;
     },
-    enabled: !!effectiveId && !challengesDisabled,
-    staleTime: 300000,
+    enabled: !!effectiveId && !challengesDisabled && !!profileData,
+    staleTime: 120000,
   });
 
   const { data: myManagerChallenge } = useQuery({
@@ -446,9 +458,12 @@ export default function Dashboard() {
           <div className="space-y-3">
             {countdownActive && (
               <div onClick={() => setShowChallenge('countdown')} className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-5 text-white cursor-pointer active:scale-[0.98] transition-transform">
-                <div className="flex items-center gap-2 mb-3">
-                  <Timer className="h-5 w-5" />
-                  <span className="text-sm font-bold uppercase tracking-wider">{HYLA_CHALLENGES.countdown.name} — {HYLA_CHALLENGES.countdown.months} mois</span>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Timer className="h-5 w-5" />
+                    <span className="text-sm font-bold uppercase tracking-wider">{HYLA_CHALLENGES.countdown.name} — {HYLA_CHALLENGES.countdown.months} mois</span>
+                  </div>
+                  <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded-full font-semibold">✓ TRV</span>
                 </div>
                 <p className="text-xs opacity-90 mb-3">
                   Réalise {HYLA_CHALLENGES.countdown.target} ventes pendant cette période. La {HYLA_CHALLENGES.countdown.target}ème vente est sur-commissionnée <span className="font-bold">{HYLA_CHALLENGES.countdown.bonus}€</span>
