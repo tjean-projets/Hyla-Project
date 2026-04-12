@@ -1,6 +1,7 @@
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase, HYLA_COMMISSION_SCALE, HYLA_CHALLENGES, getHylaCommission, HYLA_LEVELS, getPersonalSaleCommission, getRecrueCommission } from '@/lib/supabase';
+import { supabase, HYLA_COMMISSION_SCALE, HYLA_CHALLENGES, getHylaCommission, HYLA_LEVELS, getPersonalSaleCommission, getRecrueCommission, getGroupPrime } from '@/lib/supabase';
+import type { HylaLevel } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import {
   TrendingUp,
@@ -897,106 +898,389 @@ export default function Dashboard() {
           </div>
         </div>
         )}
-      </div>
-
         {/* ── Calculatrice commissions ── */}
         <CommissionCalculator />
+      </div>
 
       <OnboardingGuide />
     </AppLayout>
   );
 }
 
-/* ── Calculatrice commissions personnelles ── */
+/* ── Simulateur complet Hyla ── */
 function CommissionCalculator() {
+  const [tab, setTab] = useState<'perso' | 'equipe' | 'niveaux'>('perso');
   const [nbVentes, setNbVentes] = useState(5);
+  const [nbRecrues, setNbRecrues] = useState(3);
+  const [ventesMoyRecrue, setVentesMoyRecrue] = useState(2);
+  const [simLevel, setSimLevel] = useState<HylaLevel>('manager');
 
-  const breakdown = useMemo(() => {
-    const rows = [];
+  const levelData = HYLA_LEVELS.find(l => l.value === simLevel)!;
+  const myLevelIdx = HYLA_LEVELS.findIndex(l => l.value === simLevel);
+  const nextLevel = myLevelIdx < HYLA_LEVELS.length - 1 ? HYLA_LEVELS[myLevelIdx + 1] : null;
+
+  // Commission perso breakdown
+  const persoBreakdown = useMemo(() => {
+    const rows: { rank: number; com: number }[] = [];
     for (let i = 1; i <= nbVentes; i++) {
-      const com = i === 1 ? 300 : i === 2 ? 350 : i === 3 ? 400 : i <= 7 ? 450 : 500;
-      rows.push({ rank: i, com });
+      rows.push({ rank: i, com: getPersonalSaleCommission(i) });
     }
     return rows;
   }, [nbVentes]);
+  const totalPerso = persoBreakdown.reduce((s, r) => s + r.com, 0);
 
-  const total = breakdown.reduce((s, r) => s + r.com, 0);
+  // Équipe calculations
+  const teamSalesTotal = nbVentes + nbRecrues * ventesMoyRecrue;
+  const recruesCommission = nbRecrues * ventesMoyRecrue * levelData.recruteCommission;
+  const primeParMachine = getGroupPrime(simLevel, teamSalesTotal);
+  const primeTotale = primeParMachine * teamSalesTotal;
+  const totalGeneral = totalPerso + recruesCommission + primeTotale;
+
+  // Gain si niveau suivant
+  const nextRecrueCom = nextLevel?.recruteCommission ?? 0;
+  const nextPrimeParMachine = nextLevel ? getGroupPrime(nextLevel.value, teamSalesTotal) : 0;
+  const gainNextLevel = nextLevel
+    ? (nextRecrueCom - levelData.recruteCommission) * nbRecrues * ventesMoyRecrue
+      + (nextPrimeParMachine - primeParMachine) * teamSalesTotal
+    : 0;
+
+  const sliderStyle = (val: number, max: number, color: string) => ({
+    background: `linear-gradient(to right, ${color} ${(val / max) * 100}%, #e5e7eb ${(val / max) * 100}%)`,
+  });
 
   return (
-    <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-sm font-semibold text-foreground">Simulateur de commissions</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Ventes personnelles du mois</p>
+    <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+      {/* Header */}
+      <div className="p-4 pb-3">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Simulateur Hyla</p>
+            <p className="text-[10px] text-muted-foreground">Commissions · Équipe · Progression</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xl font-bold text-[#3b82f6]">{totalGeneral.toLocaleString('fr-FR')} €</p>
+            <p className="text-[10px] text-muted-foreground">total estimé/mois</p>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-xl font-bold text-[#3b82f6]">{total.toLocaleString('fr-FR')} €</p>
-          <p className="text-[10px] text-muted-foreground">{nbVentes} vente{nbVentes > 1 ? 's' : ''}</p>
-        </div>
-      </div>
 
-      {/* Slider */}
-      <div className="mb-4">
-        <input
-          type="range"
-          min={1}
-          max={12}
-          value={nbVentes}
-          onChange={e => setNbVentes(Number(e.target.value))}
-          className="w-full h-2 rounded-full appearance-none cursor-pointer"
-          style={{
-            background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((nbVentes - 1) / 11) * 100}%, #e5e7eb ${((nbVentes - 1) / 11) * 100}%, #e5e7eb 100%)`,
-          }}
-        />
-        <div className="flex justify-between text-[9px] text-muted-foreground mt-1 px-0.5">
-          {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
-            <span key={n} className={n === nbVentes ? 'text-[#3b82f6] font-bold' : ''}>{n}</span>
+        {/* Level selector */}
+        <div className="mb-3">
+          <p className="text-[9px] font-semibold text-muted-foreground uppercase mb-2">Niveau simulé</p>
+          <div className="flex flex-wrap gap-1.5">
+            {HYLA_LEVELS.map(l => (
+              <button
+                key={l.value}
+                onClick={() => setSimLevel(l.value)}
+                className={`text-[10px] px-2.5 py-1 rounded-full font-semibold transition-all ${
+                  simLevel === l.value
+                    ? `bg-gradient-to-r ${l.color} text-white shadow-sm scale-105`
+                    : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                }`}
+              >
+                {l.shortLabel}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 bg-muted rounded-xl p-1">
+          {(['perso', 'equipe', 'niveaux'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex-1 text-[11px] py-1.5 rounded-lg font-semibold transition-all ${
+                tab === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'
+              }`}
+            >
+              {t === 'perso' ? 'Ventes perso' : t === 'equipe' ? 'Mon équipe' : 'Niveaux'}
+            </button>
           ))}
         </div>
       </div>
 
-      {/* Détail par vente */}
-      <div className="space-y-1.5">
-        {breakdown.map(({ rank, com }, idx) => {
-          const cumul = breakdown.slice(0, idx + 1).reduce((s, r) => s + r.com, 0);
-          const barPct = Math.round((com / 500) * 100);
-          return (
-            <div key={rank} className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-12 flex-shrink-0">
-                Vente {rank}
-              </span>
-              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-[#3b82f6] to-indigo-500 transition-all"
-                  style={{ width: `${barPct}%` }}
-                />
+      {/* Tab content */}
+      <div className="px-4 pb-4">
+        {/* ── TAB PERSO ── */}
+        {tab === 'perso' && (
+          <div className="space-y-3">
+            {/* Slider */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-muted-foreground">Ventes personnelles ce mois</span>
+                <span className="text-sm font-bold text-foreground">{nbVentes} vente{nbVentes > 1 ? 's' : ''}</span>
               </div>
-              <span className="text-[10px] font-semibold text-[#3b82f6] w-14 text-right flex-shrink-0">
-                +{com} €
-              </span>
-              <span className="text-[10px] text-muted-foreground w-16 text-right flex-shrink-0">
-                = {cumul.toLocaleString('fr-FR')} €
+              <input
+                type="range" min={1} max={12} value={nbVentes}
+                onChange={e => setNbVentes(Number(e.target.value))}
+                className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                style={sliderStyle(nbVentes - 1, 11, '#3b82f6')}
+              />
+              <div className="flex justify-between text-[9px] text-muted-foreground mt-1 px-0.5">
+                {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                  <span key={n} className={n === nbVentes ? 'text-[#3b82f6] font-bold' : ''}>{n}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* Barème visuel */}
+            <div className="grid grid-cols-5 gap-1.5">
+              {[
+                { label: '1ère', com: 300, from: 1, to: 1 },
+                { label: '2ème', com: 350, from: 2, to: 2 },
+                { label: '3ème', com: 400, from: 3, to: 3 },
+                { label: '4-7', com: 450, from: 4, to: 7 },
+                { label: '8+', com: 500, from: 8, to: 99 },
+              ].map(({ label, com, from, to }) => {
+                const active = nbVentes >= from && nbVentes <= to;
+                const reached = nbVentes >= from;
+                return (
+                  <div
+                    key={label}
+                    className={`text-center rounded-xl p-2 transition-all ${
+                      active ? 'bg-blue-500 shadow-sm' : reached ? 'bg-blue-50 dark:bg-blue-950/30' : 'bg-muted'
+                    }`}
+                  >
+                    <p className={`text-[9px] mb-0.5 ${active ? 'text-white/80' : 'text-muted-foreground'}`}>{label}</p>
+                    <p className={`text-[11px] font-bold ${active ? 'text-white' : reached ? 'text-[#3b82f6]' : 'text-muted-foreground'}`}>{com}€</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Détail par vente */}
+            <div className="space-y-1">
+              {persoBreakdown.map(({ rank, com }, idx) => {
+                const cumul = persoBreakdown.slice(0, idx + 1).reduce((s, r) => s + r.com, 0);
+                return (
+                  <div key={rank} className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground w-12 flex-shrink-0">Vente {rank}</span>
+                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-[#3b82f6] to-indigo-400 transition-all" style={{ width: `${(com / 500) * 100}%` }} />
+                    </div>
+                    <span className="text-[10px] font-semibold text-[#3b82f6] w-14 text-right">+{com} €</span>
+                    <span className="text-[10px] text-muted-foreground w-16 text-right">{cumul.toLocaleString('fr-FR')} €</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Total + message */}
+            <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/20 rounded-xl px-4 py-3">
+              <span className="text-sm font-semibold text-foreground">Commission perso</span>
+              <span className="text-lg font-bold text-[#3b82f6]">{totalPerso.toLocaleString('fr-FR')} €</span>
+            </div>
+            {nbVentes === 5 && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-2.5 text-center">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">🎯 5 ventes → Challenge Countdown débloqué (+800€)</p>
+              </div>
+            )}
+            {nbVentes >= 8 && (
+              <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-xl p-2.5 text-center">
+                <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">🔥 Palier maximum atteint : 500€ par machine</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB ÉQUIPE ── */}
+        {tab === 'equipe' && (
+          <div className="space-y-3">
+            {/* Slider recrues */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-muted-foreground">Recrues actives sous toi</span>
+                <span className="text-sm font-bold">{nbRecrues} personne{nbRecrues > 1 ? 's' : ''}</span>
+              </div>
+              <input
+                type="range" min={0} max={20} value={nbRecrues}
+                onChange={e => setNbRecrues(Number(e.target.value))}
+                className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                style={sliderStyle(nbRecrues, 20, '#8b5cf6')}
+              />
+              <div className="flex justify-between text-[9px] text-muted-foreground mt-1">
+                <span>0</span><span>5</span><span>10</span><span>15</span><span>20</span>
+              </div>
+            </div>
+
+            {/* Slider avg sales per recruit */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-muted-foreground">Ventes moy. par recrue / mois</span>
+                <span className="text-sm font-bold">{ventesMoyRecrue} vente{ventesMoyRecrue > 1 ? 's' : ''}</span>
+              </div>
+              <input
+                type="range" min={0} max={8} value={ventesMoyRecrue}
+                onChange={e => setVentesMoyRecrue(Number(e.target.value))}
+                className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                style={sliderStyle(ventesMoyRecrue, 8, '#8b5cf6')}
+              />
+              <div className="flex justify-between text-[9px] text-muted-foreground mt-1">
+                <span>0</span><span>2</span><span>4</span><span>6</span><span>8</span>
+              </div>
+            </div>
+
+            {/* Volume équipe total */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground bg-muted/50 rounded-xl px-3 py-2">
+              <span>Volume équipe total</span>
+              <span className="font-semibold text-foreground">
+                {nbVentes} (perso) + {nbRecrues} × {ventesMoyRecrue} = <strong>{teamSalesTotal} ventes</strong>
               </span>
             </div>
-          );
-        })}
-      </div>
 
-      {/* Message motivant */}
-      {nbVentes >= 8 && (
-        <div className="mt-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl p-2.5 text-center">
-          <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-            🔥 À partir de la 8ème vente : 500€ par machine !
-          </p>
-        </div>
-      )}
-      {nbVentes === 5 && (
-        <div className="mt-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl p-2.5 text-center">
-          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-            🎯 5 ventes = objectif Challenge Countdown débloqué (+800€)
-          </p>
-        </div>
-      )}
+            {/* Breakdown commissions */}
+            <div className="space-y-2">
+              {/* Commission perso */}
+              <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/20 rounded-xl px-3 py-2.5">
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Commission perso</p>
+                  <p className="text-[9px] text-muted-foreground">{nbVentes} vente{nbVentes > 1 ? 's' : ''} — barème glissant</p>
+                </div>
+                <span className="text-sm font-bold text-[#3b82f6]">{totalPerso.toLocaleString('fr-FR')} €</span>
+              </div>
+
+              {/* Commission recrues */}
+              <div className="flex items-center justify-between bg-violet-50 dark:bg-violet-950/20 rounded-xl px-3 py-2.5">
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Commission recrues</p>
+                  <p className="text-[9px] text-muted-foreground">
+                    {nbRecrues} × {ventesMoyRecrue}v × {levelData.recruteCommission}€
+                  </p>
+                </div>
+                <span className="text-sm font-bold text-violet-600">{recruesCommission.toLocaleString('fr-FR')} €</span>
+              </div>
+
+              {/* Prime de groupe */}
+              <div className={`flex items-center justify-between rounded-xl px-3 py-2.5 ${
+                primeParMachine > 0 ? 'bg-emerald-50 dark:bg-emerald-950/20' : 'bg-muted'
+              }`}>
+                <div>
+                  <p className={`text-xs font-semibold ${primeParMachine > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    Prime de groupe
+                  </p>
+                  {primeParMachine > 0 ? (
+                    <p className="text-[9px] text-emerald-600">{primeParMachine}€ × {teamSalesTotal} machines</p>
+                  ) : (
+                    <p className="text-[9px] text-muted-foreground">
+                      {levelData.quotaMois > 0
+                        ? `Requiert ${levelData.quotaMois} ventes équipe (${teamSalesTotal} actuellement)`
+                        : 'Disponible dès Manager'}
+                    </p>
+                  )}
+                </div>
+                <span className={`text-sm font-bold ${primeParMachine > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                  {primeParMachine > 0 ? `${primeTotale.toLocaleString('fr-FR')} €` : '—'}
+                </span>
+              </div>
+
+              {/* Total général */}
+              <div className="flex items-center justify-between bg-gradient-to-r from-blue-500 to-violet-500 rounded-xl px-4 py-3">
+                <span className="text-white text-sm font-bold">Total estimé</span>
+                <span className="text-white text-xl font-black">{totalGeneral.toLocaleString('fr-FR')} €</span>
+              </div>
+            </div>
+
+            {/* Gain si niveau suivant */}
+            {nextLevel && gainNextLevel > 0 && (
+              <div className="border border-dashed border-border rounded-xl p-3">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-2">
+                  Si tu passes {nextLevel.label}
+                </p>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-foreground">
+                      Recrues : <span className="font-bold text-violet-600">{nextLevel.recruteCommission}€</span>/vente
+                      <span className="text-muted-foreground"> (vs {levelData.recruteCommission}€)</span>
+                    </p>
+                    {nextPrimeParMachine > primeParMachine && (
+                      <p className="text-xs text-foreground">
+                        Prime groupe : <span className="font-bold text-emerald-600">{nextPrimeParMachine}€</span>/machine
+                        <span className="text-muted-foreground"> (vs {primeParMachine}€)</span>
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right flex-shrink-0 ml-3">
+                    <p className="text-base font-bold text-emerald-600">+{gainNextLevel.toLocaleString('fr-FR')} €</p>
+                    <p className="text-[9px] text-muted-foreground">gain/mois</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB NIVEAUX ── */}
+        {tab === 'niveaux' && (
+          <div className="space-y-2">
+            <p className="text-[10px] text-muted-foreground mb-1">
+              Évolution des commissions à chaque niveau — avec{' '}
+              <span className="font-semibold text-foreground">{nbRecrues} recrues × {ventesMoyRecrue}v/mois</span>
+            </p>
+            {HYLA_LEVELS.map((level, idx) => {
+              const isCurrent = level.value === simLevel;
+              const isPast = idx < myLevelIdx;
+              const recCom = level.recruteCommission;
+              const simRecrueCom = nbRecrues * ventesMoyRecrue * recCom;
+              const simTeamSales = nbVentes + nbRecrues * ventesMoyRecrue;
+              const simPrimePMachine = getGroupPrime(level.value, simTeamSales);
+              const simPrimeTot = simPrimePMachine * simTeamSales;
+              const simTotal = totalPerso + simRecrueCom + simPrimeTot;
+              const gainVsCurrent = simTotal - totalGeneral;
+
+              return (
+                <div
+                  key={level.value}
+                  className={`rounded-xl overflow-hidden transition-all ${
+                    isCurrent ? 'ring-2 ring-blue-400' : ''
+                  }`}
+                >
+                  <div className={`flex items-center gap-3 px-3 py-2.5 ${
+                    isCurrent
+                      ? `bg-gradient-to-r ${level.color} text-white`
+                      : isPast
+                      ? 'bg-muted/40'
+                      : 'bg-muted/70'
+                  }`}>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[11px] font-bold ${isCurrent ? 'text-white' : isPast ? 'text-muted-foreground' : 'text-foreground'}`}>
+                          {level.label}
+                        </span>
+                        {isCurrent && <span className="text-[9px] bg-white/25 text-white rounded-full px-1.5 py-0.5 font-semibold">Actuel</span>}
+                      </div>
+                      <p className={`text-[9px] mt-0.5 ${isCurrent ? 'text-white/80' : 'text-muted-foreground'}`}>
+                        {recCom}€/recrue · {level.quotaMois > 0 ? `prime dès ${level.quotaMois}v` : 'pas de prime'}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className={`text-sm font-bold ${isCurrent ? 'text-white' : isPast ? 'text-muted-foreground' : 'text-foreground'}`}>
+                        {simTotal.toLocaleString('fr-FR')} €
+                      </p>
+                      {!isCurrent && nbRecrues > 0 && (
+                        <p className={`text-[9px] font-semibold ${gainVsCurrent > 0 ? 'text-emerald-500' : gainVsCurrent < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
+                          {gainVsCurrent > 0 ? `+${gainVsCurrent.toLocaleString('fr-FR')}` : gainVsCurrent.toLocaleString('fr-FR')} €
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {/* Conditions */}
+                  {!isCurrent && !isPast && (
+                    <div className={`px-3 py-1.5 bg-muted/30 border-t border-border/50`}>
+                      <p className="text-[9px] text-muted-foreground">{level.conditions}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <div className="mt-2 bg-muted/30 rounded-xl p-2.5">
+              <p className="text-[9px] text-muted-foreground italic">
+                ⚠ Simulation basée sur {nbVentes} ventes perso + {nbRecrues} recrues × {ventesMoyRecrue} ventes. Le niveau est attribué par Hyla.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
