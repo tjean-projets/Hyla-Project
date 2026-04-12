@@ -1,6 +1,6 @@
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase, HYLA_CHALLENGES, HYLA_LEVELS, getPersonalSaleCommission } from '@/lib/supabase';
+import { supabase, HYLA_CHALLENGES, HYLA_LEVELS, getPersonalSaleCommission, getHylaCommission } from '@/lib/supabase';
 import { useAmounts } from '@/contexts/AmountsContext';
 import { useQuery } from '@tanstack/react-query';
 import {
