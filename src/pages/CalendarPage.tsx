@@ -429,16 +429,16 @@ export default function CalendarPage() {
       <div className="space-y-5">
 
         {/* ── Quick stats ── */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-card rounded-2xl p-3 shadow-sm border border-border">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Aujourd'hui</p>
             <p className="text-2xl font-bold text-foreground mt-1">{todayCount}</p>
           </div>
-          <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
+          <div className="bg-card rounded-2xl p-3 shadow-sm border border-border">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Cette semaine</p>
             <p className="text-2xl font-bold text-[#3b82f6] mt-1">{thisWeek}</p>
           </div>
-          <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
+          <div className="bg-card rounded-2xl p-3 shadow-sm border border-border">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Total</p>
             <p className="text-2xl font-bold text-foreground mt-1">{appointments.length}</p>
           </div>

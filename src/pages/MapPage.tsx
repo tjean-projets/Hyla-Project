@@ -455,7 +455,7 @@ export default function MapPage() {
               >
                 <div
                   className="bg-white rounded-xl shadow-xl border text-sm"
-                  style={{ width: 200, position: 'relative' }}
+                  style={{ width: Math.min(200, window.innerWidth - 48), position: 'relative' }}
                   onClick={e => e.stopPropagation()}
                 >
                   {/* Colour strip at top */}

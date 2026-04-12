@@ -888,7 +888,7 @@ function MapPageContent() {
               ))}
               {selectedMember && selectedMember.resolvedLat !== null && selectedMember.resolvedLng !== null && (
                 <Overlay anchor={[selectedMember.resolvedLat, selectedMember.resolvedLng]} offset={[-80, 100]}>
-                  <div className="bg-white rounded-xl shadow-xl border text-sm" style={{ width: 200, position: 'relative' }} onClick={e => e.stopPropagation()}>
+                  <div className="bg-white rounded-xl shadow-xl border text-sm" style={{ width: Math.min(200, window.innerWidth - 48), position: 'relative' }} onClick={e => e.stopPropagation()}>
                     <div className="h-1 rounded-t-xl" style={{ background: getLevelColorMap(selectedMember.hyla_level) }} />
                     <div className="p-3">
                       <button onClick={() => setSelectedMember(null)} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 leading-none" aria-label="Fermer">✕</button>

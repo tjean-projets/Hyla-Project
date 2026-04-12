@@ -301,7 +301,7 @@ export default function AdminPanel() {
         </div>
 
         {/* Stats cards */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           <div className="bg-blue-50 rounded-xl p-3 text-center">
             <Users className="h-4 w-4 text-blue-500 mx-auto mb-1" />
             <p className="text-lg font-black text-blue-700">{profiles.length}</p>
@@ -442,7 +442,7 @@ export default function AdminPanel() {
                       <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
                     </div>
                   ) : userStats && (
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       <div className="bg-blue-50 rounded-lg p-2.5 text-center">
                         <ShoppingBag className="h-3.5 w-3.5 text-blue-500 mx-auto mb-0.5" />
                         <p className="text-sm font-black text-blue-700">{userStats.deals}</p>

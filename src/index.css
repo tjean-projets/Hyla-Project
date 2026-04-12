@@ -214,6 +214,15 @@
 
 /* ── Premium global styles ── */
 
+/* Prevent iOS Safari auto-zoom on input focus (déclenché si font-size < 16px) */
+@media (max-width: 767px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 /* Smooth transitions on all interactive elements */
 a, button, input, select, textarea {
   transition: all 0.15s ease-out;

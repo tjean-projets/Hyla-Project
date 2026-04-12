@@ -1220,20 +1220,20 @@ export default function Finance() {
                       );
                     })()}
 
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-green-50 rounded-xl p-3 text-center">
-                        <CheckCircle className="h-4 w-4 text-green-600 mx-auto mb-1" />
-                        <p className="text-lg font-bold text-green-700">{autoMatched}</p>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <div className="bg-green-50 rounded-xl p-2 text-center">
+                        <CheckCircle className="h-3.5 w-3.5 text-green-600 mx-auto mb-0.5" />
+                        <p className="text-sm font-bold text-green-700">{autoMatched}</p>
                         <p className="text-[10px] text-green-600">Auto</p>
                       </div>
-                      <div className="bg-amber-50 rounded-xl p-3 text-center">
-                        <AlertTriangle className="h-4 w-4 text-amber-600 mx-auto mb-1" />
-                        <p className="text-lg font-bold text-amber-700">{manualNeeded}</p>
+                      <div className="bg-amber-50 rounded-xl p-2 text-center">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mx-auto mb-0.5" />
+                        <p className="text-sm font-bold text-amber-700">{manualNeeded}</p>
                         <p className="text-[10px] text-amber-600">Manuel</p>
                       </div>
-                      <div className="bg-gray-50 rounded-xl p-3 text-center">
-                        <XCircle className="h-4 w-4 text-gray-400 mx-auto mb-1" />
-                        <p className="text-lg font-bold text-gray-500">{unmatched}</p>
+                      <div className="bg-gray-50 rounded-xl p-2 text-center">
+                        <XCircle className="h-3.5 w-3.5 text-gray-400 mx-auto mb-0.5" />
+                        <p className="text-sm font-bold text-gray-500">{unmatched}</p>
                         <p className="text-[10px] text-gray-400">Hors équipe</p>
                       </div>
                     </div>

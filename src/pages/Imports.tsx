@@ -898,21 +898,21 @@ export default function Imports() {
             {flow.step === 'matching' && (
               <div className="space-y-4">
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-3 text-center">
-                    <CheckCircle className="h-5 w-5 text-green-600 mx-auto mb-1" />
-                    <p className="text-lg font-bold text-green-700 dark:text-green-400">{autoMatched}</p>
-                    <p className="text-xs text-green-600 dark:text-green-500">Auto-matchées</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-2.5 text-center">
+                    <CheckCircle className="h-4 w-4 text-green-600 mx-auto mb-1" />
+                    <p className="text-base font-bold text-green-700 dark:text-green-400">{autoMatched}</p>
+                    <p className="text-[10px] text-green-600 dark:text-green-500">Auto-matchées</p>
                   </div>
-                  <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 text-center">
-                    <AlertTriangle className="h-5 w-5 text-amber-600 mx-auto mb-1" />
-                    <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{manualNeeded}</p>
-                    <p className="text-xs text-amber-600 dark:text-amber-500">À confirmer</p>
+                  <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-2.5 text-center">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 mx-auto mb-1" />
+                    <p className="text-base font-bold text-amber-700 dark:text-amber-400">{manualNeeded}</p>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-500">À confirmer</p>
                   </div>
-                  <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-3 text-center">
-                    <XCircle className="h-5 w-5 text-red-500 mx-auto mb-1" />
-                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{unmatched}</p>
-                    <p className="text-xs text-red-500 dark:text-red-400">Non reconnues</p>
+                  <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-2.5 text-center">
+                    <XCircle className="h-4 w-4 text-red-500 mx-auto mb-1" />
+                    <p className="text-base font-bold text-red-600 dark:text-red-400">{unmatched}</p>
+                    <p className="text-[10px] text-red-500 dark:text-red-400">Non reconnues</p>
                   </div>
                 </div>
 
@@ -1039,21 +1039,21 @@ export default function Imports() {
                 </div>
 
                 {/* Stats commissions */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 text-center">
-                    <p className="text-lg font-bold text-blue-700 dark:text-blue-400">{trvDirectes}</p>
-                    <p className="text-xs text-blue-600 dark:text-blue-500">Ventes perso</p>
-                    <p className="text-[10px] text-blue-400 mt-0.5">300→500 €</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-2.5 text-center">
+                    <p className="text-base font-bold text-blue-700 dark:text-blue-400">{trvDirectes}</p>
+                    <p className="text-[10px] text-blue-600 dark:text-blue-500">Ventes perso</p>
+                    <p className="text-[9px] text-blue-400 mt-0.5">300→500 €</p>
                   </div>
-                  <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-3 text-center">
-                    <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{trvReseau}</p>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-500">Ventes équipe</p>
-                    <p className="text-[10px] text-emerald-400 mt-0.5">120 € / vente</p>
+                  <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-2.5 text-center">
+                    <p className="text-base font-bold text-emerald-700 dark:text-emerald-400">{trvReseau}</p>
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-500">Ventes équipe</p>
+                    <p className="text-[9px] text-emerald-400 mt-0.5">120 € / vente</p>
                   </div>
-                  <div className="bg-muted rounded-lg p-3 text-center">
-                    <p className="text-lg font-bold text-muted-foreground">{trvIgnorees}</p>
-                    <p className="text-xs text-muted-foreground">Ignorées</p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">autres managers</p>
+                  <div className="bg-muted rounded-lg p-2.5 text-center">
+                    <p className="text-base font-bold text-muted-foreground">{trvIgnorees}</p>
+                    <p className="text-[10px] text-muted-foreground">Ignorées</p>
+                    <p className="text-[9px] text-muted-foreground/60 mt-0.5">autres managers</p>
                   </div>
                 </div>
 
