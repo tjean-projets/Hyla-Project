@@ -19,6 +19,7 @@ import {
   Share2,
   GraduationCap,
   MapPin,
+  BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -590,8 +591,7 @@ const sidebarLinks = [
   { to: '/contacts', icon: Users, label: 'Contacts' },
   { to: '/deals', icon: ShoppingBag, label: 'Ventes' },
   { to: '/network', icon: Network, label: 'Équipes' },
-  { to: '/formation', icon: GraduationCap, label: 'Formation' },
-  { to: '/map', icon: MapPin, label: 'Carte' },
+  { to: '/academie', icon: BookOpen, label: 'Académie', academieOnly: true },
   { to: '/commissions', icon: TrendingUp, label: 'Commissions' },
   { to: '/tasks', icon: CheckSquare, label: 'Tâches' },
   { to: '/calendar', icon: Calendar, label: 'Calendrier' },
@@ -652,6 +652,23 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
   });
   const isManager = isAdmin || profile?.role === 'manager' || profile?.role === 'admin' || (teamCount != null && teamCount > 0);
 
+  // Check Respire Académie access
+  const { data: academieSettings } = useQuery({
+    queryKey: ['academie-access-nav', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return null;
+      const { data } = await supabase
+        .from('user_settings')
+        .select('respire_academie_access')
+        .eq('user_id', effectiveId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!effectiveId,
+    staleTime: 60000,
+  });
+  const hasAcademieAccess = isAdmin || academieSettings?.respire_academie_access === true;
+
   // Use global theme — variant prop is now ignored, kept for backwards compat
   const themeCtx = useThemeSafe();
   const isDark = themeCtx?.isDark ?? (variant === 'dark');
@@ -678,6 +695,9 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
         {/* Nav */}
         <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
           {sidebarLinks.map((link) => {
+            // Hide academie link if user has no access
+            if ((link as any).academieOnly && !hasAcademieAccess) return null;
+
             const isActive =
               link.to === '/dashboard'
                 ? location.pathname === '/dashboard'
@@ -694,6 +714,27 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
                   {link.label}
                   <span className="ml-auto text-[9px] bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded">Manager</span>
                 </div>
+              );
+            }
+            // Special styling for Académie link
+            if ((link as any).academieOnly) {
+              return (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200',
+                    isActive
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/20'
+                      : 'text-emerald-400 hover:text-white hover:bg-emerald-500/10'
+                  )}
+                >
+                  <link.icon className="h-[18px] w-[18px]" />
+                  {link.label}
+                  {!isActive && (
+                    <span className="ml-auto text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-semibold">NEW</span>
+                  )}
+                </NavLink>
               );
             }
             return (
@@ -781,7 +822,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
           <div className={cn(
             'absolute top-14 left-0 right-0 shadow-xl py-2 px-3 z-50 bg-card border-b border-border'
           )}>
-            {sidebarLinks.map((link) => (
+            {sidebarLinks.filter(link => !(link as any).academieOnly || hasAcademieAccess).map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}
@@ -789,8 +830,8 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium',
                   location.pathname.startsWith(link.to)
-                    ? 'bg-[#3b82f6] text-white'
-                    : 'text-muted-foreground'
+                    ? (link as any).academieOnly ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-white' : 'bg-[#3b82f6] text-white'
+                    : (link as any).academieOnly ? 'text-emerald-500' : 'text-muted-foreground'
                 )}
               >
                 <link.icon className="h-[18px] w-[18px]" />

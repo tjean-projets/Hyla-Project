@@ -34,6 +34,7 @@ const SocialPage = lazy(() => import("./pages/SocialPage"));
 const PublicSurveyPage = lazy(() => import("./pages/PublicSurveyPage"));
 const FormationPage = lazy(() => import("./pages/FormationPage"));
 const MapPage = lazy(() => import("./pages/MapPage"));
+const RespireAcademiePage = lazy(() => import("./pages/RespireAcademiePage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Partner pages lazy-loadées
@@ -115,6 +116,7 @@ function AppRoutes() {
         <Route path="/social" element={<Navigate to="/settings" replace />} />
         <Route path="/formation" element={<ProtectedRoute><FormationPage /></ProtectedRoute>} />
         <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} />
+        <Route path="/academie" element={<ProtectedRoute><RespireAcademiePage /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
 
         {/* Partner routes */}

@@ -5,7 +5,8 @@ import { supabase, isSuperAdmin } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Shield, Users, Search, ChevronDown, ChevronRight, Eye, UserMinus,
-  TrendingUp, ShoppingBag, DollarSign, AlertTriangle, Loader2, Network
+  TrendingUp, ShoppingBag, DollarSign, AlertTriangle, Loader2, Network,
+  BookOpen, GraduationCap,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -43,6 +44,66 @@ interface UserStats {
   contacts: number;
 }
 
+// Sub-component for academie settings to use hooks properly
+function AcademieSettings({ userId, onToggle, updating }: {
+  userId: string;
+  onToggle: (field: 'respire_academie_access' | 'can_grant_academie_access', currentValue: boolean) => void;
+  updating: string | null;
+}) {
+  const { data: settings } = useQuery({
+    queryKey: ['admin-user-settings', userId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('user_settings')
+        .select('respire_academie_access, can_grant_academie_access')
+        .eq('user_id', userId)
+        .maybeSingle();
+      return data;
+    },
+    staleTime: 0,
+  });
+
+  const hasAccess = settings?.respire_academie_access === true;
+  const canGrant = settings?.can_grant_academie_access === true;
+
+  return (
+    <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-3 border border-emerald-100 dark:border-emerald-900/30">
+      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mb-2 font-semibold uppercase flex items-center gap-1.5">
+        <GraduationCap className="h-3.5 w-3.5" />
+        Respire Académie
+      </p>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium">Accès Académie</p>
+            <p className="text-[10px] text-gray-500">Voir Formation et Carte</p>
+          </div>
+          <button
+            onClick={() => onToggle('respire_academie_access', hasAccess)}
+            disabled={updating === userId + 'respire_academie_access'}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${hasAccess ? 'bg-emerald-500' : 'bg-gray-300'} disabled:opacity-50`}
+          >
+            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${hasAccess ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </button>
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium">Peut accorder l'accès</p>
+            <p className="text-[10px] text-gray-500">Admin Académie</p>
+          </div>
+          <button
+            onClick={() => onToggle('can_grant_academie_access', canGrant)}
+            disabled={updating === userId + 'can_grant_academie_access'}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${canGrant ? 'bg-emerald-500' : 'bg-gray-300'} disabled:opacity-50`}
+          >
+            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${canGrant ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPanel() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -56,6 +117,7 @@ export default function AdminPanel() {
   const [deleteTarget, setDeleteTarget] = useState<UserProfile | null>(null);
   const [deleteStep, setDeleteStep] = useState(0);
   const [confirmName, setConfirmName] = useState('');
+  const [academieUpdating, setAcademieUpdating] = useState<string | null>(null);
 
   const isAdmin = isSuperAdmin(user?.email);
 
@@ -103,6 +165,22 @@ export default function AdminPanel() {
       .eq('id', userId);
     queryClient.invalidateQueries({ queryKey: ['admin-all-profiles'] });
     toast({ title: 'Plan mis à jour' });
+  }
+
+  async function toggleAcademieAccess(userId: string, field: 'respire_academie_access' | 'can_grant_academie_access', currentValue: boolean) {
+    setAcademieUpdating(userId + field);
+    try {
+      // Upsert user_settings
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({ user_id: userId, [field]: !currentValue }, { onConflict: 'user_id' });
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['admin-user-settings', userId] });
+      toast({ title: !currentValue ? 'Accès accordé' : 'Accès retiré' });
+    } catch {
+      toast({ title: 'Erreur', variant: 'destructive' });
+    }
+    setAcademieUpdating(null);
   }
 
   const filtered = profiles.filter(p => {
@@ -299,6 +377,13 @@ export default function AdminPanel() {
                       <p className="font-medium text-xs">{new Date(selectedUser.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                     </div>
                   </div>
+
+                  {/* Respire Académie */}
+                  <AcademieSettings
+                    userId={selectedUser.id}
+                    onToggle={(field, current) => toggleAcademieAccess(selectedUser.id, field, current)}
+                    updating={academieUpdating}
+                  />
 
                   {/* Plan */}
                   <div className="bg-gray-50 rounded-xl p-3">
