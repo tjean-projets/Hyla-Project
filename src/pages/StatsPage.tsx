@@ -11,6 +11,27 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, R
 
 const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
+/* Tooltip propre utilisé sur tous les charts */
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg px-3 py-2.5 text-xs min-w-[120px]">
+      <p className="font-semibold text-gray-700 dark:text-gray-200 mb-1.5">{label}</p>
+      {payload.map((entry: any) => (
+        <div key={entry.name} className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: entry.color }} />
+            <span className="text-gray-500 dark:text-gray-400">{entry.name}</span>
+          </div>
+          <span className="font-bold text-gray-800 dark:text-gray-100">
+            {typeof entry.value === 'number' ? `${entry.value.toLocaleString('fr-FR')} €` : entry.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function StatsPage() {
   const effectiveId = useEffectiveUserId();
   const now = new Date();
@@ -215,10 +236,7 @@ export default function StatsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--foreground)' }}
-                  formatter={(value: number) => `${value.toLocaleString('fr-FR')} €`}
-                />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
                 <Bar dataKey="Directe" fill="#3b82f6" radius={[4, 4, 0, 0]} stackId="a" />
                 <Bar dataKey="Réseau" fill="#f59e0b" radius={[4, 4, 0, 0]} stackId="a" />
               </BarChart>
@@ -236,10 +254,7 @@ export default function StatsPage() {
                   <Pie data={pieData} dataKey="value" cx="50%" cy="50%" outerRadius={80} innerRadius={50} paddingAngle={4}>
                     {pieData.map((_, i) => <Cell key={i} fill={i === 0 ? '#3b82f6' : '#f59e0b'} />)}
                   </Pie>
-                  <Tooltip
-                    contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--foreground)' }}
-                    formatter={(value: number) => `${value.toLocaleString('fr-FR')} €`}
-                  />
+                  <Tooltip content={<ChartTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex justify-center gap-6 mt-2 text-xs">
@@ -261,9 +276,7 @@ export default function StatsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--foreground)' }}
-                  />
+                  <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(0,0,0,0.06)' }} />
                   <Line type="monotone" dataKey="Membres" stroke="#8b5cf6" strokeWidth={2.5} dot={{ fill: '#8b5cf6', r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
