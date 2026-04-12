@@ -694,7 +694,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
             <img
               src="/Hyla_logo_bold.png"
               alt="Hyla"
-              className="h-9 w-9 object-contain brightness-0 invert"
+              className="h-9 w-9 object-contain"
             />
             <span className="text-[17px] font-bold text-white tracking-tight">Hyla</span>
           </div>
@@ -810,7 +810,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
             <img
               src="/Hyla_logo_bold.png"
               alt="Hyla"
-              className="h-8 w-8 object-contain flex-shrink-0"
+              className="h-8 w-8 object-contain brightness-0 flex-shrink-0"
             />
             <h1 className={cn('text-sm font-semibold text-foreground truncate')}>{title}</h1>
           </div>
