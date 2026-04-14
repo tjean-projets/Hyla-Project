@@ -858,6 +858,19 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
               </NavLink>
             ))}
             <div className={cn('mt-2 pt-2 border-t border-border')}>
+              {isAdmin && (
+                <NavLink
+                  to="/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full',
+                    location.pathname === '/admin' ? 'bg-red-500 text-white' : 'text-red-500'
+                  )}
+                >
+                  <Shield className="h-[18px] w-[18px]" />
+                  Admin
+                </NavLink>
+              )}
               <button
                 onClick={() => { setMobileMenuOpen(false); signOut(); }}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 w-full"
