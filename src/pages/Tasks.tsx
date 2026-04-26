@@ -420,6 +420,7 @@ export default function Tasks() {
               </button>
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-medium ${task.status === 'terminee' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{task.title}</p>
+                {task.description && <p className="text-xs text-muted-foreground truncate mt-0.5">{task.description.length > 60 ? task.description.slice(0, 60) + '…' : task.description}</p>}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className="text-xs text-muted-foreground">{TASK_TYPE_LABELS_HYLA[task.type as keyof typeof TASK_TYPE_LABELS_HYLA]}</span>
                   {task.contacts && (

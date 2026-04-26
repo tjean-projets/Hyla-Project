@@ -595,7 +595,7 @@ export default function Deals() {
         {/* KPI cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
-            <p className="text-[10px] text-muted-foreground uppercase font-semibold">Machines vendues — {MONTHS_FR[parseInt(selectedMonth) - 1]} {selectedYear}</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-semibold">Ventes signées — {selectedMonth === 'all' ? `Année ${selectedYear}` : `${MONTHS_FR[parseInt(selectedMonth) - 1]} ${selectedYear}`}</p>
             <p className="text-2xl font-bold text-foreground mt-1">{nbSignees}</p>
           </div>
           <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl p-4 text-white">
@@ -774,7 +774,9 @@ export default function Deals() {
                     <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
                       {deals.length === 0
                         ? 'Aucune vente en base de données'
-                        : `${deals.length} vente(s) en base — aucune sur ${MONTHS_FR[parseInt(selectedMonth === 'all' ? '0' : selectedMonth) - 1] || 'ce mois'} ${selectedYear}`
+                        : selectedMonth === 'all'
+                          ? `Aucune vente sur ${selectedYear}`
+                          : `Aucune vente sur ${MONTHS_FR[parseInt(selectedMonth) - 1]} ${selectedYear}`
                       }
                     </td>
                   </tr>

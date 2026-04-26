@@ -730,8 +730,8 @@ export default function Contacts() {
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <div className="flex items-center gap-3 text-muted-foreground">
-                        {contact.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{contact.phone}</span>}
-                        {contact.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{contact.email}</span>}
+                        {contact.phone && <a href={`tel:${contact.phone}`} onClick={e => e.stopPropagation()} className="flex items-center gap-1 hover:text-blue-500 transition-colors"><Phone className="h-3 w-3" />{contact.phone}</a>}
+                        {contact.email && <a href={`mailto:${contact.email}`} onClick={e => e.stopPropagation()} className="flex items-center gap-1 hover:text-blue-500 transition-colors"><Mail className="h-3 w-3" />{contact.email}</a>}
                       </div>
                     </td>
                     <td className="px-4 py-3">

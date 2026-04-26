@@ -1162,8 +1162,8 @@ function FicheMembre({
         {/* Details */}
         <div className="px-6 py-4 space-y-3">
           <div className="space-y-2 text-sm">
-            {member.phone && <div className="flex justify-between"><span className="text-muted-foreground">Téléphone</span><span className="text-foreground">{member.phone}</span></div>}
-            {member.email && <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span className="text-foreground truncate ml-4">{member.email}</span></div>}
+            {member.phone && <div className="flex justify-between"><span className="text-muted-foreground">Téléphone</span><a href={`tel:${member.phone}`} className="text-foreground hover:text-blue-500 transition-colors" onClick={(e) => e.stopPropagation()}>{member.phone}</a></div>}
+            {member.email && <div className="flex justify-between"><span className="text-muted-foreground">Email</span><a href={`mailto:${member.email}`} className="text-foreground truncate ml-4 hover:text-blue-500 transition-colors" onClick={(e) => e.stopPropagation()}>{member.email}</a></div>}
             <div className="flex justify-between"><span className="text-muted-foreground">Depuis le</span><span className="text-foreground">{joined}</span></div>
             {contactData?.address && (
               <div className="flex justify-between gap-4">

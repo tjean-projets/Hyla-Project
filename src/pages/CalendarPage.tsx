@@ -64,7 +64,7 @@ function AppointmentCard({ apt }: { apt: any }) {
                   <span className="text-sm font-bold">{time}</span>
                 </div>
                 <span className="text-xs text-muted-foreground">→ {endTime}</span>
-                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">{apt.duration || 60} min</span>
+                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">{(() => { const d = apt.duration || 60; const h = Math.floor(d / 60); const m = d % 60; return h > 0 ? (m > 0 ? `${h}h${m}` : `${h}h`) : `${m} min`; })()}</span>
               </div>
               <p className="text-sm font-semibold text-foreground truncate">{apt.title}</p>
               <div className="flex items-center gap-2 mt-1 flex-wrap">

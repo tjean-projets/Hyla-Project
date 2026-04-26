@@ -145,12 +145,10 @@ export default function AdminPanel() {
   const { data: profiles = [], isLoading, error: profilesError } = useQuery({
     queryKey: ['admin-all-profiles', user?.id],
     queryFn: async () => {
-      console.log('[AdminPanel] Fetching profiles, user:', user?.email);
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, email, phone, sponsor_user_id, invite_code, created_at')
         .order('created_at', { ascending: false });
-      console.log('[AdminPanel] Result:', { count: data?.length, error });
       if (error) throw error;
       return (data || []) as UserProfile[];
     },
