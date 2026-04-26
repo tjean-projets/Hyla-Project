@@ -19,6 +19,15 @@ import { ContactDrawer } from '@/components/ContactDrawer';
 
 type Contact = Tables<'contacts'>;
 
+// ── Badge relance intelligente ──
+function needsRelance(contact: Contact): boolean {
+  if (contact.status !== 'prospect' && contact.status !== 'recrue') return false;
+  const ref = contact.last_contacted_at || contact.created_at;
+  if (!ref) return false;
+  const diffDays = (Date.now() - new Date(ref).getTime()) / (1000 * 60 * 60 * 24);
+  return diffDays > 30;
+}
+
 // ── Fuzzy name matching (local copy from Imports.tsx) ──
 function normalizeStr(s: string): string {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -655,54 +664,53 @@ export default function Contacts() {
         </div>
 
         {/* Toolbar */}
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher un contact..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un contact..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            {contactTab !== 'clients' && (
+              <div className="flex gap-1 bg-muted rounded-lg p-1 flex-shrink-0">
+                <button onClick={() => setView('list')} className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'list' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Liste</button>
+                <button onClick={() => setView('pipeline')} className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'pipeline' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Pipeline</button>
+              </div>
+            )}
           </div>
           {contactTab !== 'clients' && (
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tous les statuts" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                {Object.entries(CONTACT_STATUS_LABELS)
-                  .filter(([k]) => contactTab === 'crm' ? k !== 'cliente' : true)
-                  .map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          )}
-          {contactTab !== 'clients' && (
-            <div className="flex gap-1 bg-muted rounded-lg p-1">
-              <button
-                onClick={() => setView('list')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'list' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
-              >
-                Liste
-              </button>
-              <button
-                onClick={() => setView('pipeline')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'pipeline' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
-              >
-                Pipeline
-              </button>
-              {view === 'pipeline' && (
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+              {[{ k: 'all', label: 'Tous', color: statusFilter === 'all' ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:bg-muted/80' },
+                { k: 'prospect', label: 'Prospect', color: statusFilter === 'prospect' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
+                { k: 'recrue', label: 'Recrue', color: statusFilter === 'recrue' ? 'bg-purple-600 text-white' : 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
+                { k: 'cliente', label: 'Cliente', color: statusFilter === 'cliente' ? 'bg-green-600 text-white' : 'bg-green-50 text-green-700 hover:bg-green-100' },
+                { k: 'inactive', label: 'Inactive', color: statusFilter === 'inactive' ? 'bg-gray-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' },
+                { k: 'perdue', label: 'Perdue', color: statusFilter === 'perdue' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-700 hover:bg-red-100' },
+              ]
+              .filter(({ k }) => contactTab === 'crm' && k === 'cliente' ? false : true)
+              .map(({ k, label, color }) => (
                 <button
-                  onClick={() => { setEditStages(stages.map(s => ({...s}))); setShowStageManager(true); }}
-                  className="px-2 py-1.5 text-muted-foreground hover:text-gray-600"
+                  key={k}
+                  onClick={() => setStatusFilter(k)}
+                  className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${color}`}
                 >
-                  <Settings className="h-4 w-4" />
+                  {label}
                 </button>
-              )}
+              ))}
             </div>
+          )}
+          {contactTab !== 'clients' && view === 'pipeline' && (
+            <button
+              onClick={() => { setEditStages(stages.map(s => ({...s}))); setShowStageManager(true); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground bg-muted rounded-lg transition-colors"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              Gérer les étapes
+            </button>
           )}
         </div>
 
@@ -724,8 +732,13 @@ export default function Contacts() {
                 {filtered.map((contact) => (
                   <tr key={contact.id} className="hover:bg-muted cursor-pointer" onClick={() => setDrawerContact(contact)}>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-foreground">{contact.first_name} {contact.last_name}</span>
+                        {needsRelance(contact) && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">
+                            <AlertTriangle className="h-2.5 w-2.5" />À relancer
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
@@ -812,10 +825,15 @@ export default function Contacts() {
                           <p className="font-medium text-sm text-foreground">{contact.first_name} {contact.last_name}</p>
                         </div>
                         {contact.phone && <p className="text-xs text-muted-foreground mt-1 ml-5">{contact.phone}</p>}
-                        <div className="flex items-center gap-2 mt-2 ml-5">
+                        <div className="flex items-center gap-2 mt-2 ml-5 flex-wrap">
                           <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium ${CONTACT_STATUS_COLORS[contact.status]}`}>
                             {CONTACT_STATUS_LABELS[contact.status]}
                           </span>
+                          {needsRelance(contact) && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">
+                              <AlertTriangle className="h-2.5 w-2.5" />À relancer
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}

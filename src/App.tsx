@@ -9,6 +9,7 @@ import { ImpersonationProvider } from "./hooks/useImpersonation";
 import { ThemeProvider } from "./hooks/useTheme";
 import { AmountsProvider } from "./contexts/AmountsContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import SetupWizard from "@/components/SetupWizard";
 
 // Pages statiques (petites, nécessaires immédiatement)
 import Login from "./pages/Login";
@@ -150,6 +151,7 @@ const App = () => (
             <ImpersonationProvider>
               <AmountsProvider>
                 <AppRoutes />
+                <SetupWizard />
               </AmountsProvider>
             </ImpersonationProvider>
           </ThemeProvider>

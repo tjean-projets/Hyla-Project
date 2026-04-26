@@ -5,7 +5,7 @@ import { usePlan } from '@/hooks/usePlan';
 import { PaywallScreen } from '@/components/PaywallScreen';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, ArrowUp, ArrowDown, Trophy, XCircle } from 'lucide-react';
+import { BarChart3, ArrowUp, ArrowDown, Trophy, XCircle, TrendingDown, Users, CalendarCheck, ShoppingBag, UserCheck } from 'lucide-react';
 import { SkeletonKPI, SkeletonChart } from '@/components/ui/skeleton-card';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -74,6 +74,26 @@ export default function StatsPage() {
     enabled: !!effectiveId,
   });
 
+  const { data: deals = [] } = useQuery({
+    queryKey: ['stats-deals', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase.from('deals').select('id, status, created_at').eq('user_id', effectiveId);
+      return data || [];
+    },
+    enabled: !!effectiveId,
+  });
+
+  const { data: rdvTasks = [] } = useQuery({
+    queryKey: ['stats-rdv', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase.from('tasks').select('id, type, status').eq('user_id', effectiveId).eq('type', 'rdv');
+      return data || [];
+    },
+    enabled: !!effectiveId,
+  });
+
   const { data: lostDeals = [] } = useQuery({
     queryKey: ['lost-deals', effectiveId],
     queryFn: async () => {
@@ -137,6 +157,19 @@ export default function StatsPage() {
   const totalContacts = contacts.length;
   const recrues = contacts.filter((c: any) => c.status === 'recrue').length;
   const conversionRate = totalContacts > 0 ? Math.round((recrues / totalContacts) * 100) : 0;
+
+  // ── Entonnoir de conversion ──
+  const totalDeals = deals.length;
+  const signedDeals = deals.filter((d: any) => d.status === 'signee' || d.status === 'livree').length;
+  const rdvDone = rdvTasks.filter((t: any) => t.status === 'terminee').length;
+  const rdvTotal = rdvTasks.length;
+  const funnelSteps = [
+    { label: 'Contacts créés', value: totalContacts, icon: Users, color: 'bg-blue-500', light: 'bg-blue-50 text-blue-700' },
+    { label: 'Prospects actifs', value: contacts.filter((c: any) => c.status === 'prospect').length, icon: UserCheck, color: 'bg-indigo-500', light: 'bg-indigo-50 text-indigo-700' },
+    { label: 'RDV effectués', value: rdvDone, icon: CalendarCheck, color: 'bg-violet-500', light: 'bg-violet-50 text-violet-700' },
+    { label: 'Ventes créées', value: totalDeals, icon: ShoppingBag, color: 'bg-amber-500', light: 'bg-amber-50 text-amber-700' },
+    { label: 'Ventes signées', value: signedDeals, icon: TrendingDown, color: 'bg-green-500', light: 'bg-green-50 text-green-700' },
+  ];
 
   const lossReasonLabels: Record<string, string> = {
     prix: '💰 Prix trop élevé',
@@ -224,6 +257,45 @@ export default function StatsPage() {
             </div>
           </div>
         )}
+
+        {/* ── Entonnoir de conversion ── */}
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
+          <h3 className="text-sm font-bold text-foreground mb-4">Entonnoir de conversion</h3>
+          <div className="space-y-2">
+            {funnelSteps.map((step, i) => {
+              const maxVal = funnelSteps[0].value || 1;
+              const pct = Math.round((step.value / maxVal) * 100);
+              const convPct = i > 0 && funnelSteps[i - 1].value > 0
+                ? Math.round((step.value / funnelSteps[i - 1].value) * 100)
+                : null;
+              const Icon = step.icon;
+              return (
+                <div key={step.label}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-6 w-6 rounded-lg ${step.color} flex items-center justify-center`}>
+                        <Icon className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      <span className="text-sm font-medium text-foreground">{step.label}</span>
+                      {convPct !== null && (
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${step.light}`}>
+                          {convPct}% conv.
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm font-bold text-foreground">{step.value}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${step.color} transition-all duration-700`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         {/* ── CA Evolution chart ── */}
         {commissionsLoading ? (

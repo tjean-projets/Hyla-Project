@@ -206,6 +206,7 @@ export default function Tasks() {
   const [draggingTask, setDraggingTask] = useState<any>(null);
 
   // ── List touch-drag reorder ──
+  const storageKey = effectiveId ? `tasks-order-${effectiveId}` : null;
   const [listOrder, setListOrder] = useState<string[]>([]);
   const [activeDragIdx, setActiveDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
@@ -266,7 +267,21 @@ export default function Tasks() {
   // Sync listOrder when tasks/filter change and not dragging
   useEffect(() => {
     if (activeDragIdx === null) {
-      setListOrder(filtered.map((t: any) => t.id));
+      const freshIds = filtered.map((t: any) => t.id);
+      if (storageKey) {
+        try {
+          const saved: string[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          if (saved.length > 0) {
+            // merge: keep saved order for known IDs, append new IDs at end
+            const known = new Set(freshIds);
+            const ordered = saved.filter((id) => known.has(id));
+            const newIds = freshIds.filter((id) => !ordered.includes(id));
+            setListOrder([...ordered, ...newIds]);
+            return;
+          }
+        } catch { /* ignore */ }
+      }
+      setListOrder(freshIds);
     }
   }, [filtered]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -318,6 +333,9 @@ export default function Tasks() {
       const [moved] = newOrder.splice(from, 1);
       newOrder.splice(to, 0, moved);
       setListOrder(newOrder);
+      if (storageKey) {
+        try { localStorage.setItem(storageKey, JSON.stringify(newOrder)); } catch { /* ignore */ }
+      }
     }
     listDragRef.current = null;
     setActiveDragIdx(null);

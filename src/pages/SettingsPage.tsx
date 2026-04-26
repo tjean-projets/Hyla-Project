@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useThemeSafe } from '@/hooks/useTheme';
 import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
 import { usePlan } from '@/hooks/usePlan';
+import { useNotifications } from '@/hooks/useNotifications';
 
 interface FormQuestion {
   id: string;
@@ -219,6 +220,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const themeCtx = useThemeSafe();
+  const { permission, enabled: notifEnabled, enable: enableNotif, disable: disableNotif } = useNotifications();
   const { plan, isTrial, trialDaysLeft, trialEndsAt, planStatus } = usePlan();
 
   const goToCheckout = async (selectedPlan: 'conseillere' | 'manager') => {
@@ -727,6 +729,24 @@ export default function SettingsPage() {
               <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-card shadow transition-transform ${themeCtx?.isDark ? 'translate-x-5' : ''}`} />
             </button>
           </div>
+
+          {'Notification' in window && permission !== 'denied' && (
+            <div className="flex items-center justify-between pt-3 border-t border-border">
+              <div>
+                <p className="text-sm font-medium text-foreground">Rappels RDV</p>
+                <p className="text-xs text-muted-foreground">Notification 30 min avant chaque rendez-vous</p>
+              </div>
+              <button
+                onClick={async () => {
+                  if (notifEnabled) { disableNotif(); toast({ title: 'Rappels désactivés' }); }
+                  else { const ok = await enableNotif(); if (ok) toast({ title: 'Rappels activés !' }); else toast({ title: 'Permission refusée', variant: 'destructive' }); }
+                }}
+                className={`relative w-12 h-7 rounded-full transition-colors ${notifEnabled && permission === 'granted' ? 'bg-[#3b82f6]' : 'bg-gray-300'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-card shadow transition-transform ${notifEnabled && permission === 'granted' ? 'translate-x-5' : ''}`} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Challenges */}
