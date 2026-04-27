@@ -61,41 +61,42 @@
   }
 
   .dark {
-    --background: 220 14% 6%;
-    --foreground: 210 20% 95%;
+    /* ── Premium dark — fond #08090f, cards #10141e, borders très subtils ── */
+    --background: 225 39% 5%;
+    --foreground: 210 18% 93%;
 
-    --card: 220 14% 9%;
-    --card-foreground: 210 20% 95%;
+    --card: 225 30% 9%;
+    --card-foreground: 210 18% 93%;
 
-    --popover: 220 14% 9%;
-    --popover-foreground: 210 20% 95%;
+    --popover: 225 30% 9%;
+    --popover-foreground: 210 18% 93%;
 
     --primary: 0 0% 100%;
     --primary-foreground: 220 14% 10%;
 
-    --secondary: 220 14% 14%;
-    --secondary-foreground: 210 20% 95%;
+    --secondary: 225 24% 13%;
+    --secondary-foreground: 210 18% 93%;
 
-    --muted: 220 14% 14%;
-    --muted-foreground: 220 9% 55%;
+    --muted: 225 24% 13%;
+    --muted-foreground: 220 10% 52%;
 
-    --accent: 220 14% 14%;
-    --accent-foreground: 210 20% 95%;
+    --accent: 225 24% 13%;
+    --accent-foreground: 210 18% 93%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 14% 16%;
-    --input: 220 14% 16%;
-    --ring: 0 0% 100%;
+    --border: 225 20% 15%;
+    --input: 225 20% 15%;
+    --ring: 217 91% 60%;
 
-    --sidebar-background: 220 14% 6%;
-    --sidebar-foreground: 210 20% 95%;
+    --sidebar-background: 225 36% 7%;
+    --sidebar-foreground: 210 18% 93%;
     --sidebar-primary: 0 0% 100%;
     --sidebar-primary-foreground: 220 14% 10%;
-    --sidebar-accent: 220 14% 12%;
-    --sidebar-accent-foreground: 210 20% 95%;
-    --sidebar-border: 220 14% 12%;
+    --sidebar-accent: 225 24% 11%;
+    --sidebar-accent-foreground: 210 18% 93%;
+    --sidebar-border: 225 20% 11%;
     --sidebar-ring: 0 0% 100%;
   }
 }
@@ -324,4 +325,82 @@ input:focus, select:focus, textarea:focus {
 }
 .badge-pulse {
   animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* ════════════════════════════════════════════
+   DARK MODE — PREMIUM ENHANCEMENTS
+   ════════════════════════════════════════════ */
+
+/* Ambient blue glow — fond radial derrière le contenu */
+.dark body::after {
+  content: '';
+  position: fixed;
+  top: -180px;
+  left: 30%;
+  width: 700px;
+  height: 600px;
+  background: radial-gradient(ellipse at center, rgba(59,130,246,0.055) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Top highlight sur les cartes — effet premium glassmorphism */
+.dark .rounded-2xl,
+.dark .rounded-xl {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* Hover lift dark mode — ombre plus profonde + micro glow bleu */
+.dark .hover-lift:hover {
+  transform: translateY(-2px) !important;
+  box-shadow:
+    0 14px 40px -8px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(59,130,246,0.1) !important;
+}
+
+/* Scrollbar dark */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.15);
+}
+
+/* Status badges — adaptation dark mode */
+.dark .status-nouveau   { @apply bg-violet-950/50 text-violet-300 border-violet-800/40; }
+.dark .status-en-cours  { @apply bg-amber-950/50  text-amber-300  border-amber-800/40; }
+.dark .status-contact   { @apply bg-slate-800/50  text-slate-300  border-slate-600/40; }
+.dark .status-devis-envoye { @apply bg-sky-950/50 text-sky-300    border-sky-800/40; }
+.dark .status-simulation   { @apply bg-sky-950/50 text-sky-300    border-sky-800/40; }
+.dark .status-signature { @apply bg-violet-950/50 text-violet-300 border-violet-800/40; }
+.dark .status-signe     { @apply bg-emerald-950/50 text-emerald-300 border-emerald-800/40; }
+.dark .status-refuse    { @apply bg-red-950/50    text-red-300    border-red-800/40; }
+.dark .status-perdu     { @apply bg-muted/50 text-muted-foreground border-border; }
+
+/* Inputs — fond harmonisé dark */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
+.dark select,
+.dark textarea {
+  background-color: hsl(var(--background));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+/* Focus dark — glow bleu plus visible */
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.22);
+  border-color: rgba(59,130,246,0.5);
+}
+
+/* Tables en dark mode */
+.dark table thead {
+  background: hsl(var(--secondary));
+}
+
+/* Separator / divider */
+.dark hr,
+.dark [class*="divide-"] > * + * {
+  border-color: hsl(var(--border));
 }
