@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
-import { supabase, COMMISSION_TYPE_LABELS, getHylaCommission, getGroupPrime, HYLA_LEVELS } from '@/lib/supabase';
+import { supabase, COMMISSION_TYPE_LABELS, getHylaCommission, getPersonalSaleCommission, getGroupPrime, HYLA_LEVELS } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, Zap, Trophy, Star, ArrowUp, DollarSign, Users, ChevronDown, ChevronRight, FileText, Download, Check, Clock, CheckCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -562,8 +562,11 @@ export default function Commissions() {
               <span className="ml-auto text-[10px] text-amber-600 font-medium">Depuis vos saisies · en attente import TRV</span>
             </div>
             <div className="divide-y divide-amber-200 dark:divide-amber-800">
-              {pending.map((p: any) => {
-                const estimated = getHylaCommission(1);
+              {(() => {
+                // Base rank = commissions directes validées déjà connues ce mois
+                const confirmedDirectCount = filteredCommissions.filter((c: any) => c.type === 'directe' && c.status === 'validee').length;
+                return pending.map((p: any, idx: number) => {
+                const estimated = getPersonalSaleCommission(confirmedDirectCount + idx + 1);
                 return (
                   <div key={p.deal_id} className="flex items-center gap-3 px-4 py-3">
                     <div className="flex-1 min-w-0">
@@ -594,7 +597,8 @@ export default function Commissions() {
                     </div>
                   </div>
                 );
-              })}
+              });
+              })()}
             </div>
           </div>
         )}

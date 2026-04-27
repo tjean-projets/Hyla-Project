@@ -458,6 +458,40 @@ function exportToCSV(rows: Record<string, any>[], filename: string) {
   URL.revokeObjectURL(url);
 }
 
+// ── CSV Import helpers ──
+function detectCsvSep(line: string): string {
+  const counts = { ',': 0, ';': 0, '\t': 0 };
+  for (const c of line) { if (c in counts) (counts as any)[c]++; }
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+}
+
+function normHeader(h: string): string {
+  return h.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+}
+
+function mapCsvColumns(headers: string[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  const keywords: Record<string, string[]> = {
+    first_name: ['prenom', 'firstname', 'prenom', 'given'],
+    last_name: ['nom', 'lastname', 'surname', 'family'],
+    phone: ['telephone', 'tel', 'phone', 'mobile', 'portable', 'gsm'],
+    email: ['email', 'mail', 'courriel'],
+    status: ['statut', 'status', 'type'],
+    source: ['source', 'origine', 'provenance'],
+    notes: ['notes', 'note', 'commentaire', 'remarque'],
+    address: ['adresse', 'address'],
+  };
+  for (const h of headers) {
+    const n = normHeader(h);
+    for (const [field, kws] of Object.entries(keywords)) {
+      if (!map[field] && kws.some(k => n.includes(k))) {
+        map[field] = h;
+      }
+    }
+  }
+  return map;
+}
+
 export default function Contacts() {
   const { user } = useAuth();
   const effectiveId = useEffectiveUserId();
@@ -469,6 +503,12 @@ export default function Contacts() {
   const [showForm, setShowForm] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [view, setView] = useState<'list' | 'pipeline'>('list');
+  // CSV import state
+  const [showCsvImport, setShowCsvImport] = useState(false);
+  const [csvRows, setCsvRows] = useState<Record<string, string>[]>([]);
+  const [csvMapping, setCsvMapping] = useState<Record<string, string>>({});
+  const [csvDefaultStatus, setCsvDefaultStatus] = useState('prospect');
+  const [csvImporting, setCsvImporting] = useState(false);
   const [showStageManager, setShowStageManager] = useState(false);
   const [editStages, setEditStages] = useState<{id?: string, name: string, color: string, position: number}[]>([]);
   const [draggingContact, setDraggingContact] = useState<Contact | null>(null);
@@ -600,6 +640,13 @@ export default function Contacts() {
       actions={
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowCsvImport(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-muted text-foreground font-semibold rounded-xl border border-border hover:bg-muted/80 active:scale-[0.98] transition-all"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span className="hidden sm:inline">Importer CSV</span>
+          </button>
+          <button
             onClick={() => exportToCSV(
               filtered.map(c => ({
                 Prénom: c.first_name,
@@ -628,6 +675,150 @@ export default function Contacts() {
         </div>
       }
     >
+      {/* ── CSV Import dialog ── */}
+      <Dialog open={showCsvImport} onOpenChange={(v) => { setShowCsvImport(v); if (!v) { setCsvRows([]); setCsvMapping({}); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+          <DialogHeader><DialogTitle>Importer des contacts depuis un CSV</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            {csvRows.length === 0 ? (
+              <div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Format accepté : CSV ou Excel exporté en CSV — colonnes détectées automatiquement.<br />
+                  Colonnes recommandées : <strong>Prénom, Nom, Téléphone, Email, Statut, Source, Notes</strong>
+                </p>
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl p-8 cursor-pointer hover:border-blue-400 transition-colors">
+                  <UserPlus className="h-8 w-8 text-blue-400 mb-2" />
+                  <span className="text-sm font-semibold text-foreground">Cliquer pour choisir un fichier CSV</span>
+                  <span className="text-xs text-muted-foreground mt-1">Séparateur , ou ; ou tabulation — encodage UTF-8 recommandé</span>
+                  <input type="file" accept=".csv,.txt" className="hidden" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      const text = (ev.target?.result as string) || '';
+                      const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(Boolean);
+                      if (lines.length < 2) { toast({ title: 'Fichier vide ou invalide', variant: 'destructive' }); return; }
+                      const sep = detectCsvSep(lines[0]);
+                      const headers = lines[0].split(sep).map(h => h.replace(/^["']|["']$/g, '').trim());
+                      const rows = lines.slice(1).map(line => {
+                        const vals = line.split(sep).map(v => v.replace(/^["']|["']$/g, '').trim());
+                        return Object.fromEntries(headers.map((h, i) => [h, vals[i] || '']));
+                      }).filter(r => Object.values(r).some(v => v));
+                      setCsvRows(rows);
+                      setCsvMapping(mapCsvColumns(headers));
+                    };
+                    reader.readAsText(file, 'UTF-8');
+                  }} />
+                </label>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-foreground">{csvRows.length} lignes détectées</p>
+                  <button onClick={() => { setCsvRows([]); setCsvMapping({}); }} className="text-xs text-muted-foreground hover:text-foreground underline">Changer de fichier</button>
+                </div>
+
+                {/* Column mapping */}
+                <div className="bg-muted rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Correspondance des colonnes</p>
+                  {(['first_name','last_name','phone','email','status','source','notes'] as const).map(field => {
+                    const labels: Record<string, string> = { first_name: 'Prénom *', last_name: 'Nom *', phone: 'Téléphone', email: 'Email', status: 'Statut', source: 'Source', notes: 'Notes' };
+                    const headers = csvRows[0] ? Object.keys(csvRows[0]) : [];
+                    return (
+                      <div key={field} className="flex items-center gap-3">
+                        <span className="text-xs font-medium w-24 text-foreground">{labels[field]}</span>
+                        <select
+                          value={csvMapping[field] || ''}
+                          onChange={e => setCsvMapping(prev => ({ ...prev, [field]: e.target.value }))}
+                          className="flex-1 text-xs rounded-lg border border-border bg-background px-2 py-1.5"
+                        >
+                          <option value="">— Ignorer —</option>
+                          {headers.map(h => <option key={h} value={h}>{h}</option>)}
+                        </select>
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center gap-3 pt-1 border-t border-border">
+                    <span className="text-xs font-medium w-24 text-foreground">Statut par défaut</span>
+                    <select value={csvDefaultStatus} onChange={e => setCsvDefaultStatus(e.target.value)} className="flex-1 text-xs rounded-lg border border-border bg-background px-2 py-1.5">
+                      {Object.entries(CONTACT_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Preview */}
+                <div className="overflow-x-auto rounded-xl border border-border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted border-b">
+                      <tr>
+                        {['Prénom','Nom','Téléphone','Email','Statut'].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground">{h}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {csvRows.slice(0,5).map((row, i) => (
+                        <tr key={i} className="hover:bg-muted/50">
+                          <td className="px-3 py-2">{csvMapping.first_name ? row[csvMapping.first_name] : '—'}</td>
+                          <td className="px-3 py-2">{csvMapping.last_name ? row[csvMapping.last_name] : '—'}</td>
+                          <td className="px-3 py-2">{csvMapping.phone ? row[csvMapping.phone] : '—'}</td>
+                          <td className="px-3 py-2">{csvMapping.email ? row[csvMapping.email] : '—'}</td>
+                          <td className="px-3 py-2">{csvMapping.status ? row[csvMapping.status] || csvDefaultStatus : csvDefaultStatus}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {csvRows.length > 5 && <p className="text-center text-[10px] text-muted-foreground py-2">… et {csvRows.length - 5} autres lignes</p>}
+                </div>
+
+                <button
+                  disabled={csvImporting || !csvMapping.first_name}
+                  onClick={async () => {
+                    if (!effectiveId || !csvMapping.first_name) return;
+                    setCsvImporting(true);
+                    // Get existing phones/emails to deduplicate
+                    const { data: existing } = await supabase.from('contacts').select('phone, email').eq('user_id', effectiveId);
+                    const existingPhones = new Set((existing || []).map(c => c.phone?.replace(/\s/g, '')).filter(Boolean));
+                    const existingEmails = new Set((existing || []).map(c => c.email?.toLowerCase()).filter(Boolean));
+                    const statusMap: Record<string, string> = { prospect: 'prospect', cliente: 'cliente', recrue: 'recrue', inactive: 'inactive', perdue: 'perdue', client: 'cliente', 'client(e)': 'cliente' };
+                    const toInsert = csvRows.map(row => {
+                      const phone = csvMapping.phone ? row[csvMapping.phone]?.replace(/\s/g, '') || null : null;
+                      const email = csvMapping.email ? row[csvMapping.email]?.toLowerCase() || null : null;
+                      return {
+                        user_id: effectiveId,
+                        first_name: csvMapping.first_name ? row[csvMapping.first_name] || '' : '',
+                        last_name: csvMapping.last_name ? row[csvMapping.last_name] || '' : '',
+                        phone: phone || null,
+                        email: email || null,
+                        status: (csvMapping.status ? statusMap[row[csvMapping.status]?.toLowerCase()] || csvDefaultStatus : csvDefaultStatus) as any,
+                        source: csvMapping.source ? row[csvMapping.source] || null : null,
+                        notes: csvMapping.notes ? row[csvMapping.notes] || null : null,
+                      };
+                    }).filter(r => r.first_name || r.last_name)
+                      .filter(r => !(r.phone && existingPhones.has(r.phone)) && !(r.email && existingEmails.has(r.email)));
+                    if (toInsert.length === 0) {
+                      toast({ title: 'Aucun nouveau contact', description: 'Tous les contacts existent déjà (dédupliqués par tél./email).' });
+                      setCsvImporting(false);
+                      return;
+                    }
+                    const { error } = await supabase.from('contacts').insert(toInsert);
+                    setCsvImporting(false);
+                    if (error) { toast({ title: 'Erreur', description: error.message, variant: 'destructive' }); return; }
+                    queryClient.invalidateQueries({ queryKey: ['contacts'] });
+                    toast({ title: `${toInsert.length} contacts importés !`, description: csvRows.length - toInsert.length > 0 ? `${csvRows.length - toInsert.length} doublons ignorés.` : undefined });
+                    setShowCsvImport(false); setCsvRows([]); setCsvMapping({});
+                  }}
+                  className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl text-sm disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98]"
+                >
+                  {csvImporting
+                    ? <><div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />Import en cours…</>
+                    : <><UserPlus className="h-4 w-4" />Importer {csvRows.length} contacts</>
+                  }
+                </button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* New contact dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4" onOpenAutoFocus={(e) => e.preventDefault()}>

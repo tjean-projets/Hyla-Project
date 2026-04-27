@@ -205,8 +205,8 @@ export default function Tasks() {
   const [view, setView] = useState<'list' | 'kanban'>('list');
   const [draggingTask, setDraggingTask] = useState<any>(null);
 
-  // ── List touch-drag reorder ──
-  const storageKey = effectiveId ? `tasks-order-${effectiveId}` : null;
+  // ── List touch-drag reorder — clé par filtre pour éviter collision ──
+  const storageKey = effectiveId ? `tasks-order-${effectiveId}-${filter}` : null;
   const [listOrder, setListOrder] = useState<string[]>([]);
   const [activeDragIdx, setActiveDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);

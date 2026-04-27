@@ -1178,7 +1178,7 @@ function FicheMembre({
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Dernières commissions</p>
               <div className="space-y-1 max-h-32 overflow-y-auto">
-                {commissions.slice(0, 5).map((c: any) => (
+                {[...commissions].sort((a: any, b: any) => b.period.localeCompare(a.period)).slice(0, 5).map((c: any) => (
                   <div key={c.id} className="flex justify-between text-xs py-1 border-b border-gray-50">
                     <span className="text-muted-foreground">{new Date(c.period + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
                     <span className="font-semibold text-foreground">{c.amount.toLocaleString('fr-FR')} €</span>
@@ -1575,6 +1575,8 @@ export default function NetworkPage() {
   const [showSubMemberConfirm, setShowSubMemberConfirm] = useState(false);
   const [promoteMember, setPromoteMember] = useState<TeamMember | null>(null);
   const [showMemberList, setShowMemberList] = useState(true);
+  const [bulkEditMode, setBulkEditMode] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState<Record<string, boolean>>({});
   const [showChallengeForm, setShowChallengeForm] = useState(false);
   const [challengeForm, setChallengeForm] = useState({
     title: '',
@@ -1998,6 +2000,18 @@ export default function NetworkPage() {
             />
           </div>
           <button
+            onClick={() => { setBulkEditMode(!bulkEditMode); setShowMemberList(true); }}
+            className={`px-3 py-2.5 rounded-xl border text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+              bulkEditMode
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'border-border text-muted-foreground hover:text-foreground'
+            }`}
+            title="Édition en masse des niveaux"
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+            {bulkEditMode ? 'Terminer' : 'Niveaux'}
+          </button>
+          <button
             onClick={() => setShowMemberList(!showMemberList)}
             className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:border-border/70 transition-colors"
             title={showMemberList ? 'Masquer' : 'Afficher'}
@@ -2006,8 +2020,61 @@ export default function NetworkPage() {
           </button>
         </div>
 
+        {/* ── Bulk edit banner ── */}
+        {bulkEditMode && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800 text-xs text-blue-700 dark:text-blue-300">
+            <Edit3 className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>Mode édition — change le niveau directement sur chaque ligne, sauvegarde automatique</span>
+          </div>
+        )}
+
+        {/* ── Bulk edit table ── */}
+        {showMemberList && bulkEditMode && (
+          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+            <div className="grid grid-cols-[1fr_160px_32px] gap-0 text-[10px] font-semibold uppercase text-muted-foreground px-4 py-2 border-b border-border bg-muted">
+              <span>Membre</span>
+              <span>Niveau Hyla</span>
+              <span />
+            </div>
+            <div className="divide-y divide-border">
+              {filtered.map((member) => (
+                <div key={member.id} className="grid grid-cols-[1fr_160px_32px] items-center gap-2 px-4 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{member.first_name} {member.last_name}</p>
+                    <p className="text-[10px] text-muted-foreground">{member.status === 'actif' ? 'Actif' : 'Inactif'}</p>
+                  </div>
+                  <select
+                    value={(member as any).hyla_level || 'vendeur'}
+                    onChange={async (e) => {
+                      const newLevel = e.target.value;
+                      setBulkSaving(prev => ({ ...prev, [member.id]: true }));
+                      await supabase.from('team_members').update({
+                        hyla_level: newLevel,
+                        level: ['manager','chef_groupe','chef_agence','distributeur','elite_bronze','elite_argent','elite_or'].includes(newLevel) ? 2 : 1,
+                      } as any).eq('id', member.id);
+                      queryClient.invalidateQueries({ queryKey: ['team-members'] });
+                      setBulkSaving(prev => ({ ...prev, [member.id]: false }));
+                    }}
+                    className="text-xs rounded-lg border border-border bg-background text-foreground px-2 py-1.5 w-full focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  >
+                    {HYLA_LEVELS.map(lvl => (
+                      <option key={lvl.value} value={lvl.value}>{lvl.shortLabel}</option>
+                    ))}
+                  </select>
+                  <div className="flex items-center justify-center h-6 w-6">
+                    {bulkSaving[member.id]
+                      ? <div className="h-3.5 w-3.5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                      : <CheckCircle className="h-3.5 w-3.5 text-emerald-500 opacity-0 transition-opacity" />
+                    }
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Member list ── */}
-        {showMemberList && (
+        {showMemberList && !bulkEditMode && (
           <div className="space-y-2">
             {filtered.map((member) => {
               const tier = getMemberLevel((member as any).hyla_level || (member.level >= 2 ? 'manager' : 'vendeur'));
