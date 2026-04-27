@@ -455,48 +455,43 @@ export default function Dashboard() {
 
         {/* ── Challenges (clickable cards) ── */}
         {(countdownActive || rookieActive) && (
-          <div className="space-y-3">
+          <div className={`grid gap-3 ${countdownActive && rookieActive ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {countdownActive && (
-              <div onClick={() => setShowChallenge('countdown')} className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-5 text-white cursor-pointer active:scale-[0.98] transition-transform">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Timer className="h-5 w-5" />
-                    <span className="text-sm font-bold uppercase tracking-wider">{HYLA_CHALLENGES.countdown.name} — {HYLA_CHALLENGES.countdown.months} mois</span>
+              <div onClick={() => setShowChallenge('countdown')} className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-3.5 text-white cursor-pointer active:scale-[0.98] transition-transform">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Timer className="h-4 w-4" />
+                    <span className="text-xs font-bold uppercase tracking-wide">Rebours</span>
                   </div>
-                  <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded-full font-semibold">✓ TRV</span>
+                  <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded-full font-semibold">TRV</span>
                 </div>
-                <p className="text-xs opacity-90 mb-3">
-                  Réalise {HYLA_CHALLENGES.countdown.target} ventes pendant cette période. La {HYLA_CHALLENGES.countdown.target}ème vente est sur-commissionnée <span className="font-bold">{HYLA_CHALLENGES.countdown.bonus}€</span>
-                </p>
                 <div className="flex items-end justify-between mb-2">
-                  <span className="text-3xl font-black">{countdownSales}/{HYLA_CHALLENGES.countdown.target}</span>
-                  <span className="text-sm font-bold opacity-90">{countdownDaysLeft}j restants</span>
+                  <span className="text-2xl font-black leading-none">{countdownSales}/{HYLA_CHALLENGES.countdown.target}</span>
+                  <span className="text-xs font-bold opacity-90">{countdownDaysLeft}j</span>
                 </div>
-                <div className="h-3 rounded-full bg-white/20 overflow-hidden">
-                  <div className="h-full rounded-full bg-card transition-all duration-700" style={{ width: `${countdownPct}%` }} />
+                <div className="h-1.5 rounded-full bg-white/25 overflow-hidden">
+                  <div className="h-full rounded-full bg-white/80 transition-all duration-700" style={{ width: `${countdownPct}%` }} />
                 </div>
+                <p className="text-[10px] opacity-70 mt-1.5">Bonus {HYLA_CHALLENGES.countdown.bonus}€ · {HYLA_CHALLENGES.countdown.months} mois</p>
                 {countdownSales >= HYLA_CHALLENGES.countdown.target && (
-                  <div className="mt-2 text-center bg-white/20 rounded-xl py-1.5 text-sm font-bold">+{HYLA_CHALLENGES.countdown.bonus}€ débloqué !</div>
+                  <div className="mt-1.5 text-center bg-white/20 rounded-lg py-1 text-xs font-bold">+{HYLA_CHALLENGES.countdown.bonus}€ débloqué !</div>
                 )}
               </div>
             )}
-
             {rookieActive && (
-              <div onClick={() => setShowChallenge('rookie')} className="bg-gradient-to-r from-violet-500 to-indigo-500 rounded-2xl p-5 text-white cursor-pointer active:scale-[0.98] transition-transform">
-                <div className="flex items-center gap-2 mb-3">
-                  <Trophy className="h-5 w-5" />
-                  <span className="text-sm font-bold uppercase tracking-wider">{HYLA_CHALLENGES.rookie.name} — {HYLA_CHALLENGES.rookie.months} mois</span>
+              <div onClick={() => setShowChallenge('rookie')} className="bg-gradient-to-br from-violet-500 to-indigo-500 rounded-2xl p-3.5 text-white cursor-pointer active:scale-[0.98] transition-transform">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Trophy className="h-4 w-4" />
+                  <span className="text-xs font-bold uppercase tracking-wide">Rookie</span>
                 </div>
-                <p className="text-xs opacity-90 mb-3">
-                  Réalise {HYLA_CHALLENGES.rookie.target - 1} ventes en {HYLA_CHALLENGES.rookie.months} mois. La {HYLA_CHALLENGES.rookie.target}ème vente déclenche une super-commission de <span className="font-bold">{HYLA_CHALLENGES.rookie.bonus}€</span>
-                </p>
                 <div className="flex items-end justify-between mb-2">
-                  <span className="text-3xl font-black">{rookieSales}/{HYLA_CHALLENGES.rookie.target}</span>
-                  <span className="text-sm font-bold opacity-90">{rookieDaysLeft}j restants</span>
+                  <span className="text-2xl font-black leading-none">{rookieSales}/{HYLA_CHALLENGES.rookie.target}</span>
+                  <span className="text-xs font-bold opacity-90">{rookieDaysLeft}j</span>
                 </div>
-                <div className="h-3 rounded-full bg-white/20 overflow-hidden">
-                  <div className="h-full rounded-full bg-card transition-all duration-700" style={{ width: `${rookiePct}%` }} />
+                <div className="h-1.5 rounded-full bg-white/25 overflow-hidden">
+                  <div className="h-full rounded-full bg-white/80 transition-all duration-700" style={{ width: `${rookiePct}%` }} />
                 </div>
+                <p className="text-[10px] opacity-70 mt-1.5">Bonus {HYLA_CHALLENGES.rookie.bonus}€ · {HYLA_CHALLENGES.rookie.months} mois</p>
               </div>
             )}
           </div>
