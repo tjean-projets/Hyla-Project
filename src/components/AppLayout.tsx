@@ -628,9 +628,10 @@ interface AppLayoutProps {
   actions?: React.ReactNode;
   variant?: 'light' | 'dark';
   hideBanner?: boolean;
+  hideAmountsToggle?: boolean;
 }
 
-export function AppLayout({ title, children, actions, variant = 'light', hideBanner = false }: AppLayoutProps) {
+export function AppLayout({ title, children, actions, variant = 'light', hideBanner = false, hideAmountsToggle = false }: AppLayoutProps) {
   const location = useLocation();
   const { signOut, profile: authProfile, user } = useAuth();
   const { profile: effectiveProfile } = useEffectiveProfile();
@@ -820,13 +821,15 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             {actions && <div className="flex items-center gap-1">{actions}</div>}
-            <button
-              onClick={toggleAmounts}
-              className={cn('p-2 rounded-xl transition-colors', amountsVisible ? 'text-muted-foreground hover:text-foreground' : 'text-amber-500 bg-amber-50 dark:bg-amber-950/30')}
-              title={amountsVisible ? 'Masquer les montants' : 'Afficher les montants'}
-            >
-              {amountsVisible ? <Eye className="h-4.5 w-4.5 h-[18px] w-[18px]" /> : <EyeOff className="h-[18px] w-[18px]" />}
-            </button>
+            {!hideAmountsToggle && (
+              <button
+                onClick={toggleAmounts}
+                className={cn('p-2 rounded-xl transition-colors', amountsVisible ? 'text-muted-foreground hover:text-foreground' : 'text-amber-500 bg-amber-50 dark:bg-amber-950/30')}
+                title={amountsVisible ? 'Masquer les montants' : 'Afficher les montants'}
+              >
+                {amountsVisible ? <Eye className="h-4.5 w-4.5 h-[18px] w-[18px]" /> : <EyeOff className="h-[18px] w-[18px]" />}
+              </button>
+            )}
             <GlobalSearch isDark={isDark} />
             <NotificationCenter user={user} profile={profile} isDark={isDark} />
             <button
@@ -890,13 +893,15 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
         <h1 className={cn('text-xl font-bold text-foreground')}>{title}</h1>
         <div className="flex items-center gap-3">
           {actions}
-          <button
-            onClick={toggleAmounts}
-            className={cn('p-2 rounded-xl transition-colors', amountsVisible ? 'text-muted-foreground hover:text-foreground hover:bg-muted' : 'text-amber-500 bg-amber-50 dark:bg-amber-950/30')}
-            title={amountsVisible ? 'Masquer les montants' : 'Afficher les montants'}
-          >
-            {amountsVisible ? <Eye className="h-[18px] w-[18px]" /> : <EyeOff className="h-[18px] w-[18px]" />}
-          </button>
+          {!hideAmountsToggle && (
+            <button
+              onClick={toggleAmounts}
+              className={cn('p-2 rounded-xl transition-colors', amountsVisible ? 'text-muted-foreground hover:text-foreground hover:bg-muted' : 'text-amber-500 bg-amber-50 dark:bg-amber-950/30')}
+              title={amountsVisible ? 'Masquer les montants' : 'Afficher les montants'}
+            >
+              {amountsVisible ? <Eye className="h-[18px] w-[18px]" /> : <EyeOff className="h-[18px] w-[18px]" />}
+            </button>
+          )}
           <GlobalSearch isDark={isDark} />
           <NotificationCenter user={user} profile={profile} isDark={isDark} />
           <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6] flex items-center justify-center text-white text-sm font-bold cursor-pointer">

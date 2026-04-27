@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS, HYLA_PRODUCTS, HYLA_COMMISSION_SCALE, getHylaCommission } from '@/lib/supabase';
 import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
+import { useAmounts } from '@/contexts/AmountsContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Clock, TrendingUp, Download, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -414,6 +415,8 @@ function exportToCSV(rows: Record<string, any>[], filename: string) {
 
 export default function Deals() {
   const { user } = useAuth();
+  const { visible: amountsVisible } = useAmounts();
+  const fmtAmt = (n: number) => amountsVisible ? n.toLocaleString('fr-FR') : '•••';
   const effectiveId = useEffectiveUserId();
   const { profile: effectiveProfile } = useEffectiveProfile();
   const { toast } = useToast();
@@ -600,7 +603,7 @@ export default function Deals() {
           </div>
           <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl p-4 text-white">
             <p className="text-[10px] uppercase font-semibold opacity-80">Commission estimée</p>
-            <p className="text-2xl font-bold mt-1">{commissionEstimee.toLocaleString('fr-FR')} €</p>
+            <p className={`text-2xl font-bold mt-1 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(commissionEstimee)} €</p>
           </div>
         </div>
 
@@ -612,7 +615,7 @@ export default function Deals() {
               <div key={i} className={`flex-shrink-0 text-center px-2.5 py-1.5 rounded-lg text-[10px] font-medium border ${
                 nbSignees >= s.machines ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-muted border-border text-muted-foreground'
               }`}>
-                <div className="font-bold text-xs">{s.commission}€</div>
+                <div className={`font-bold text-xs transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{amountsVisible ? `${s.commission}€` : '•••'}</div>
                 <div>{s.label}</div>
               </div>
             ))}
@@ -622,7 +625,7 @@ export default function Deals() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
             <p className="text-[10px] text-muted-foreground uppercase font-semibold">CA total</p>
-            <p className="text-lg font-bold text-foreground mt-1">{totalMois.toLocaleString('fr-FR')} €</p>
+            <p className={`text-lg font-bold text-foreground mt-1 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(totalMois)} €</p>
           </div>
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
             <p className="text-[10px] text-muted-foreground uppercase font-semibold">En cours</p>
@@ -664,7 +667,7 @@ export default function Deals() {
                 <TrendingUp className="h-3.5 w-3.5 text-amber-600" />
                 <span className="text-xs font-medium text-amber-700">{pendingWithSeller.length} vente(s) en cours</span>
               </div>
-              <span className="text-sm font-bold text-amber-800">~{pendingReseauEstim} € estimés</span>
+              <span className={`text-sm font-bold text-amber-800 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>~{amountsVisible ? pendingReseauEstim : '•••'} € estimés</span>
             </div>
           </div>
         )}
@@ -733,7 +736,7 @@ export default function Deals() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{deal.product || '—'}</td>
                     <td className="px-4 py-3 text-right">
-                      <span className="font-semibold text-foreground">{deal.amount.toLocaleString('fr-FR')} €</span>
+                      <span className={`font-semibold text-foreground transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(deal.amount)} €</span>
                       {(deal as any).payment_type === 'mensualites' && (
                         <div className="flex items-center justify-end gap-1 mt-0.5">
                           <span className="text-[10px] text-blue-500">
@@ -832,7 +835,7 @@ export default function Deals() {
                           {deal.contacts ? `${deal.contacts.first_name} ${deal.contacts.last_name}` : 'Sans contact'}
                         </p>
                         {deal.product && <p className="text-xs text-muted-foreground mt-0.5 truncate">{deal.product}</p>}
-                        <p className="text-sm font-bold text-[#3b82f6] mt-1">{(deal.amount || 0).toLocaleString('fr-FR')} €</p>
+                        <p className={`text-sm font-bold text-[#3b82f6] mt-1 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(deal.amount || 0)} €</p>
                         {(deal as any).seller && (
                           <span className="text-[10px] bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded-full flex items-center gap-1 mt-1 w-fit">
                             <Users className="h-2.5 w-2.5" />

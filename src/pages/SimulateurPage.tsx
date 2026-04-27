@@ -7,7 +7,7 @@ import { useAmounts } from '@/contexts/AmountsContext';
 
 export default function SimulateurPage() {
   return (
-    <AppLayout title="Simulateur">
+    <AppLayout title="Simulateur" hideAmountsToggle>
       <div className="max-w-2xl mx-auto space-y-4">
         <div className="flex items-center gap-3 mb-2">
           <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center">

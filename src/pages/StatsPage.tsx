@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
+import { useAmounts } from '@/contexts/AmountsContext';
 import { usePlan } from '@/hooks/usePlan';
 import { PaywallScreen } from '@/components/PaywallScreen';
 import { supabase } from '@/lib/supabase';
@@ -34,6 +35,8 @@ function ChartTooltip({ active, payload, label }: any) {
 
 export default function StatsPage() {
   const effectiveId = useEffectiveUserId();
+  const { visible: amountsVisible } = useAmounts();
+  const fmtAmt = (n: number) => amountsVisible ? n.toLocaleString('fr-FR') : '•••';
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear().toString());
 
@@ -233,11 +236,11 @@ export default function StatsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
               <p className="text-[10px] text-muted-foreground uppercase font-semibold">CA Total</p>
-              <p className="text-xl font-bold text-foreground mt-1">{totalCA.toLocaleString('fr-FR')}€</p>
+              <p className={`text-xl font-bold text-foreground mt-1 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(totalCA)}€</p>
             </div>
             <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
               <p className="text-[10px] text-muted-foreground uppercase font-semibold">Ce mois</p>
-              <p className="text-xl font-bold text-foreground mt-1">{currentMonthCA.toLocaleString('fr-FR')}€</p>
+              <p className={`text-xl font-bold text-foreground mt-1 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(currentMonthCA)}€</p>
               {monthGrowth !== 0 && (
                 <div className={`flex items-center gap-1 mt-1 text-[10px] font-semibold ${monthGrowth > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                   {monthGrowth > 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
@@ -332,11 +335,11 @@ export default function StatsPage() {
               <div className="flex justify-center gap-6 mt-2 text-xs">
                 <div className="flex items-center gap-1.5">
                   <div className="h-2.5 w-2.5 rounded-full bg-[#3b82f6]" />
-                  <span className="text-muted-foreground">Directe {totalDirecte.toLocaleString('fr-FR')}€</span>
+                  <span className={`text-muted-foreground transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>Directe {fmtAmt(totalDirecte)}€</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="h-2.5 w-2.5 rounded-full bg-[#f59e0b]" />
-                  <span className="text-muted-foreground">Réseau {totalReseau.toLocaleString('fr-FR')}€</span>
+                  <span className={`text-muted-foreground transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>Réseau {fmtAmt(totalReseau)}€</span>
                 </div>
               </div>
             </div>
@@ -377,7 +380,7 @@ export default function StatsPage() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium text-foreground">{m.name}</span>
-                        <span className="text-sm font-bold text-foreground">{m.total.toLocaleString('fr-FR')} €</span>
+                        <span className={`text-sm font-bold text-foreground transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(m.total)} €</span>
                       </div>
                       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                         <div

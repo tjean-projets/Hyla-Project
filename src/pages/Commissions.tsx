@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
+import { useAmounts } from '@/contexts/AmountsContext';
 import { supabase, COMMISSION_TYPE_LABELS, getHylaCommission, getPersonalSaleCommission, getGroupPrime, HYLA_LEVELS } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, Zap, Trophy, Star, ArrowUp, DollarSign, Users, ChevronDown, ChevronRight, FileText, Download, Check, Clock, CheckCircle } from 'lucide-react';
@@ -14,6 +15,8 @@ import { SkeletonTable, SkeletonKPI } from '@/components/ui/skeleton-card';
 export default function Commissions() {
   const { user } = useAuth();
   const effectiveId = useEffectiveUserId();
+  const { visible: amountsVisible } = useAmounts();
+  const fmtAmt = (n: number) => amountsVisible ? n.toLocaleString('fr-FR') : '•••';
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState('all');
@@ -335,7 +338,7 @@ export default function Commissions() {
               <p className="text-[10px] uppercase font-semibold opacity-80 mb-1">
                 Total réseau {selectedMonth === 'all' ? selectedYear : `${MONTHS_FR[parseInt(selectedMonth) - 1]} ${selectedYear}`}
               </p>
-              <p className="text-3xl font-bold">{teamTotal.toLocaleString('fr-FR')} €</p>
+              <p className={`text-3xl font-bold transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(teamTotal)} €</p>
               <p className="text-xs opacity-70 mt-1">{teamSummary.filter((m: any) => m.total > 0).length} membre{teamSummary.filter((m: any) => m.total > 0).length > 1 ? 's' : ''} actif{teamSummary.filter((m: any) => m.total > 0).length > 1 ? 's' : ''}</p>
             </div>
 
@@ -369,7 +372,7 @@ export default function Commissions() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <p className="text-sm font-semibold text-foreground truncate">{m.first_name} {m.last_name}</p>
-                          <p className="text-sm font-bold text-foreground ml-2">{m.total.toLocaleString('fr-FR')} €</p>
+                          <p className={`text-sm font-bold text-foreground ml-2 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(m.total)} €</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
@@ -389,7 +392,7 @@ export default function Commissions() {
                               {m.commissions.map((c: any) => (
                                 <tr key={c.id}>
                                   <td className="py-1.5 text-muted-foreground">{new Date(c.period + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</td>
-                                  <td className="py-1.5 text-right font-semibold text-foreground">{c.amount.toLocaleString('fr-FR')} €</td>
+                                  <td className={`py-1.5 text-right font-semibold text-foreground transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(c.amount)} €</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -422,17 +425,17 @@ export default function Commissions() {
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl p-4 text-white">
             <p className="text-[10px] uppercase font-semibold opacity-80">Total commissions</p>
-            <p className="text-2xl font-bold mt-1">{total.toLocaleString('fr-FR')} €</p>
+            <p className={`text-2xl font-bold mt-1 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(total)} €</p>
           </div>
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
             <div className="flex justify-between">
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase font-semibold">Directes</p>
-                <p className="text-lg font-bold text-blue-600 mt-1">{totalDirecte.toLocaleString('fr-FR')} €</p>
+                <p className={`text-lg font-bold text-blue-600 mt-1 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(totalDirecte)} €</p>
               </div>
               <div className="text-right">
                 <p className="text-[10px] text-muted-foreground uppercase font-semibold">Réseau</p>
-                <p className="text-lg font-bold text-amber-600 mt-1">{totalReseau.toLocaleString('fr-FR')} €</p>
+                <p className={`text-lg font-bold text-amber-600 mt-1 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(totalReseau)} €</p>
               </div>
             </div>
           </div>
@@ -488,10 +491,10 @@ export default function Commissions() {
                   <span className="text-xs text-orange-700 font-semibold">Case 2 — Prestations de services (BIC)</span>
                   <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-semibold">Commissions MLM</span>
                 </div>
-                <p className="text-lg font-bold text-orange-800">{total.toLocaleString('fr-FR')} €</p>
+                <p className={`text-lg font-bold text-orange-800 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(total)} €</p>
                 <div className="flex gap-4 mt-1 text-[10px] text-orange-600">
-                  <span>Directes : {totalDirecte.toLocaleString('fr-FR')} €</span>
-                  <span>Réseau : {totalReseau.toLocaleString('fr-FR')} €</span>
+                  <span className={`transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>Directes : {fmtAmt(totalDirecte)} €</span>
+                  <span className={`transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>Réseau : {fmtAmt(totalReseau)} €</span>
                 </div>
               </div>
               <div className="rounded-xl p-3 border border-border bg-muted">
@@ -537,7 +540,7 @@ export default function Commissions() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium text-foreground">{m.name}</span>
-                        <span className="text-sm font-bold text-foreground">{m.total.toLocaleString('fr-FR')} €</span>
+                        <span className={`text-sm font-bold text-foreground transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(m.total)} €</span>
                       </div>
                       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                         <div className="h-full rounded-full bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] transition-all duration-700" style={{ width: `${pct}%` }} />
@@ -590,8 +593,8 @@ export default function Commissions() {
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-bold text-foreground">
-                        {estimated.toLocaleString('fr-FR')} €
+                      <p className={`text-sm font-bold text-foreground transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>
+                        {fmtAmt(estimated)} €
                       </p>
                       <p className="text-[10px] text-muted-foreground">Estimé</p>
                     </div>
@@ -664,7 +667,7 @@ export default function Commissions() {
                   <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
                     {c.team_members ? `${c.team_members.first_name} ${c.team_members.last_name}` : 'Moi'}
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-foreground">{c.amount.toLocaleString('fr-FR')} €</td>
+                  <td className={`px-4 py-3 text-right font-bold text-foreground transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(c.amount)} €</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold ${
                       c.status === 'validee' ? 'bg-emerald-50 text-emerald-700'

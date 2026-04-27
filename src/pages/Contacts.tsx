@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
+import { useAmounts } from '@/contexts/AmountsContext';
 import { supabase, CONTACT_STATUS_LABELS, CONTACT_STATUS_COLORS, PRIORITY_COLORS } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Filter, Phone, Mail, MoreHorizontal, GripVertical, Trash2, Settings, Download, CalendarPlus, ClipboardList, AlertTriangle, UserPlus, CheckCircle2 } from 'lucide-react';
@@ -494,6 +495,7 @@ function mapCsvColumns(headers: string[]): Record<string, string> {
 
 export default function Contacts() {
   const { user } = useAuth();
+  const { visible: amountsVisible } = useAmounts();
   const effectiveId = useEffectiveUserId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -924,7 +926,7 @@ export default function Contacts() {
                   <tr key={contact.id} className="hover:bg-muted cursor-pointer" onClick={() => setDrawerContact(contact)}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-foreground">{contact.first_name} {contact.last_name}</span>
+                        <span className={`font-medium text-foreground transition-all ${!amountsVisible ? 'blur-sm select-none pointer-events-none' : ''}`}>{contact.first_name} {contact.last_name}</span>
                         {needsRelance(contact) && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">
                             <AlertTriangle className="h-2.5 w-2.5" />À relancer
@@ -934,8 +936,8 @@ export default function Contacts() {
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <div className="flex items-center gap-3 text-muted-foreground">
-                        {contact.phone && <a href={`tel:${contact.phone}`} onClick={e => e.stopPropagation()} className="flex items-center gap-1 hover:text-blue-500 transition-colors"><Phone className="h-3 w-3" />{contact.phone}</a>}
-                        {contact.email && <a href={`mailto:${contact.email}`} onClick={e => e.stopPropagation()} className="flex items-center gap-1 hover:text-blue-500 transition-colors"><Mail className="h-3 w-3" />{contact.email}</a>}
+                        {contact.phone && <a href={`tel:${contact.phone}`} onClick={e => e.stopPropagation()} className={`flex items-center gap-1 hover:text-blue-500 transition-colors ${!amountsVisible ? 'blur-sm select-none pointer-events-none' : ''}`}><Phone className="h-3 w-3" />{contact.phone}</a>}
+                        {contact.email && <a href={`mailto:${contact.email}`} onClick={e => e.stopPropagation()} className={`flex items-center gap-1 hover:text-blue-500 transition-colors ${!amountsVisible ? 'blur-sm select-none pointer-events-none' : ''}`}><Mail className="h-3 w-3" />{contact.email}</a>}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -1013,9 +1015,9 @@ export default function Contacts() {
                       >
                         <div className="flex items-center gap-2">
                           <GripVertical className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />
-                          <p className="font-medium text-sm text-foreground">{contact.first_name} {contact.last_name}</p>
+                          <p className={`font-medium text-sm text-foreground transition-all ${!amountsVisible ? 'blur-sm select-none pointer-events-none' : ''}`}>{contact.first_name} {contact.last_name}</p>
                         </div>
-                        {contact.phone && <p className="text-xs text-muted-foreground mt-1 ml-5">{contact.phone}</p>}
+                        {contact.phone && <p className={`text-xs text-muted-foreground mt-1 ml-5 transition-all ${!amountsVisible ? 'blur-sm select-none pointer-events-none' : ''}`}>{contact.phone}</p>}
                         <div className="flex items-center gap-2 mt-2 ml-5 flex-wrap">
                           <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium ${CONTACT_STATUS_COLORS[contact.status]}`}>
                             {CONTACT_STATUS_LABELS[contact.status]}
