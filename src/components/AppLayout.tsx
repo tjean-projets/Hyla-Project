@@ -564,23 +564,23 @@ function ChallengeBanner({ isDark }: { isDark: boolean }) {
 
   return (
     <div className={cn('md:ml-[220px] bg-background')}>
-      <div className="flex flex-col gap-1.5 px-4 md:px-8 pt-3">
+      <div className="flex flex-row gap-2 px-4 md:px-8 pt-2 pb-0.5">
         {countdownActive && (
-          <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl text-white text-[11px] font-medium">
-            <div className="flex items-center gap-2">
-              <Timer className="h-3.5 w-3.5" />
+          <div className="flex items-center justify-between gap-3 flex-1 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg text-white text-[11px] font-medium">
+            <div className="flex items-center gap-1.5">
+              <Timer className="h-3 w-3 flex-shrink-0" />
               <span className="font-bold">Rebours</span>
-              <span>{countdownSales}/{HYLA_CHALLENGES.countdown.target}</span>
+              <span className="opacity-80">{countdownSales}/{HYLA_CHALLENGES.countdown.target}</span>
             </div>
             <span className="font-bold">{countdownDaysLeft}j</span>
           </div>
         )}
         {rookieActive && (
-          <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-violet-500 to-indigo-500 rounded-xl text-white text-[11px] font-medium">
-            <div className="flex items-center gap-2">
-              <Trophy className="h-3.5 w-3.5" />
+          <div className="flex items-center justify-between gap-3 flex-1 px-3 py-1.5 bg-gradient-to-r from-violet-500 to-indigo-500 rounded-lg text-white text-[11px] font-medium">
+            <div className="flex items-center gap-1.5">
+              <Trophy className="h-3 w-3 flex-shrink-0" />
               <span className="font-bold">Rookie</span>
-              <span>{rookieSales}/{HYLA_CHALLENGES.rookie.target}</span>
+              <span className="opacity-80">{rookieSales}/{HYLA_CHALLENGES.rookie.target}</span>
             </div>
             <span className="font-bold">{rookieDaysLeft}j</span>
           </div>
