@@ -6,7 +6,7 @@ import { supabase, IMPORT_STATUS_LABELS, IMPORT_STATUS_COLORS, getPersonalSaleCo
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Upload, FileSpreadsheet, CheckCircle, AlertTriangle, XCircle, Trash2,
-  FileText, Receipt, ChevronRight, ChevronLeft, RefreshCw, Network,
+  FileText, Receipt, ChevronRight, ChevronLeft, RefreshCw, Network, BarChart3,
 } from 'lucide-react';
 import { BulkImportDialog } from '@/components/BulkImportDialog';
 import { Button } from '@/components/ui/button';
@@ -186,6 +186,27 @@ export default function Finance() {
   const invoiceTotal = invoiceCommissions.reduce((s: number, c: any) => s + c.amount, 0);
   const invoiceDirecte = invoiceCommissions.filter((c: any) => c.type === 'directe').reduce((s: number, c: any) => s + c.amount, 0);
   const invoiceReseau = invoiceCommissions.filter((c: any) => c.type === 'reseau').reduce((s: number, c: any) => s + c.amount, 0);
+
+  // ── Deals for monthly report ──
+  const { data: invoiceDeals = [] } = useQuery({
+    queryKey: ['invoice-deals', effectiveId, invoicePeriod],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const start = `${invoicePeriod}-01`;
+      const d = new Date(invoicePeriod + '-01');
+      d.setMonth(d.getMonth() + 1);
+      const end = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-01`;
+      const { data } = await supabase
+        .from('deals')
+        .select('id, product, amount, status, signed_at, payment_type, contacts(first_name, last_name)')
+        .eq('user_id', effectiveId)
+        .gte('signed_at', start)
+        .lt('signed_at', end)
+        .order('signed_at');
+      return data || [];
+    },
+    enabled: !!effectiveId && activeTab === 'factures',
+  });
 
   // ── File upload handler ──
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1023,6 +1044,105 @@ export default function Finance() {
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => printWindow.print(), 500);
+  };
+
+  const printMonthlyReport = () => {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    const periodDate = new Date(invoicePeriod + '-01');
+    const periodLabel = periodDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    const today = new Date().toLocaleDateString('fr-FR');
+    const directDeals = invoiceDeals.filter((d: any) => d.status === 'signee' || d.status === 'livree');
+    const networkComms = invoiceCommissions.filter((c: any) => c.type === 'reseau');
+    const networkByMember: Record<string, { name: string; total: number; count: number }> = {};
+    networkComms.forEach((c: any) => {
+      const k = c.team_member_id || 'unknown';
+      if (!networkByMember[k]) networkByMember[k] = { name: c.team_members ? `${c.team_members.first_name} ${c.team_members.last_name}` : 'Inconnu', total: 0, count: 0 };
+      networkByMember[k].total += c.amount;
+      networkByMember[k].count += 1;
+    });
+    const networkRows = Object.values(networkByMember).sort((a, b) => b.total - a.total);
+    w.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Rapport ${periodLabel}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1f2937;padding:32px;max-width:860px;margin:0 auto;font-size:13px;}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:16px;border-bottom:3px solid #3b82f6;}
+.logo{font-size:24px;font-weight:800;color:#3b82f6;}
+.logo span{color:#6b7280;font-weight:400;}
+h1{font-size:18px;color:#3b82f6;margin-bottom:4px;}
+.badge{display:inline-block;background:#eff6ff;color:#3b82f6;font-weight:700;padding:6px 14px;border-radius:8px;font-size:14px;text-transform:capitalize;margin-bottom:24px;}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
+.kpi{background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:14px;}
+.kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#9ca3af;margin-bottom:4px;}
+.kpi-value{font-size:22px;font-weight:800;color:#1f2937;}
+.kpi-value.blue{color:#3b82f6;}.kpi-value.green{color:#059669;}
+section{margin-bottom:28px;}
+h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;}
+table{width:100%;border-collapse:collapse;}
+th{background:#f9fafb;text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:#9ca3af;font-weight:600;border-bottom:1px solid #e5e7eb;}
+th:last-child,td:last-child{text-align:right;}
+td{padding:10px 12px;border-bottom:1px solid #f3f4f6;}
+.total-row{background:#f9fafb;font-weight:700;}
+.total-final{background:#eff6ff;font-size:15px;font-weight:800;color:#3b82f6;}
+.footer{margin-top:40px;padding-top:12px;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#9ca3af;}
+.note{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;margin-bottom:24px;}
+@media print{body{padding:16px;}}
+</style></head><body>
+<div class="header">
+  <div><div class="logo">HYLA <span>Assistant</span></div><p style="color:#6b7280;font-size:12px;margin-top:4px;">${profile?.full_name || 'Conseiller Hyla'} · ${user?.email || ''}</p></div>
+  <div style="text-align:right"><h1>RAPPORT MENSUEL</h1><p style="color:#6b7280">Généré le ${today}</p></div>
+</div>
+<div class="badge">Période : ${periodLabel}</div>
+<div class="kpis">
+  <div class="kpi"><div class="kpi-label">Ventes directes</div><div class="kpi-value blue">${directDeals.length}</div></div>
+  <div class="kpi"><div class="kpi-label">CA ventes</div><div class="kpi-value">${directDeals.reduce((s: number, d: any) => s + (d.amount || 0), 0).toLocaleString('fr-FR')} €</div></div>
+  <div class="kpi"><div class="kpi-label">Com. directes</div><div class="kpi-value blue">${invoiceDirecte.toLocaleString('fr-FR')} €</div></div>
+  <div class="kpi"><div class="kpi-label">Com. réseau</div><div class="kpi-value green">${invoiceReseau.toLocaleString('fr-FR')} €</div></div>
+</div>
+${directDeals.length > 0 ? `
+<section>
+  <h2>Ventes personnelles (${directDeals.length})</h2>
+  <table><thead><tr><th>#</th><th>Date</th><th>Client</th><th>Produit</th><th>Mode</th><th>Montant</th><th>Commission</th></tr></thead>
+  <tbody>
+  ${directDeals.map((d: any, i: number) => {
+    const { getPersonalSaleCommission } = require || (() => {});
+    const comm = invoiceCommissions.filter((c: any) => c.type === 'directe')[i]?.amount;
+    return `<tr>
+      <td>${i + 1}</td>
+      <td>${d.signed_at ? new Date(d.signed_at).toLocaleDateString('fr-FR') : '—'}</td>
+      <td>${d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : '—'}</td>
+      <td>${d.product || 'Purificateur'}</td>
+      <td>${d.payment_type === 'mensualites' ? 'Mensualités' : 'Comptant'}</td>
+      <td style="text-align:right">${(d.amount || 0).toLocaleString('fr-FR')} €</td>
+      <td style="text-align:right">${comm ? comm.toLocaleString('fr-FR') + ' €' : '—'}</td>
+    </tr>`;
+  }).join('')}
+  <tr class="total-row"><td colspan="5">Total ventes directes</td><td>${directDeals.reduce((s: number, d: any) => s + (d.amount || 0), 0).toLocaleString('fr-FR')} €</td><td>${invoiceDirecte.toLocaleString('fr-FR')} €</td></tr>
+  </tbody></table>
+</section>` : ''}
+${networkRows.length > 0 ? `
+<section>
+  <h2>Commissions réseau (${networkComms.length} lignes · ${networkRows.length} membres)</h2>
+  <table><thead><tr><th>Membre</th><th>Nb commissions</th><th>Total</th></tr></thead>
+  <tbody>
+  ${networkRows.map((m: any) => `<tr><td>${m.name}</td><td>${m.count}</td><td>${m.total.toLocaleString('fr-FR')} €</td></tr>`).join('')}
+  <tr class="total-row"><td>Total réseau</td><td>${networkComms.length}</td><td>${invoiceReseau.toLocaleString('fr-FR')} €</td></tr>
+  </tbody></table>
+</section>` : ''}
+<section>
+  <h2>Récapitulatif comptable</h2>
+  <table><tbody>
+    <tr><td>Commissions directes</td><td>${invoiceDirecte.toLocaleString('fr-FR')} €</td></tr>
+    <tr><td>Commissions réseau</td><td>${invoiceReseau.toLocaleString('fr-FR')} €</td></tr>
+    <tr class="total-final"><td>TOTAL À DÉCLARER</td><td>${invoiceTotal.toLocaleString('fr-FR')} €</td></tr>
+  </tbody></table>
+</section>
+<div class="note">⚠️ Ce rapport est établi sur la base des données importées dans Hyla Assistant. Il ne constitue pas un document fiscal officiel. Rapprochez-vous d'un comptable pour votre déclaration.</div>
+<div class="footer">Hyla Assistant · ${profile?.full_name || ''} · ${today}</div>
+</body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 600);
   };
 
   const autoMatched = matchResults.filter(r => r.match_status === 'auto').length;
@@ -2031,16 +2151,25 @@ export default function Finance() {
               </div>
             </div>
 
-            {/* Generate invoice button */}
-            {invoiceCommissions.length > 0 && (
+            {/* Generate invoice + monthly report buttons */}
+            <div className="flex flex-col gap-3">
+              {invoiceCommissions.length > 0 && (
+                <button
+                  onClick={printInvoice}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 text-white font-semibold rounded-xl active:scale-[0.98] transition-transform"
+                >
+                  <FileText className="h-4 w-4" />
+                  Générer la facture PDF
+                </button>
+              )}
               <button
-                onClick={printInvoice}
-                className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 text-white font-semibold rounded-xl active:scale-[0.98] transition-transform"
+                onClick={printMonthlyReport}
+                className="w-full flex items-center justify-center gap-2 py-3.5 bg-indigo-600 text-white font-semibold rounded-xl active:scale-[0.98] transition-transform"
               >
-                <FileText className="h-4 w-4" />
-                Générer la facture PDF
+                <BarChart3 className="h-4 w-4" />
+                Rapport mensuel comptable
               </button>
-            )}
+            </div>
           </>
         )}
 
