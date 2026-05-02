@@ -267,7 +267,7 @@ export default function PublicProfilePage() {
           </form>
         )}
 
-        <p className="text-center text-[10px] text-gray-400 mt-8">Hyla Assistant</p>
+        <p className="text-center text-[10px] text-gray-400 mt-8">Triibu</p>
       </div>
     </div>
   );

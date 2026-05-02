@@ -247,7 +247,7 @@ function MemberForm({
       setForm(f => ({ ...f, first_name: first || '', last_name: rest.join(' ') || '', email: data.email || f.email }));
       toast({ title: `${data.full_name} trouvé !` });
     } else {
-      toast({ title: 'ID non trouvé', description: 'Vérifiez l\'ID Hyla Assistant', variant: 'destructive' });
+      toast({ title: 'ID non trouvé', description: 'Vérifiez l\'ID Triibu', variant: 'destructive' });
     }
     setSearching(false);
   };
@@ -264,11 +264,11 @@ function MemberForm({
       {/* Search by Hyla ID */}
       {!isEdit && (
         <div className="bg-blue-50 rounded-xl p-3 space-y-2">
-          <Label className="text-xs text-blue-700 font-semibold">🔗 Lier un compte Hyla Assistant (optionnel)</Label>
+          <Label className="text-xs text-blue-700 font-semibold">🔗 Lier un compte Triibu (optionnel)</Label>
           <div className="flex gap-2">
             <Input
               className="h-10 flex-1 bg-card text-sm font-mono uppercase"
-              placeholder="ID Hyla Assistant"
+              placeholder="ID Triibu"
               value={hylaIdSearch}
               onChange={(e) => setHylaIdSearch(e.target.value)}
             />
@@ -389,8 +389,8 @@ function RespireAcademiePanel({ member }: { member: TeamMember }) {
   if (!linkedUserId) {
     return (
       <div className="bg-muted rounded-xl p-4 text-center">
-        <p className="text-sm text-muted-foreground">Ce membre n'a pas encore de compte Hyla Assistant.</p>
-        <p className="text-xs text-muted-foreground mt-1">Lie d'abord son compte via le bouton "Hyla Assistant".</p>
+        <p className="text-sm text-muted-foreground">Ce membre n'a pas encore de compte Triibu.</p>
+        <p className="text-xs text-muted-foreground mt-1">Lie d'abord son compte via le bouton "Triibu".</p>
       </div>
     );
   }
@@ -440,7 +440,7 @@ function RespireAcademiePanel({ member }: { member: TeamMember }) {
   );
 }
 
-/* ── Hyla Assistant Panel ── */
+/* ── Triibu Panel ── */
 function AssistantPanel({ member }: { member: TeamMember }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -467,10 +467,10 @@ function AssistantPanel({ member }: { member: TeamMember }) {
   };
 
   const sendEmail = () => {
-    const subject = encodeURIComponent('Crée ton espace Hyla Assistant');
+    const subject = encodeURIComponent('Crée ton espace Triibu');
     const body = encodeURIComponent(
       `Salut ${member.first_name} !\n\n` +
-      `Je t'invite à créer ton propre espace Hyla Assistant pour gérer ton activité :\n\n` +
+      `Je t'invite à créer ton propre espace Triibu pour gérer ton activité :\n\n` +
       `${inscriptionUrl}\n\n` +
       `Tu pourras y suivre tes contacts, ventes, commissions et ton réseau.\n\n` +
       `À bientôt !`
@@ -1884,13 +1884,13 @@ export default function NetworkPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Hyla Assistant dialog */}
+      {/* Triibu dialog */}
       <Dialog open={!!assistantMember} onOpenChange={(open) => { if (!open) setAssistantMember(null); }}>
         <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-violet-600" />
-              Hyla Assistant — {assistantMember?.first_name} {assistantMember?.last_name}
+              Triibu — {assistantMember?.first_name} {assistantMember?.last_name}
             </DialogTitle>
           </DialogHeader>
           {assistantMember && <AssistantPanel member={assistantMember} />}
@@ -2155,7 +2155,7 @@ export default function NetworkPage() {
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-violet-50 text-violet-600 border border-violet-100 hover:bg-violet-100 active:scale-[0.97] transition-colors"
                       >
                       <Sparkles className="h-3.5 w-3.5" />
-                      Hyla Assistant
+                      Triibu
                     </button>
                   )}
                 </div>

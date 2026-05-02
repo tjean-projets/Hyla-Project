@@ -42,8 +42,8 @@ function InviteLinkSection({ inviteCode, fullName }: { inviteCode?: string | nul
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Rejoins Hyla Assistant',
-          text: `${fullName || 'Un partenaire'} t'invite à rejoindre Hyla Assistant !`,
+          title: 'Rejoins Triibu',
+          text: `${fullName || 'Un partenaire'} t'invite à rejoindre Triibu !`,
           url: inviteLink,
         });
       } catch {}
@@ -61,7 +61,7 @@ function InviteLinkSection({ inviteCode, fullName }: { inviteCode?: string | nul
         <h3 className="text-base font-semibold text-foreground">Lien d'invitation</h3>
       </div>
       <p className="text-xs text-muted-foreground mb-4">
-        Partagez ce lien pour inviter un autre manager ou conseiller à créer son espace Hyla Assistant. Aucun lien de subordination n'est créé — la personne aura son propre espace indépendant.
+        Partagez ce lien pour inviter un autre manager ou conseiller à créer son espace Triibu. Aucun lien de subordination n'est créé — la personne aura son propre espace indépendant.
       </p>
       <div className="bg-card rounded-xl border border-blue-200 p-3 flex items-center gap-2">
         <code className="flex-1 text-xs text-blue-700 truncate font-mono">{inviteLink}</code>
@@ -638,12 +638,12 @@ export default function SettingsPage() {
         <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
           <h3 className="text-base font-semibold text-foreground mb-4">{isImpersonating ? 'Profil du partenaire' : 'Mon profil'}</h3>
           <div className="space-y-4">
-            {/* ID Hyla Assistant */}
+            {/* ID Triibu */}
             {profile?.invite_code && (
               <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-3">
                 <Fingerprint className="h-5 w-5 text-blue-600 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase">Mon ID Hyla Assistant</p>
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase">Mon ID Triibu</p>
                   <p className="text-sm font-bold text-blue-700 font-mono">{profile.invite_code.toUpperCase()}</p>
                 </div>
                 <button

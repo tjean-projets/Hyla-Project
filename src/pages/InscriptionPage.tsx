@@ -162,7 +162,7 @@ export default function InscriptionPage() {
           <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
           <h1 className="text-lg font-bold text-gray-900 mb-2">Compte créé !</h1>
           <p className="text-sm text-gray-500 mb-4">
-            Bienvenue {memberName} ! Ton espace Hyla Assistant est prêt.
+            Bienvenue {memberName} ! Ton espace Triibu est prêt.
           </p>
           <button
             onClick={() => navigate('/login')}
@@ -182,13 +182,13 @@ export default function InscriptionPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-full text-sm font-bold mb-4">
             <Sparkles className="h-4 w-4" />
-            HYLA ASSISTANT
+            TRIIBU
           </div>
           <h1 className="text-2xl font-bold text-gray-900">
             Bienvenue {memberName.split(' ')[0]} !
           </h1>
           <p className="text-sm text-gray-500 mt-2">
-            {managerName ? `${managerName} t'invite à` : 'Tu es invité(e) à'} rejoindre Hyla Assistant.
+            {managerName ? `${managerName} t'invite à` : 'Tu es invité(e) à'} rejoindre Triibu.
             <br />Crée ton compte pour accéder à ton espace personnel.
           </p>
         </div>
@@ -253,7 +253,7 @@ export default function InscriptionPage() {
             disabled={submitting}
             className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl disabled:opacity-50 active:scale-[0.98] transition-transform text-sm"
           >
-            {submitting ? 'Création du compte...' : 'Créer mon espace Hyla Assistant'}
+            {submitting ? 'Création du compte...' : 'Créer mon espace Triibu'}
           </button>
 
           <p className="text-center text-xs text-gray-400">
@@ -265,7 +265,7 @@ export default function InscriptionPage() {
         </form>
 
         <p className="text-center text-[10px] text-gray-400 mt-6">
-          Hyla Assistant — Espace partenaire
+          Triibu — Espace partenaire
         </p>
       </div>
     </div>

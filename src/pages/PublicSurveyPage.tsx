@@ -185,7 +185,7 @@ export default function PublicSurveyPage() {
             {submitting ? 'Envoi...' : 'Envoyer mes réponses'}
           </button>
 
-          <p className="text-center text-[10px] text-gray-400">Hyla Assistant</p>
+          <p className="text-center text-[10px] text-gray-400">Triibu</p>
         </form>
       </div>
     </div>

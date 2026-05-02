@@ -1036,7 +1036,7 @@ export default function Finance() {
 </div>
 
 <div class="footer">
-  <p>Document généré automatiquement par Hyla Assistant le ${today}</p>
+  <p>Document généré automatiquement par Triibu le ${today}</p>
   <p>Ce document tient lieu de facture de commissions.</p>
 </div>
 </body>
@@ -1137,8 +1137,8 @@ ${networkRows.length > 0 ? `
     <tr class="total-final"><td>TOTAL À DÉCLARER</td><td>${invoiceTotal.toLocaleString('fr-FR')} €</td></tr>
   </tbody></table>
 </section>
-<div class="note">⚠️ Ce rapport est établi sur la base des données importées dans Hyla Assistant. Il ne constitue pas un document fiscal officiel. Rapprochez-vous d'un comptable pour votre déclaration.</div>
-<div class="footer">Hyla Assistant · ${profile?.full_name || ''} · ${today}</div>
+<div class="note">⚠️ Ce rapport est établi sur la base des données importées dans Triibu. Il ne constitue pas un document fiscal officiel. Rapprochez-vous d'un comptable pour votre déclaration.</div>
+<div class="footer">Triibu · ${profile?.full_name || ''} · ${today}</div>
 </body></html>`);
     w.document.close();
     w.focus();

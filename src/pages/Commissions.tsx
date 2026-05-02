@@ -183,7 +183,7 @@ export default function Commissions() {
       </div>
       ${membersHtml}
       <div style="margin-top:32px;padding-top:16px;border-top:2px solid #e2e8f0;text-align:right">
-        <p style="font-size:11px;color:#94a3b8">Hyla Assistant — ${selectedMembers.length} membre${selectedMembers.length > 1 ? 's' : ''} sélectionné${selectedMembers.length > 1 ? 's' : ''}</p>
+        <p style="font-size:11px;color:#94a3b8">Triibu — ${selectedMembers.length} membre${selectedMembers.length > 1 ? 's' : ''} sélectionné${selectedMembers.length > 1 ? 's' : ''}</p>
       </div></body></html>`);
     printWindow.document.close();
     printWindow.print();

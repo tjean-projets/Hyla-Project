@@ -12,7 +12,7 @@ const STORAGE_KEY = 'hyla_onboarding_done';
 const BEGINNER_STEPS = [
   {
     icon: Sparkles, color: '#f59e0b', bg: '#fef3c7',
-    title: 'Bienvenue sur Hyla Assistant !',
+    title: 'Bienvenue sur Triibu !',
     description: 'Ton espace pour gérer contacts, ventes et commissions. Suis ce guide pour configurer ton outil en moins de 15 minutes.',
     action: null,
   },
@@ -135,7 +135,7 @@ export default function OnboardingGuide() {
         <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden border-0 shadow-2xl">
           <div className="bg-gradient-to-br from-blue-500 to-indigo-600 px-6 pt-8 pb-6 text-white text-center">
             <Sparkles className="h-10 w-10 mx-auto mb-3" />
-            <DialogTitle className="text-xl font-bold text-white">Bienvenue sur Hyla Assistant</DialogTitle>
+            <DialogTitle className="text-xl font-bold text-white">Bienvenue sur Triibu</DialogTitle>
             <p className="text-sm text-blue-100 mt-2">Quel est ton profil pour personnaliser le guide ?</p>
           </div>
           <div className="p-5 space-y-3">

@@ -130,7 +130,7 @@ export default function JoinPage() {
           <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
           <h1 className="text-lg font-bold text-gray-900 mb-2">Compte créé !</h1>
           <p className="text-sm text-gray-500 mb-4">
-            Bienvenue {form.fullName.split(' ')[0]} ! Ton espace Hyla Assistant est prêt.
+            Bienvenue {form.fullName.split(' ')[0]} ! Ton espace Triibu est prêt.
           </p>
           <button
             onClick={() => navigate('/login')}
@@ -150,10 +150,10 @@ export default function JoinPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-full text-sm font-bold mb-4">
             <Sparkles className="h-4 w-4" />
-            HYLA ASSISTANT
+            TRIIBU
           </div>
           <h1 className="text-2xl font-bold text-gray-900">
-            {inviterName} t'invite à rejoindre Hyla Assistant
+            {inviterName} t'invite à rejoindre Triibu
           </h1>
           <p className="text-sm text-gray-500 mt-2">
             Crée ton compte pour accéder à ton espace personnel.
@@ -236,7 +236,7 @@ export default function JoinPage() {
             disabled={submitting}
             className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl disabled:opacity-50 active:scale-[0.98] transition-transform text-sm"
           >
-            {submitting ? 'Création du compte...' : 'Créer mon espace Hyla Assistant'}
+            {submitting ? 'Création du compte...' : 'Créer mon espace Triibu'}
           </button>
 
           <p className="text-center text-xs text-gray-400">
@@ -248,7 +248,7 @@ export default function JoinPage() {
         </form>
 
         <p className="text-center text-[10px] text-gray-400 mt-6">
-          Hyla Assistant — Espace partenaire
+          Triibu — Espace partenaire
         </p>
       </div>
     </div>

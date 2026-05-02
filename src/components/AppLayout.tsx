@@ -701,7 +701,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
               alt="Hyla"
               className="h-9 w-9 object-contain"
             />
-            <span className="text-[17px] font-bold text-white tracking-tight">Hyla</span>
+            <span className="text-[17px] font-bold text-white tracking-tight">Triibu</span>
           </div>
         </div>
 

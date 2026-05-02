@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hyla — Dark Premium Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #07090f;
+    --surface-1: #0d1017;
+    --surface-2: #12161f;
+    --surface-3: #181d29;
+    --border: rgba(255,255,255,0.07);
+    --border-hover: rgba(255,255,255,0.14);
+    --blue: #3b82f6;
+    --blue-glow: rgba(59,130,246,0.25);
+    --blue-soft: rgba(59,130,246,0.12);
+    --text-1: rgba(255,255,255,0.92);
+    --text-2: rgba(255,255,255,0.55);
+    --text-3: rgba(255,255,255,0.32);
+    --amber: #f59e0b;
+    --emerald: #10b981;
+    --violet: #8b5cf6;
+    --pink: #ec4899;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text-1);
+    min-height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 220px;
+    min-height: 100vh;
+    background: var(--surface-1);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .sidebar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(59,130,246,0.04) 0%, transparent 40%);
+    pointer-events: none;
+  }
+
+  .logo {
+    padding: 24px 20px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800; color: white;
+    box-shadow: 0 0 20px rgba(59,130,246,0.4);
+  }
+
+  .logo-text { font-size: 17px; font-weight: 700; color: var(--text-1); letter-spacing: -0.3px; }
+
+  nav { flex: 1; padding: 4px 10px; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 11px;
+    padding: 9px 12px; border-radius: 10px;
+    font-size: 13px; font-weight: 500;
+    color: var(--text-2);
+    cursor: pointer;
+    margin-bottom: 1px;
+    transition: all 0.15s ease;
+    text-decoration: none;
+  }
+
+  .nav-item:hover { color: var(--text-1); background: rgba(255,255,255,0.05); }
+
+  .nav-item.active {
+    color: #fff;
+    background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(139,92,246,0.12));
+    border: 1px solid rgba(59,130,246,0.2);
+    box-shadow: 0 0 16px rgba(59,130,246,0.08), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .nav-section { font-size: 9px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; padding: 16px 12px 6px; }
+
+  .sidebar-bottom {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .user-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  .user-row:hover { background: rgba(255,255,255,0.04); }
+
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: white;
+    flex-shrink: 0;
+  }
+
+  .user-name { font-size: 13px; font-weight: 500; color: var(--text-1); }
+  .user-role { font-size: 11px; color: var(--text-3); }
+
+  /* ── Main ── */
+  .main {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg);
+    position: relative;
+  }
+
+  /* Ambient glow top */
+  .main::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: 300px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(7,9,15,0.8);
+    backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 10;
+  }
+
+  .page-title { font-size: 20px; font-weight: 700; color: var(--text-1); letter-spacing: -0.4px; }
+
+  .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+  .icon-btn {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text-2);
+    transition: all 0.15s;
+  }
+  .icon-btn:hover { color: var(--text-1); border-color: var(--border-hover); }
+  .icon-btn svg { width: 16px; height: 16px; }
+
+  .notif-btn { position: relative; }
+  .notif-dot {
+    position: absolute; top: 6px; right: 6px;
+    width: 7px; height: 7px;
+    background: #ef4444;
+    border-radius: 50%;
+    border: 1.5px solid var(--bg);
+  }
+
+  /* ── Content ── */
+  .content { padding: 28px 32px; position: relative; z-index: 1; }
+
+  /* ── KPI Grid ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+
+  .kpi-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s ease;
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  }
+
+  .kpi-card:hover {
+    border-color: var(--border-hover);
+    background: var(--surface-3);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+
+  .kpi-icon-wrap {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px;
+  }
+
+  .kpi-icon-wrap svg { width: 17px; height: 17px; }
+
+  .kpi-label { font-size: 11px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+  .kpi-value { font-size: 26px; font-weight: 700; color: var(--text-1); letter-spacing: -0.8px; line-height: 1; }
+  .kpi-unit { font-size: 15px; font-weight: 500; color: var(--text-3); margin-left: 2px; }
+
+  .kpi-trend {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600;
+    margin-top: 8px;
+    padding: 3px 8px; border-radius: 20px;
+  }
+
+  .kpi-trend.up { color: #10b981; background: rgba(16,185,129,0.1); }
+  .kpi-trend.amber { color: #f59e0b; background: rgba(245,158,11,0.1); }
+
+  /* ── 2-col layout ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+  /* ── Panel ── */
+  .panel {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-title { font-size: 13px; font-weight: 600; color: var(--text-1); }
+  .panel-subtitle { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+
+  .badge {
+    font-size: 10px; font-weight: 600;
+    padding: 3px 8px; border-radius: 20px;
+  }
+
+  .badge-blue { color: var(--blue); background: var(--blue-soft); }
+  .badge-amber { color: var(--amber); background: rgba(245,158,11,0.1); }
+  .badge-emerald { color: var(--emerald); background: rgba(16,185,129,0.1); }
+  .badge-violet { color: var(--violet); background: rgba(139,92,246,0.1); }
+
+  /* ── Commission card big ── */
+  .commission-hero {
+    background: linear-gradient(135deg, #0d1f3d 0%, #0f1525 50%, #130f24 100%);
+    border: 1px solid rgba(59,130,246,0.2);
+    border-radius: 16px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .commission-hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(59,130,246,0.15), transparent 70%);
+    pointer-events: none;
+  }
+
+  .commission-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; left: 40px;
+    width: 120px; height: 120px;
+    background: radial-gradient(circle, rgba(139,92,246,0.1), transparent 70%);
+    pointer-events: none;
+  }
+
+  .commission-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(59,130,246,0.7); margin-bottom: 6px; }
+  .commission-amount { font-size: 40px; font-weight: 800; color: #fff; letter-spacing: -2px; line-height: 1; }
+  .commission-sub { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 6px; }
+
+  .commission-split {
+    display: flex; gap: 24px; margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .split-item {}
+  .split-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.35); margin-bottom: 3px; }
+  .split-value { font-size: 17px; font-weight: 700; }
+  .split-value.blue { color: #60a5fa; }
+  .split-value.amber { color: #fbbf24; }
+
+  /* ── Bar chart mock ── */
+  .bar-chart {
+    display: flex; align-items: flex-end; gap: 6px;
+    height: 80px;
+    padding: 12px 20px 0;
+  }
+
+  .bar-group { display: flex; gap: 2px; align-items: flex-end; flex: 1; }
+
+  .bar {
+    flex: 1;
+    border-radius: 4px 4px 0 0;
+    transition: opacity 0.2s;
+    opacity: 0.85;
+  }
+
+  .bar:hover { opacity: 1; }
+
+  .chart-labels {
+    display: flex; gap: 6px;
+    padding: 6px 20px 16px;
+  }
+
+  .chart-label { flex: 1; text-align: center; font-size: 9px; color: var(--text-3); font-weight: 500; }
+
+  /* ── Contact list ── */
+  .contact-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .contact-item:last-child { border-bottom: none; }
+  .contact-item:hover { background: rgba(255,255,255,0.02); }
+
+  .contact-avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+  }
+
+  .contact-name { font-size: 13px; font-weight: 500; color: var(--text-1); }
+  .contact-meta { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+
+  .contact-right { margin-left: auto; text-align: right; }
+  .contact-status { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
+
+  /* ── Task list ── */
+  .task-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .task-item:last-child { border-bottom: none; }
+  .task-item:hover { background: rgba(255,255,255,0.02); }
+
+  .task-check {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-hover);
+    flex-shrink: 0; margin-top: 1px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .task-title { font-size: 13px; font-weight: 500; color: var(--text-1); }
+  .task-meta { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+  /* ── Next level widget ── */
+  .next-level {
+    background: linear-gradient(135deg, #0e1a0e 0%, #0a1208 100%);
+    border: 1px solid rgba(16,185,129,0.15);
+    border-radius: 16px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .next-level::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 140px; height: 140px;
+    background: radial-gradient(circle, rgba(16,185,129,0.12), transparent 70%);
+  }
+
+  .level-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: rgba(16,185,129,0.6); margin-bottom: 6px; }
+  .level-name { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 14px; }
+
+  .level-cond {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; margin-bottom: 8px; color: var(--text-2);
+  }
+  .level-cond .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .level-cond .dot.ok { background: #10b981; box-shadow: 0 0 6px rgba(16,185,129,0.6); }
+  .level-cond .dot.pending { background: rgba(255,255,255,0.2); }
+
+  .progress-bar-wrap {
+    height: 5px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    margin-top: 16px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    box-shadow: 0 0 8px rgba(16,185,129,0.5);
+  }
+
+  /* ── Challenge banner ── */
+  .challenge-row { display: flex; gap: 12px; margin-bottom: 16px; }
+
+  .challenge-card {
+    flex: 1;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid;
+  }
+
+  .challenge-card.amber {
+    background: linear-gradient(135deg, rgba(245,158,11,0.08), transparent);
+    border-color: rgba(245,158,11,0.2);
+  }
+
+  .challenge-card.violet {
+    background: linear-gradient(135deg, rgba(139,92,246,0.08), transparent);
+    border-color: rgba(139,92,246,0.2);
+  }
+
+  .ch-label { font-size: 11px; font-weight: 700; color: var(--text-1); }
+  .ch-sub { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+  .ch-value { font-size: 18px; font-weight: 800; }
+  .ch-value.amber { color: #fbbf24; }
+  .ch-value.violet { color: #a78bfa; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+  /* ── SVG icons inline ── */
+  .ic { display: inline-block; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">H</div>
+    <span class="logo-text">Hyla</span>
+  </div>
+
+  <nav>
+    <div class="nav-section">Principal</div>
+
+    <a class="nav-item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Accueil
+    </a>
+    <a class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Contacts
+    </a>
+    <a class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      Ventes
+    </a>
+
+    <div class="nav-section">Équipe</div>
+
+    <a class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="11"/><circle cx="5" cy="15" r="3"/><circle cx="19" cy="15" r="3"/><line x1="12" y1="11" x2="5" y2="12"/><line x1="12" y1="11" x2="19" y2="12"/></svg>
+      Réseau
+    </a>
+    <a class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Commissions
+    </a>
+
+    <div class="nav-section">Outils</div>
+
+    <a class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Calendrier
+    </a>
+    <a class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Tâches
+    </a>
+    <a class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Finance
+    </a>
+    <a class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Statistiques
+    </a>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <div class="user-row">
+      <div class="avatar">T</div>
+      <div>
+        <div class="user-name">Thomas Jean</div>
+        <div class="user-role">Manager</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main ── -->
+<main class="main">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="page-title">Accueil</div>
+    <div class="topbar-right">
+      <div class="icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <div class="icon-btn notif-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div class="notif-dot"></div>
+      </div>
+      <div class="avatar" style="width:34px;height:34px;font-size:13px;border-radius:10px;">T</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Challenge banners -->
+    <div class="challenge-row">
+      <div class="challenge-card amber">
+        <div>
+          <div class="ch-label">⏱ Challenge Rebours</div>
+          <div class="ch-sub">3/5 ventes · 47 jours restants</div>
+        </div>
+        <div class="ch-value amber">47j</div>
+      </div>
+      <div class="challenge-card violet">
+        <div>
+          <div class="ch-label">🏆 Challenge Rookie</div>
+          <div class="ch-sub">8/15 ventes · 134 jours restants</div>
+        </div>
+        <div class="ch-value violet">134j</div>
+      </div>
+    </div>
+
+    <!-- KPI grid -->
+    <div class="kpi-grid">
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrap" style="background:rgba(59,130,246,0.12);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" width="17" height="17"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="kpi-label">Com. ce mois</div>
+        <div class="kpi-value">2 340<span class="kpi-unit">€</span></div>
+        <div class="kpi-trend up">↑ +18%</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrap" style="background:rgba(16,185,129,0.12);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" width="17" height="17"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+        </div>
+        <div class="kpi-label">Ventes signées</div>
+        <div class="kpi-value">4</div>
+        <div class="kpi-trend up">↑ +1 vs mois dernier</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrap" style="background:rgba(245,158,11,0.12);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" width="17" height="17"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        </div>
+        <div class="kpi-label">Contacts actifs</div>
+        <div class="kpi-value">38</div>
+        <div class="kpi-trend amber">8 à relancer</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrap" style="background:rgba(139,92,246,0.12);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" width="17" height="17"><circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="11"/><circle cx="5" cy="15" r="3"/><circle cx="19" cy="15" r="3"/><line x1="12" y1="11" x2="5" y2="12"/><line x1="12" y1="11" x2="19" y2="12"/></svg>
+        </div>
+        <div class="kpi-label">Équipe active</div>
+        <div class="kpi-value">12</div>
+        <div class="kpi-trend up">↑ +2 ce mois</div>
+      </div>
+
+    </div>
+
+    <!-- Commission hero + Next level -->
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:16px;">
+
+      <div class="commission-hero">
+        <div class="commission-label">Commissions attendues — Avril 2026</div>
+        <div class="commission-amount">5 820 <span style="font-size:22px;font-weight:500;color:rgba(255,255,255,0.35)">€</span></div>
+        <div class="commission-sub">dont 2 340 € confirmés par Hyla</div>
+        <div class="commission-split">
+          <div class="split-item">
+            <div class="split-label">Directes</div>
+            <div class="split-value blue">1 700 €</div>
+          </div>
+          <div class="split-item">
+            <div class="split-label">Réseau</div>
+            <div class="split-value amber">640 €</div>
+          </div>
+          <div class="split-item">
+            <div class="split-label">Primes groupe</div>
+            <div class="split-value" style="color:#a78bfa;">450 €</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="next-level">
+        <div class="level-label">Prochain niveau</div>
+        <div class="level-name">Chef de groupe</div>
+
+        <div class="level-cond"><span class="dot ok"></span>4 vendeurs directs actifs ✓</div>
+        <div class="level-cond"><span class="dot ok"></span>1 indirect actif ✓</div>
+        <div class="level-cond"><span class="dot pending"></span>30 ventes/mois × 3 mois <span style="color:var(--text-3);font-size:11px;margin-left:auto;">22/30</span></div>
+        <div class="level-cond"><span class="dot pending"></span>3 mois consécutifs <span style="color:var(--text-3);font-size:11px;margin-left:auto;">1/3</span></div>
+
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" style="width:73%"></div>
+        </div>
+        <div style="font-size:10px;color:rgba(16,185,129,0.5);margin-top:6px;font-weight:600;">73% vers Chef de groupe</div>
+      </div>
+
+    </div>
+
+    <!-- Chart + Tasks + Contacts -->
+    <div class="two-col">
+
+      <!-- CA chart -->
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">CA mensuel</div>
+            <div class="panel-subtitle">Commissions sur 6 mois</div>
+          </div>
+          <span class="badge badge-blue">+12% moy.</span>
+        </div>
+        <div class="bar-chart">
+          <div class="bar-group">
+            <div class="bar" style="height:40%;background:rgba(59,130,246,0.4);"></div>
+            <div class="bar" style="height:40%;background:rgba(139,92,246,0.3);"></div>
+          </div>
+          <div class="bar-group">
+            <div class="bar" style="height:65%;background:rgba(59,130,246,0.5);"></div>
+            <div class="bar" style="height:30%;background:rgba(139,92,246,0.3);"></div>
+          </div>
+          <div class="bar-group">
+            <div class="bar" style="height:50%;background:rgba(59,130,246,0.45);"></div>
+            <div class="bar" style="height:45%;background:rgba(139,92,246,0.3);"></div>
+          </div>
+          <div class="bar-group">
+            <div class="bar" style="height:80%;background:rgba(59,130,246,0.6);"></div>
+            <div class="bar" style="height:50%;background:rgba(139,92,246,0.35);"></div>
+          </div>
+          <div class="bar-group">
+            <div class="bar" style="height:60%;background:rgba(59,130,246,0.5);"></div>
+            <div class="bar" style="height:35%;background:rgba(139,92,246,0.3);"></div>
+          </div>
+          <div class="bar-group">
+            <div class="bar" style="height:90%;background:#3b82f6;box-shadow:0 0 12px rgba(59,130,246,0.5);"></div>
+            <div class="bar" style="height:55%;background:rgba(139,92,246,0.5);"></div>
+          </div>
+        </div>
+        <div class="chart-labels">
+          <div class="chart-label">Nov</div>
+          <div class="chart-label">Déc</div>
+          <div class="chart-label">Jan</div>
+          <div class="chart-label">Fév</div>
+          <div class="chart-label">Mar</div>
+          <div class="chart-label" style="color:#3b82f6;font-weight:700;">Avr</div>
+        </div>
+        <div style="display:flex;gap:16px;padding:0 20px 16px;">
+          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-3);">
+            <span style="width:8px;height:8px;border-radius:2px;background:#3b82f6;display:inline-block;"></span> Directes
+          </div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-3);">
+            <span style="width:8px;height:8px;border-radius:2px;background:rgba(139,92,246,0.5);display:inline-block;"></span> Réseau
+          </div>
+        </div>
+      </div>
+
+      <!-- Tâches -->
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Tâches du jour</div>
+            <div class="panel-subtitle">3 en attente</div>
+          </div>
+          <span class="badge badge-amber">3 en retard</span>
+        </div>
+
+        <div class="task-item">
+          <div class="task-check"></div>
+          <div>
+            <div class="task-title">Appel de suivi — Marie Dupont</div>
+            <div class="task-meta">Aujourd'hui · 14:00</div>
+          </div>
+          <span class="badge badge-amber" style="margin-left:auto;flex-shrink:0;">Urgent</span>
+        </div>
+
+        <div class="task-item">
+          <div class="task-check" style="border-color:rgba(16,185,129,0.4);"></div>
+          <div>
+            <div class="task-title">Démo Hyla — Jean-Pierre R.</div>
+            <div class="task-meta">Demain · 10:30</div>
+          </div>
+        </div>
+
+        <div class="task-item">
+          <div class="task-check"></div>
+          <div>
+            <div class="task-title">Envoyer devis — Famille Martin</div>
+            <div class="task-meta">Dans 2 jours</div>
+          </div>
+        </div>
+
+        <div class="task-item">
+          <div class="task-check"></div>
+          <div>
+            <div class="task-title">Relancer — Sophie L.</div>
+            <div class="task-meta">En retard de 3j</div>
+          </div>
+          <span class="badge" style="color:#ef4444;background:rgba(239,68,68,0.1);margin-left:auto;flex-shrink:0;">Retard</span>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Recent contacts -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Contacts récents</div>
+          <div class="panel-subtitle">Dernière activité</div>
+        </div>
+        <span class="badge badge-violet">8 à relancer</span>
+      </div>
+
+      <div class="contact-item">
+        <div class="contact-avatar" style="background:rgba(59,130,246,0.15);color:#60a5fa;">MD</div>
+        <div>
+          <div class="contact-name">Marie Dupont</div>
+          <div class="contact-meta">06 12 34 56 78 · il y a 2h</div>
+        </div>
+        <div class="contact-right">
+          <span class="contact-status badge badge-amber">Prospect</span>
+        </div>
+      </div>
+
+      <div class="contact-item">
+        <div class="contact-avatar" style="background:rgba(16,185,129,0.15);color:#34d399;">JP</div>
+        <div>
+          <div class="contact-name">Jean-Pierre Roux</div>
+          <div class="contact-meta">06 98 76 54 32 · il y a 4h</div>
+        </div>
+        <div class="contact-right">
+          <span class="contact-status badge badge-blue">Recrue</span>
+        </div>
+      </div>
+
+      <div class="contact-item">
+        <div class="contact-avatar" style="background:rgba(139,92,246,0.15);color:#a78bfa;">SM</div>
+        <div>
+          <div class="contact-name">Sophie Martin</div>
+          <div class="contact-meta">sophie.m@gmail.com · il y a 1j</div>
+        </div>
+        <div class="contact-right">
+          <span class="contact-status badge" style="color:#f87171;background:rgba(248,113,113,0.1);">À relancer</span>
+        </div>
+      </div>
+
+      <div class="contact-item">
+        <div class="contact-avatar" style="background:rgba(245,158,11,0.15);color:#fbbf24;">LC</div>
+        <div>
+          <div class="contact-name">Lucas Chen</div>
+          <div class="contact-meta">06 55 44 33 22 · il y a 2j</div>
+        </div>
+        <div class="contact-right">
+          <span class="contact-status badge badge-emerald">Client</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+</body>
+</html>

@@ -1,6 +1,6 @@
 {
-  "name": "Hyla Assistant",
-  "short_name": "Hyla",
+  "name": "Triibu",
+  "short_name": "Triibu",
   "description": "CRM pour conseillers et managers Hyla",
   "start_url": "/",
   "display": "standalone",

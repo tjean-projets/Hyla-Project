@@ -71,7 +71,7 @@ export default function SetupWizard() {
         <div className="bg-gradient-to-br from-blue-500 to-indigo-600 px-6 pt-8 pb-6 text-white">
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="h-5 w-5" />
-            <DialogTitle className="text-base font-bold text-white">Bienvenue sur Hyla Assistant !</DialogTitle>
+            <DialogTitle className="text-base font-bold text-white">Bienvenue sur Triibu !</DialogTitle>
           </div>
           <p className="text-sm text-blue-100">3 étapes pour bien démarrer</p>
 
