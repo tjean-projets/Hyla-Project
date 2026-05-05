@@ -15,6 +15,7 @@ import SetupWizard from "@/components/SetupWizard";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import LandingPage from "./pages/LandingPage";
 
 // Pages lazy-loadées
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -132,7 +133,7 @@ function AppRoutes() {
         <Route path="/partner/profile" element={<ProtectedRoute><PartnerProfile /></ProtectedRoute>} />
         <Route path="/partner/wallet" element={<ProtectedRoute><PartnerWallet /></ProtectedRoute>} />
 
-        <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
+        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
