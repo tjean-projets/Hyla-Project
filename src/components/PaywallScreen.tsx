@@ -40,7 +40,7 @@ export function PaywallScreen({ feature, trialDaysLeft = 0, isTrial = false }: P
         {/* Lock badge */}
         <div className="inline-flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-xs font-semibold px-3 py-1.5 rounded-full border border-amber-200 dark:border-amber-800">
           <Lock className="h-3 w-3" />
-          Formule Manager requise
+          Formule PRO requise
         </div>
 
         {/* Title & description */}
@@ -78,11 +78,11 @@ export function PaywallScreen({ feature, trialDaysLeft = 0, isTrial = false }: P
             </ul>
           </div>
           <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-xl p-4 text-white relative overflow-hidden">
-            <div className="absolute top-2 right-2 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Manager</div>
-            <p className="text-xs font-semibold opacity-70 mb-1">Manager</p>
+            <div className="absolute top-2 right-2 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">PRO</div>
+            <p className="text-xs font-semibold opacity-70 mb-1">PRO</p>
             <p className="text-xl font-black">29.99€ <span className="text-xs font-normal opacity-70">/mois</span></p>
             <ul className="mt-3 space-y-1.5 text-xs opacity-90">
-              <li>✅ Tout Conseillère</li>
+              <li>✅ Tout Conseiller</li>
               <li>✅ Réseau équipe</li>
               <li>✅ Import Finance</li>
               <li>✅ Stats avancées</li>
@@ -99,7 +99,7 @@ export function PaywallScreen({ feature, trialDaysLeft = 0, isTrial = false }: P
             className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold text-sm rounded-xl hover:bg-[#3b82f6]/90 transition-colors"
           >
             <Zap className="h-4 w-4" />
-            Passer à la formule Manager
+            Passer à la formule PRO
             <ArrowRight className="h-4 w-4" />
           </button>
           <p className="text-[10px] text-muted-foreground">Sans engagement · Résiliation en 1 clic</p>

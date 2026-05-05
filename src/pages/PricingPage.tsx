@@ -44,7 +44,7 @@ const faqs = [
   },
   {
     q: "Comment fonctionne l'essai gratuit ?",
-    a: "Vous bénéficiez de 7 jours d'accès complet à la formule Manager, sans carte bancaire requise.",
+    a: "Vous bénéficiez de 7 jours d'accès complet à la formule PRO, sans carte bancaire requise.",
   },
   {
     q: "Puis-je changer de formule ?",
@@ -59,7 +59,7 @@ const faqs = [
     a: "Absolument. Elle couvre tous les outils essentiels pour gérer vos ventes et vos contacts dès le premier jour.",
   },
   {
-    q: "Quand passer à la formule Manager ?",
+    q: "Quand passer à la formule PRO ?",
     a: "Dès que vous avez des recrues et que vous souhaitez suivre les performances de votre réseau et gérer vos commissions groupe.",
   },
 ];
@@ -112,7 +112,7 @@ export default function PricingPage() {
           </span>
         </h1>
         <p className="text-white/45 text-base max-w-xl mx-auto">
-          Commencez en tant que Conseiller et passez Manager quand votre réseau grandit. Changez à tout moment.
+          Commencez en tant que Conseiller et passez PRO quand votre réseau grandit. Changez à tout moment.
         </p>
       </section>
 
@@ -160,7 +160,7 @@ export default function PricingPage() {
             </div>
           </div>
 
-          {/* ─ Manager ─ */}
+          {/* ─ PRO ─ */}
           <div className="rounded-2xl bg-gradient-to-br from-blue-600/20 to-violet-600/15 border border-blue-500/30 p-8 flex flex-col relative overflow-hidden">
             {/* Popular badge */}
             <div className="absolute top-5 right-5 flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[11px] font-bold">
@@ -173,7 +173,7 @@ export default function PricingPage() {
                 <div className="h-9 w-9 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center">
                   <Network className="h-4.5 w-4.5 text-blue-400" />
                 </div>
-                <span className="text-blue-300 text-xs font-semibold uppercase tracking-wider">Manager</span>
+                <span className="text-blue-300 text-xs font-semibold uppercase tracking-wider">PRO</span>
               </div>
               <div className="flex items-end gap-2 mb-2">
                 <span className="text-5xl font-black text-white">29.99€</span>
@@ -185,11 +185,11 @@ export default function PricingPage() {
             </div>
 
             <a
-              href="mailto:contact@triibu.fr?subject=Abonnement Triibu Manager"
+              href="mailto:contact@triibu.fr?subject=Abonnement Triibu PRO"
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-all shadow-lg shadow-blue-600/25 mb-8"
             >
               <Zap className="h-4 w-4" />
-              Démarrer avec Manager
+              Démarrer avec PRO
               <ArrowRight className="h-4 w-4" />
             </a>
 
@@ -234,7 +234,7 @@ export default function PricingPage() {
           <div className="grid grid-cols-3 bg-white/[0.04] border-b border-white/[0.07] px-6 py-4">
             <span className="text-white/40 text-sm font-medium">Fonctionnalité</span>
             <span className="text-white/70 text-sm font-semibold text-center">Conseiller</span>
-            <span className="text-blue-400 text-sm font-semibold text-center">Manager</span>
+            <span className="text-blue-400 text-sm font-semibold text-center">PRO</span>
           </div>
           {[
             ['Dashboard & KPIs', true, true],

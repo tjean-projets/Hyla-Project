@@ -444,12 +444,12 @@ export default function LandingPage() {
               Commencer gratuitement
             </Link>
           </div>
-          {/* Manager */}
+          {/* PRO */}
           <div className="rounded-2xl bg-gradient-to-br from-blue-600/20 to-violet-600/15 border border-blue-500/30 p-7 flex flex-col relative">
             <div className="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[10px] font-bold">
               <Star className="h-3 w-3" />Recommandé
             </div>
-            <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider mb-3">Manager</p>
+            <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider mb-3">PRO</p>
             <div className="flex items-end gap-1.5 mb-3">
               <span className="text-4xl font-black text-white">29.99€</span>
               <span className="text-white/35 text-sm mb-1">/mois</span>
@@ -461,7 +461,7 @@ export default function LandingPage() {
               ))}
             </ul>
             <Link to="/login" className="w-full text-center py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-all shadow-lg shadow-blue-600/20">
-              Démarrer avec Manager
+              Démarrer avec PRO
             </Link>
           </div>
         </div>

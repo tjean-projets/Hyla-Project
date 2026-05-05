@@ -557,7 +557,7 @@ export default function SettingsPage() {
                 <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">Conseillère — 9,99€/mois</span>
               )}
               {plan === 'manager' && !isTrial && (
-                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-violet-100 text-violet-700">Manager — 29,99€/mois</span>
+                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-violet-100 text-violet-700">PRO — 29,99€/mois</span>
               )}
               {(plan === 'expired' || (!isTrial && planStatus === 'expired')) && plan !== 'legacy' && plan !== 'conseillere' && plan !== 'manager' && (
                 <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-600">Expiré</span>
@@ -585,7 +585,7 @@ export default function SettingsPage() {
                     onClick={() => goToCheckout('manager')}
                     className="flex-1 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl active:scale-[0.98] transition-transform"
                   >
-                    Manager — 29,99€/mois
+                    PRO — 29,99€/mois
                   </button>
                 </div>
               </div>
@@ -595,7 +595,7 @@ export default function SettingsPage() {
             {(plan === 'conseillere' || plan === 'manager') && planStatus === 'active' && (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Ton abonnement <strong>{plan === 'manager' ? 'Manager' : 'Conseillère'}</strong> est actif.
+                  Ton abonnement <strong>{plan === 'manager' ? 'PRO' : 'Conseillère'}</strong> est actif.
                 </p>
                 <button
                   onClick={() => toast({ title: 'Bientôt disponible', description: 'La gestion du portail Stripe sera disponible prochainement.' })}
@@ -626,7 +626,7 @@ export default function SettingsPage() {
                     onClick={() => goToCheckout('manager')}
                     className="flex-1 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl active:scale-[0.98] transition-transform"
                   >
-                    Manager — 29,99€/mois
+                    PRO — 29,99€/mois
                   </button>
                 </div>
               </div>

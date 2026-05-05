@@ -224,7 +224,8 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, isInTeam, onAdd
   });
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (!validate()) return; mutation.mutate(); }} className="space-y-4">
+    <form onSubmit={(e) => { e.preventDefault(); if (!validate()) return; mutation.mutate(); }} className="flex flex-col flex-1 min-h-0">
+      <div className="flex-1 overflow-y-auto px-6 py-3 space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Prénom *</Label>
@@ -301,13 +302,6 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, isInTeam, onAdd
         <Label>Notes</Label>
         <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
       </div>
-      <button
-        type="submit"
-        disabled={mutation.isPending}
-        className="w-full py-3 bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white font-semibold rounded-xl disabled:opacity-50"
-      >
-        {mutation.isPending ? (isEdit ? 'Enregistrement...' : 'Création...') : (isEdit ? 'Enregistrer les modifications' : 'Créer le contact')}
-      </button>
       {isEdit && !showRdvForm && (
         <button
           type="button"
@@ -437,6 +431,17 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, isInTeam, onAdd
           {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
         </button>
       )}
+      </div>
+      {/* ── Sticky footer : bouton primaire toujours visible ── */}
+      <div className="border-t border-border bg-background px-6 py-3 shrink-0">
+        <button
+          type="submit"
+          disabled={mutation.isPending}
+          className="w-full py-3 bg-[#3b82f6] hover:bg-[#3b82f6]/90 text-white font-semibold rounded-xl disabled:opacity-50 shadow-md shadow-blue-500/20"
+        >
+          {mutation.isPending ? (isEdit ? 'Enregistrement...' : 'Création...') : (isEdit ? 'Enregistrer les modifications' : 'Créer le contact')}
+        </button>
+      </div>
     </form>
   );
 }
@@ -823,8 +828,8 @@ export default function Contacts() {
 
       {/* New contact dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4" onOpenAutoFocus={(e) => e.preventDefault()}>
-          <DialogHeader><DialogTitle>Nouveau contact</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col p-0 mx-4 gap-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <DialogHeader className="px-6 pt-6 pb-3 shrink-0"><DialogTitle>Nouveau contact</DialogTitle></DialogHeader>
           <ContactForm onSuccess={() => setShowForm(false)} stages={stages} teamMembers={teamMembers} />
         </DialogContent>
       </Dialog>
@@ -1071,8 +1076,8 @@ export default function Contacts() {
 
       {/* Edit contact dialog */}
       <Dialog open={!!editingContact} onOpenChange={(open) => { if (!open) setEditingContact(null); }}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4" onOpenAutoFocus={(e) => e.preventDefault()}>
-          <DialogHeader><DialogTitle>Modifier le contact</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col p-0 mx-4 gap-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <DialogHeader className="px-6 pt-6 pb-3 shrink-0"><DialogTitle>Modifier le contact</DialogTitle></DialogHeader>
           {editingContact && (
             <ContactForm
               key={editingContact.id}
