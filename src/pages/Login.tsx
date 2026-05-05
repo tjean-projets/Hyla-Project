@@ -31,21 +31,22 @@ export default function Login() {
   const inputClass = "w-full h-12 px-4 bg-white/[0.06] border border-white/[0.15] rounded-lg text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 focus:border-[#3b82f6]/50 transition-all";
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-      {/* ── Background ── */}
-      <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/hyla-bg.png)' }} />
-      <div className="absolute inset-0 bg-black/30" />
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#08090f]">
+      {/* ── Background gradient ── */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0d1117] via-[#08090f] to-[#0d1020]" />
+      <div className="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-blue-600/[0.08] rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-100px] right-[-50px] w-[400px] h-[400px] bg-violet-600/[0.06] rounded-full blur-[100px] pointer-events-none" />
 
       {/* ── Card ── */}
       <div className="relative z-10 w-full max-w-sm mx-4">
-        <div className="backdrop-blur-xl bg-white/[0.08] border border-white/[0.15] rounded-2xl p-8 shadow-2xl shadow-black/20">
+        <div className="backdrop-blur-xl bg-white/[0.05] border border-white/[0.10] rounded-2xl p-8 shadow-2xl shadow-black/40">
           {/* Brand */}
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold tracking-tight">
-              <span className="text-white">HYLA</span>
-              <span className="text-white/50 font-light ml-1.5">Assistant</span>
-            </h1>
-            <p className="text-white/30 text-xs mt-1">
+            <div className="flex items-center justify-center gap-2.5 mb-3">
+              <img src="/Hyla_logo_bold.png" alt="Triibu" className="h-8 w-8 object-contain brightness-0 invert opacity-90" />
+              <span className="text-2xl font-bold tracking-tight text-white">Triibu</span>
+            </div>
+            <p className="text-white/30 text-xs">
               Connectez-vous à votre espace
             </p>
           </div>
