@@ -4,7 +4,7 @@ ALTER TABLE profiles
     CHECK (plan IN ('legacy', 'trial', 'conseillere', 'manager', 'expired')),
   ADD COLUMN IF NOT EXISTS plan_status TEXT DEFAULT 'trialing'
     CHECK (plan_status IN ('active', 'trialing', 'cancelled', 'expired')),
-  ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '14 days'),
+  ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '7 days'),
   ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT,
   ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT,
   ADD COLUMN IF NOT EXISTS plan_current_period_end TIMESTAMPTZ;

@@ -1,4 +1,5 @@
 import { Lock, Zap, ArrowRight, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface PaywallScreenProps {
   feature: 'network' | 'finance' | 'stats';
@@ -26,6 +27,7 @@ const FEATURE_INFO = {
 
 export function PaywallScreen({ feature, trialDaysLeft = 0, isTrial = false }: PaywallScreenProps) {
   const info = FEATURE_INFO[feature];
+  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 py-12 text-center">
@@ -92,15 +94,15 @@ export function PaywallScreen({ feature, trialDaysLeft = 0, isTrial = false }: P
 
         {/* CTA */}
         <div className="space-y-2">
-          <a
-            href="mailto:contact@triibu.fr?subject=Abonnement Triibu Manager"
+          <button
+            onClick={() => navigate('/settings?tab=abonnement')}
             className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold text-sm rounded-xl hover:bg-[#3b82f6]/90 transition-colors"
           >
             <Zap className="h-4 w-4" />
             Passer à la formule Manager
             <ArrowRight className="h-4 w-4" />
-          </a>
-          <p className="text-[10px] text-muted-foreground">7 jours d'essai gratuit · Sans engagement · Résiliation en 1 clic</p>
+          </button>
+          <p className="text-[10px] text-muted-foreground">Sans engagement · Résiliation en 1 clic</p>
         </div>
       </div>
     </div>
