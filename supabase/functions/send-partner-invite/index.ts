@@ -133,9 +133,9 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const emailResponse = await resend.emails.send({
-      from: "Hyla <noreply@hyla.app>",
+      from: "Triibu <noreply@triibu.fr>",
       to: [partnerEmail],
-      subject: "Invitation à rejoindre Hyla",
+      subject: "Invitation à rejoindre Triibu",
       html: `
         <!DOCTYPE html>
         <html>
@@ -146,7 +146,7 @@ const handler = async (req: Request): Promise<Response> => {
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
           <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
             <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%); border-radius: 16px 16px 0 0; padding: 40px; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">Hyla</h1>
+              <h1 style="color: white; margin: 0; font-size: 28px;">Triibu</h1>
               <p style="color: rgba(255,255,255,0.8); margin: 10px 0 0 0;">Plateforme Partenaires</p>
             </div>
             
@@ -154,7 +154,7 @@ const handler = async (req: Request): Promise<Response> => {
               <h2 style="color: #1e3a5f; margin: 0 0 20px 0;">Bonjour ${partnerName},</h2>
               
               <p style="color: #4a5568; line-height: 1.6; margin: 0 0 20px 0;">
-                Vous êtes invité(e) à rejoindre la plateforme Hyla en tant que partenaire.
+                Vous êtes invité(e) à rejoindre la plateforme Triibu en tant que partenaire.
               </p>
               
               <p style="color: #4a5568; line-height: 1.6; margin: 0 0 30px 0;">

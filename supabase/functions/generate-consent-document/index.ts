@@ -150,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
 </head>
 <body>
   <div class="header">
-    <h1>Hyla</h1>
+    <h1>Triibu</h1>
     <p>Attestation de consentement du prospect</p>
     <span class="badge">DOCUMENT HORODATÉ</span>
   </div>
@@ -178,7 +178,7 @@ const handler = async (req: Request): Promise<Response> => {
   </div>
 
   <div class="footer">
-    <p>Ce document a été généré automatiquement par la plateforme Hyla.</p>
+    <p>Ce document a été généré automatiquement par la plateforme Triibu.</p>
     <p>Il atteste du recueil du consentement du prospect par le partenaire apporteur d'affaires.</p>
   </div>
 </body>
