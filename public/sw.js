@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hyla-v2';
+const CACHE_NAME = 'triibu-v3';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',

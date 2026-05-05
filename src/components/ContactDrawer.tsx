@@ -478,10 +478,10 @@ export function ContactDrawer({ contact, onClose, onEdit }: ContactDrawerProps) 
           )}
         </div>
 
-        {/* Footer (sticky bottom) */}
-        <div className="flex-shrink-0 px-5 py-4 border-t border-border bg-card">
+        {/* Footer (toujours visible en bas) */}
+        <div className="mt-auto flex-shrink-0 px-5 py-4 border-t border-border bg-card sticky bottom-0">
           <button onClick={() => { onEdit(contact); onClose(); }}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#3b82f6] text-white font-semibold text-sm rounded-xl hover:bg-[#3b82f6]/90 transition-colors shadow-md shadow-blue-500/20">
+            className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold text-sm rounded-xl hover:bg-[#3b82f6]/90 transition-colors shadow-lg shadow-blue-500/30">
             <Edit2 className="h-4 w-4" />
             Modifier le contact
           </button>
