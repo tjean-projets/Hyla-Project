@@ -100,7 +100,7 @@ export function PaywallScreen({ feature, trialDaysLeft = 0, isTrial = false }: P
             Passer à la formule Manager
             <ArrowRight className="h-4 w-4" />
           </a>
-          <p className="text-[10px] text-muted-foreground">14 jours d'essai gratuit · Sans engagement · Résiliation en 1 clic</p>
+          <p className="text-[10px] text-muted-foreground">7 jours d'essai gratuit · Sans engagement · Résiliation en 1 clic</p>
         </div>
       </div>
     </div>

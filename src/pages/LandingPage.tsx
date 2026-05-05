@@ -424,7 +424,7 @@ export default function LandingPage() {
       <section className="relative z-10 px-6 py-16 max-w-4xl mx-auto">
         <div className="text-center mb-10">
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-3">Tarifs transparents</h2>
-          <p className="text-white/40 text-sm">14 jours d'essai gratuit sur les deux formules. Sans carte bancaire.</p>
+          <p className="text-white/40 text-sm">7 jours d'essai gratuit sur les deux formules. Sans carte bancaire.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8">
           {/* Conseiller */}

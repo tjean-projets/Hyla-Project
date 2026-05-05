@@ -31,7 +31,7 @@ const managerFeatures = [
   { included: true, text: 'Statistiques avancées & rapports' },
   { included: true, text: 'Dashboard commissions réseau' },
   { included: true, text: 'Prime de groupe calculée automatiquement' },
-  { included: true, text: 'Suivi progression niveau (Manager → Elite Or)' },
+  { included: true, text: 'Suivi progression niveau' },
   { included: true, text: 'Widget "Prochain niveau" avec conditions' },
   { included: true, text: 'Facturation & rapports PDF mensuels' },
   { included: true, text: 'Import multi-périodes avec matching auto' },
@@ -44,7 +44,7 @@ const faqs = [
   },
   {
     q: "Comment fonctionne l'essai gratuit ?",
-    a: "Vous bénéficiez de 14 jours d'accès complet à la formule Manager, sans carte bancaire requise.",
+    a: "Vous bénéficiez de 7 jours d'accès complet à la formule Manager, sans carte bancaire requise.",
   },
   {
     q: "Puis-je changer de formule ?",
@@ -103,7 +103,7 @@ export default function PricingPage() {
       <section className="relative z-10 text-center px-6 pt-12 pb-16 max-w-3xl mx-auto">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-6">
           <Shield className="h-3.5 w-3.5" />
-          14 jours d'essai gratuit · Sans engagement
+          7 jours d'essai gratuit · Sans engagement
         </div>
         <h1 className="text-4xl sm:text-5xl font-black tracking-tight leading-tight mb-4">
           Des tarifs simples,{' '}
@@ -207,7 +207,7 @@ export default function PricingPage() {
         {/* ── Reassurance strip ── */}
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { icon: Shield,     text: '14 jours d\'essai gratuit', sub: 'Aucune carte bancaire requise' },
+            { icon: Shield,     text: '7 jours d\'essai gratuit', sub: 'Aucune carte bancaire requise' },
             { icon: RefreshCw,  text: 'Sans engagement', sub: 'Résiliation en 1 clic, sans frais' },
             { icon: Users,      text: 'Support inclus', sub: 'Réponse par email sous 24h' },
           ].map((item) => {
@@ -294,7 +294,7 @@ export default function PricingPage() {
           Prêt à démarrer ?
         </h2>
         <p className="text-white/40 text-sm mb-8">
-          14 jours gratuits, sans carte bancaire. Annulez quand vous voulez.
+          7 jours gratuits, sans carte bancaire. Annulez quand vous voulez.
         </p>
         <Link
           to="/login"
