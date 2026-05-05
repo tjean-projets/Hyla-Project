@@ -1723,6 +1723,24 @@ export default function NetworkPage() {
     staleTime: 60000,
   });
 
+  // ── Mes deals avec sold_by (pour les membres NON liés à Triibu : ventes via TRV import) ──
+  const { data: managerDealsBySoldBy = [] } = useQuery({
+    queryKey: ['manager-deals-sold-by', effectiveId, sixMonthsAgo],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase
+        .from('deals')
+        .select('id, sold_by, signed_at, status')
+        .eq('user_id', effectiveId)
+        .eq('status', 'signee')
+        .gte('signed_at', sixMonthsAgo)
+        .not('sold_by', 'is', null);
+      return (data || []) as Array<{ id: string; sold_by: string; signed_at: string; status: string }>;
+    },
+    enabled: !!effectiveId,
+    staleTime: 60000,
+  });
+
   const { data: activeChallenge, refetch: refetchChallenge } = useQuery({
     queryKey: ['team-challenge', effectiveId],
     queryFn: async () => {
@@ -1847,38 +1865,44 @@ export default function NetworkPage() {
 
     for (const m of members) {
       const userId = (m as any).linked_user_id as string | undefined;
-      if (!userId) {
-        stats.set(m.id, {
-          personalSalesMonth: 0, teamSalesMonth: 0,
-          countdownProgress: 0, countdownActive: false,
-          rookieProgress: 0, rookieActive: false,
-        });
-        continue;
-      }
 
-      // Downline du membre (descendants récursifs)
+      // Downline du membre (descendants récursifs) — vide si non-lié
       const downlineSet = new Set<string>();
-      const stack: string[] = [userId];
-      while (stack.length > 0) {
-        const cur = stack.pop()!;
-        const children = childMap.get(cur) || [];
-        for (const c of children) {
-          if (c.linked_user_id) {
-            downlineSet.add(c.linked_user_id);
-            stack.push(c.linked_user_id);
+      if (userId) {
+        const stack: string[] = [userId];
+        while (stack.length > 0) {
+          const cur = stack.pop()!;
+          const children = childMap.get(cur) || [];
+          for (const c of children) {
+            if (c.linked_user_id) {
+              downlineSet.add(c.linked_user_id);
+              stack.push(c.linked_user_id);
+            }
           }
         }
       }
 
-      // Ventes perso du mois
-      const personalSalesMonth = allDownlineDeals.filter(d =>
-        d.user_id === userId && d.signed_at >= currentMonthStartIso
-      ).length;
+      // Helper : deals perso du membre (combine deals via linked_user_id + deals via sold_by)
+      const personalDeals = (() => {
+        const arr: Array<{ signed_at: string }> = [];
+        if (userId) {
+          for (const d of allDownlineDeals) {
+            if (d.user_id === userId && d.signed_at) arr.push({ signed_at: d.signed_at });
+          }
+        }
+        for (const d of managerDealsBySoldBy) {
+          if (d.sold_by === m.id && d.signed_at) arr.push({ signed_at: d.signed_at });
+        }
+        return arr;
+      })();
 
-      // Ventes équipe du mois (downline)
-      const teamSalesMonth = allDownlineDeals.filter(d =>
-        downlineSet.has(d.user_id) && d.signed_at >= currentMonthStartIso
-      ).length;
+      // Ventes perso du mois
+      const personalSalesMonth = personalDeals.filter(d => d.signed_at >= currentMonthStartIso).length;
+
+      // Ventes équipe du mois (downline) — uniquement si le membre est lié
+      const teamSalesMonth = userId
+        ? allDownlineDeals.filter(d => downlineSet.has(d.user_id) && d.signed_at >= currentMonthStartIso).length
+        : 0;
 
       // Challenges Hyla
       const joinedAt = m.joined_at ? new Date(m.joined_at) : null;
@@ -1888,8 +1912,7 @@ export default function NetworkPage() {
         const countdownEnd = new Date(joinedAt);
         countdownEnd.setMonth(countdownEnd.getMonth() + 2);
         countdownActive = new Date() <= countdownEnd;
-        countdownProgress = allDownlineDeals.filter(d => {
-          if (d.user_id !== userId || !d.signed_at) return false;
+        countdownProgress = personalDeals.filter(d => {
           const sd = new Date(d.signed_at);
           return sd >= joinedAt && sd <= countdownEnd;
         }).length;
@@ -1897,8 +1920,7 @@ export default function NetworkPage() {
         const rookieEnd = new Date(joinedAt);
         rookieEnd.setMonth(rookieEnd.getMonth() + 6);
         rookieActive = new Date() <= rookieEnd;
-        rookieProgress = allDownlineDeals.filter(d => {
-          if (d.user_id !== userId || !d.signed_at) return false;
+        rookieProgress = personalDeals.filter(d => {
           const sd = new Date(d.signed_at);
           return sd >= joinedAt && sd <= rookieEnd;
         }).length;
@@ -1911,7 +1933,7 @@ export default function NetworkPage() {
       });
     }
     return stats;
-  }, [members, fullTree, allDownlineDeals, currentMonthStartIso]);
+  }, [members, fullTree, allDownlineDeals, managerDealsBySoldBy, currentMonthStartIso]);
 
   // ── Pour chaque membre : challenges custom auxquels il participe + sa progression ──
   const memberChallenges = useMemo(() => {
@@ -2420,24 +2442,25 @@ export default function NetworkPage() {
                     const stats = memberStats.get(member.id);
                     const customChallenge = memberChallenges.get(member.id);
                     if (!stats) return null;
-                    const hasAny = stats.personalSalesMonth > 0 || stats.teamSalesMonth > 0 || stats.countdownActive || stats.rookieActive || !!customChallenge;
-                    if (!(member as any).linked_user_id && !hasAny) return null;
+                    const isLinked = !!(member as any).linked_user_id;
                     return (
                       <div className="mt-3 space-y-2">
                         {/* Ventes du mois */}
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className={`grid ${isLinked ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
                           <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 px-2.5 py-1.5 border border-blue-100 dark:border-blue-900">
                             <p className="text-[8px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">Ventes mois</p>
                             <p className="text-base font-bold text-blue-700 dark:text-blue-300 leading-tight">
                               {stats.personalSalesMonth}
                             </p>
                           </div>
-                          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1.5 border border-emerald-100 dark:border-emerald-900">
-                            <p className="text-[8px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Équipe mois</p>
-                            <p className="text-base font-bold text-emerald-700 dark:text-emerald-300 leading-tight">
-                              {stats.teamSalesMonth}
-                            </p>
-                          </div>
+                          {isLinked && (
+                            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1.5 border border-emerald-100 dark:border-emerald-900">
+                              <p className="text-[8px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Équipe mois</p>
+                              <p className="text-base font-bold text-emerald-700 dark:text-emerald-300 leading-tight">
+                                {stats.teamSalesMonth}
+                              </p>
+                            </div>
+                          )}
                         </div>
 
                         {/* Challenges */}
