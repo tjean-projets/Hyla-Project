@@ -39,6 +39,8 @@ const PublicSurveyPage = lazy(() => import("./pages/PublicSurveyPage"));
 const FormationPage = lazy(() => import("./pages/FormationPage"));
 const MapPage = lazy(() => import("./pages/MapPage"));
 const RespireAcademiePage = lazy(() => import("./pages/RespireAcademiePage"));
+const MonAcademiePage = lazy(() => import("./pages/MonAcademiePage"));
+const AcademieViewPage = lazy(() => import("./pages/AcademieViewPage"));
 const SimulateurPage = lazy(() => import("./pages/SimulateurPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -122,6 +124,8 @@ function AppRoutes() {
         <Route path="/formation" element={<ProtectedRoute><FormationPage /></ProtectedRoute>} />
         <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} />
         <Route path="/academie" element={<ProtectedRoute><RespireAcademiePage /></ProtectedRoute>} />
+        <Route path="/mon-academie" element={<ProtectedRoute><MonAcademiePage /></ProtectedRoute>} />
+        <Route path="/academie/:slug" element={<ProtectedRoute><AcademieViewPage /></ProtectedRoute>} />
         <Route path="/simulateur" element={<ProtectedRoute><SimulateurPage /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
 

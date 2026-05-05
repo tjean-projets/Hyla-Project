@@ -596,6 +596,7 @@ const sidebarLinks = [
   { to: '/deals', icon: ShoppingBag, label: 'Ventes' },
   { to: '/network', icon: Network, label: 'Équipes' },
   { to: '/academie', icon: BookOpen, label: 'Académie', academieOnly: true },
+  { to: '/mon-academie', icon: GraduationCap, label: 'Mon Académie', proOnly: true },
   { to: '/commissions', icon: TrendingUp, label: 'Commissions' },
   { to: '/simulateur', icon: Calculator, label: 'Simulateur' },
   { to: '/tasks', icon: CheckSquare, label: 'Tâches' },
@@ -636,7 +637,8 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
   const { signOut, profile: authProfile, user } = useAuth();
   const { profile: effectiveProfile } = useEffectiveProfile();
   const profile = effectiveProfile || authProfile;
-  const { isTrial, trialDaysLeft } = usePlan();
+  const { isTrial, trialDaysLeft, plan, isLegacy } = usePlan();
+  const isPro = plan === 'manager' || isLegacy;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // ⚠️ isImpersonating doit être connu AVANT isAdmin pour éviter la fuite des droits admin
@@ -710,6 +712,8 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
           {sidebarLinks.map((link) => {
             // Hide academie link if user has no access
             if ((link as any).academieOnly && !hasAcademieAccess) return null;
+            // Hide proOnly links if user is not PRO
+            if ((link as any).proOnly && !isPro && !isRealAdmin) return null;
 
             const isActive =
               link.to === '/dashboard'
@@ -844,7 +848,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
           <div className={cn(
             'absolute top-14 left-0 right-0 shadow-xl py-2 px-3 z-50 bg-card border-b border-border'
           )}>
-            {sidebarLinks.filter(link => !(link as any).academieOnly || hasAcademieAccess).map((link) => (
+            {sidebarLinks.filter(link => (!(link as any).academieOnly || hasAcademieAccess) && (!(link as any).proOnly || isPro || isRealAdmin)).map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}
