@@ -1663,11 +1663,40 @@ export default function NetworkPage() {
         status: string;
         hyla_level: string | null;
         level: number;
+        parent_member_id: string | null;
       }>;
     },
     enabled: !!effectiveId,
     staleTime: 60000,
   });
+
+  // Map : pour chaque membre, ses descendants (récursif depuis fullTree)
+  const descendantsByMemberId = useMemo(() => {
+    // child_of: parent_member_id → enfants directs
+    const childOf = new Map<string, typeof fullTree>();
+    for (const node of fullTree) {
+      if (node.parent_member_id) {
+        if (!childOf.has(node.parent_member_id)) childOf.set(node.parent_member_id, []);
+        childOf.get(node.parent_member_id)!.push(node);
+      }
+    }
+    // Pour chaque membre, descendants récursifs
+    const map = new Map<string, typeof fullTree>();
+    for (const node of fullTree) {
+      const desc: typeof fullTree = [];
+      const stack = [node.id];
+      while (stack.length > 0) {
+        const cur = stack.pop()!;
+        const children = childOf.get(cur) || [];
+        for (const c of children) {
+          desc.push(c);
+          stack.push(c.id);
+        }
+      }
+      map.set(node.id, desc);
+    }
+    return map;
+  }, [fullTree]);
 
   // Deals des membres réseau ce mois (ventes réseau)
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -1963,31 +1992,26 @@ export default function NetworkPage() {
   );
 
   // ── Recherche multi-lignées : quand search actif, on filtre sur tout l'arbre ──
-  // Pour chaque résultat, on construit le chemin de management (Toi → Marie → Sophie → résultat)
+  // Pour chaque résultat, on construit le chemin de management via parent_member_id
   const searchResults = useMemo(() => {
     if (!search.trim()) return null;
     const q = search.toLowerCase();
     const matches = fullTree.filter(m =>
       `${m.first_name} ${m.last_name} ${m.internal_id || ''}`.toLowerCase().includes(q)
     );
-    // Map: linked_user_id → tree node (pour remonter le chemin)
-    const byLinkedId = new Map<string, typeof fullTree[0]>();
-    for (const m of fullTree) {
-      if (m.linked_user_id) byLinkedId.set(m.linked_user_id, m);
-    }
+    const byMemberId = new Map(fullTree.map(m => [m.id, m]));
     return matches.map(match => {
       const path: string[] = [];
-      let currentOwnerId = match.owner_user_id;
-      // Remonte la chaîne jusqu'à la racine (effectiveId)
-      while (currentOwnerId && currentOwnerId !== effectiveId) {
-        const parent = byLinkedId.get(currentOwnerId);
+      let currentParentId = match.parent_member_id;
+      while (currentParentId) {
+        const parent = byMemberId.get(currentParentId);
         if (!parent) break;
         path.unshift(`${parent.first_name} ${parent.last_name}`);
-        currentOwnerId = parent.owner_user_id;
+        currentParentId = parent.parent_member_id;
       }
       return { member: match, path };
     });
-  }, [search, fullTree, effectiveId]);
+  }, [search, fullTree]);
 
   const actifs = members.filter(m => m.status === 'actif').length;
   const inactifs = members.length - actifs;
@@ -2442,25 +2466,22 @@ export default function NetworkPage() {
                     const stats = memberStats.get(member.id);
                     const customChallenge = memberChallenges.get(member.id);
                     if (!stats) return null;
-                    const isLinked = !!(member as any).linked_user_id;
                     return (
                       <div className="mt-3 space-y-2">
-                        {/* Ventes du mois */}
-                        <div className={`grid ${isLinked ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
+                        {/* Ventes du mois — toujours 2 rectangles */}
+                        <div className="grid grid-cols-2 gap-2">
                           <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 px-2.5 py-1.5 border border-blue-100 dark:border-blue-900">
-                            <p className="text-[8px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">Ventes mois</p>
+                            <p className="text-[8px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">Vente mois</p>
                             <p className="text-base font-bold text-blue-700 dark:text-blue-300 leading-tight">
                               {stats.personalSalesMonth}
                             </p>
                           </div>
-                          {isLinked && (
-                            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1.5 border border-emerald-100 dark:border-emerald-900">
-                              <p className="text-[8px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Équipe mois</p>
-                              <p className="text-base font-bold text-emerald-700 dark:text-emerald-300 leading-tight">
-                                {stats.teamSalesMonth}
-                              </p>
-                            </div>
-                          )}
+                          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1.5 border border-emerald-100 dark:border-emerald-900">
+                            <p className="text-[8px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Vente équipe</p>
+                            <p className="text-base font-bold text-emerald-700 dark:text-emerald-300 leading-tight">
+                              {stats.teamSalesMonth}
+                            </p>
+                          </div>
                         </div>
 
                         {/* Challenges */}
@@ -2554,37 +2575,69 @@ export default function NetworkPage() {
                   )}
 
                   {/* Expand sub-team + œil downline */}
-                  {(member as any).linked_user_id && (
-                    <div className="flex gap-1.5 mt-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); toggleTeamExpand(member.id); }}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-muted text-muted-foreground border border-border hover:bg-muted transition-colors active:scale-[0.98]"
-                      >
-                        {expandedTeamIds.has(member.id) ? (
-                          <><ChevronDown className="h-3.5 w-3.5" /> Masquer l'équipe</>
-                        ) : (
-                          <><ChevronRight className="h-3.5 w-3.5" /> Voir l'équipe</>
-                        )}
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setMemberDownlineView(member); }}
-                        className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-[11px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-300 border border-violet-500/30 hover:bg-violet-500/20 transition-colors active:scale-[0.98]"
-                        title="Voir l'équipe complète comme cette personne"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  )}
+                  {(() => {
+                    const descCount = (descendantsByMemberId.get(member.id) || []).length;
+                    const hasDownline = !!(member as any).linked_user_id || descCount > 0;
+                    if (!hasDownline) return null;
+                    return (
+                      <div className="flex gap-1.5 mt-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleTeamExpand(member.id); }}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-muted text-muted-foreground border border-border hover:bg-muted transition-colors active:scale-[0.98]"
+                        >
+                          {expandedTeamIds.has(member.id) ? (
+                            <><ChevronDown className="h-3.5 w-3.5" /> Masquer l'équipe</>
+                          ) : (
+                            <><ChevronRight className="h-3.5 w-3.5" /> Voir l'équipe ({descCount})</>
+                          )}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setMemberDownlineView(member); }}
+                          className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-[11px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-300 border border-violet-500/30 hover:bg-violet-500/20 transition-colors active:scale-[0.98]"
+                          title="Voir l'équipe complète comme cette personne"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })()}
 
-                  {/* Sub-team */}
-                  {(member as any).linked_user_id && expandedTeamIds.has(member.id) && (
-                    <SubTeamTree
-                      userId={(member as any).linked_user_id}
-                      parentMemberName={`${member.first_name} ${member.last_name}`}
-                      depth={1}
-                      onEditSubMember={handleSubMemberEdit}
-                    />
-                  )}
+                  {/* Sub-team — depuis fullTree (gère linked_user_id + sponsor_id) */}
+                  {expandedTeamIds.has(member.id) && (() => {
+                    const descs = descendantsByMemberId.get(member.id) || [];
+                    if (descs.length === 0) {
+                      return <p className="mt-2 px-3 py-2 text-[11px] text-muted-foreground italic">Aucun membre dans cette équipe</p>;
+                    }
+                    return (
+                      <div className="mt-2 space-y-1.5 pl-3 border-l border-border ml-2">
+                        {descs.map(d => {
+                          const lvl = HYLA_LEVELS.find(l => l.value === (d.hyla_level || 'vendeur'));
+                          return (
+                            <div
+                              key={d.id}
+                              style={{ marginLeft: `${(d.depth - 2) * 12}px` }}
+                              className="bg-muted/40 rounded-lg border border-border px-2.5 py-1.5 flex items-center gap-2"
+                            >
+                              <div className="h-7 w-7 rounded-md bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0">
+                                <span className="text-[10px] font-bold">{d.first_name[0]}{d.last_name[0]}</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium truncate">{d.first_name} {d.last_name}</p>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[9px] text-muted-foreground">{lvl?.shortLabel || 'Vendeur'}</span>
+                                  <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-indigo-500/15 text-indigo-600 dark:text-indigo-300">N{d.depth}</span>
+                                  <span className={`text-[8px] font-semibold px-1 py-0.5 rounded ${d.status === 'actif' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                                    {d.status === 'actif' ? 'Actif' : 'Inactif'}
+                                  </span>
+                                  {d.linked_user_id && <span className="text-[8px] font-semibold px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-600">●</span>}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -2950,6 +3003,7 @@ export default function NetworkPage() {
             {memberDownlineView && (
               <MemberDownlineModalContent
                 member={memberDownlineView}
+                descendants={descendantsByMemberId.get(memberDownlineView.id) || []}
                 onImpersonate={() => {
                   if ((memberDownlineView as any).linked_user_id) {
                     startImpersonation(
@@ -3002,61 +3056,64 @@ function ChallengeRow({
 /* ── Contenu du modal "voir downline d'un membre" ── */
 function MemberDownlineModalContent({
   member,
+  descendants,
   onImpersonate,
 }: {
   member: TeamMember;
+  descendants: Array<{
+    id: string;
+    user_id: string;
+    first_name: string;
+    last_name: string;
+    depth: number;
+    linked_user_id: string | null;
+    status: string;
+    hyla_level: string | null;
+    parent_member_id?: string | null;
+  }>;
   onImpersonate: () => void;
 }) {
   const memberUserId = (member as any).linked_user_id as string | undefined;
   const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
 
-  // Ventes perso du mois (deals du membre)
+  // Ventes perso du mois — soit via linked_user_id, soit via sold_by
   const { data: memberSales = 0 } = useQuery({
-    queryKey: ['member-sales-month', memberUserId, currentMonthStart],
+    queryKey: ['member-sales-month', memberUserId, member.id, currentMonthStart],
     queryFn: async () => {
-      if (!memberUserId) return 0;
+      if (memberUserId) {
+        const { count } = await supabase
+          .from('deals')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', memberUserId)
+          .eq('status', 'signee')
+          .gte('signed_at', currentMonthStart);
+        return count || 0;
+      }
+      // Non-lié : compte via sold_by sur les deals du parent (manager)
       const { count } = await supabase
         .from('deals')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', memberUserId)
+        .eq('sold_by', member.id)
         .eq('status', 'signee')
         .gte('signed_at', currentMonthStart);
       return count || 0;
     },
-    enabled: !!memberUserId,
   });
 
-  // Downline du membre (sa propre lignée)
-  const { data: memberDownline = [] } = useQuery({
-    queryKey: ['member-downline', memberUserId],
-    queryFn: async () => {
-      if (!memberUserId) return [];
-      const { data } = await supabase.rpc('get_team_tree', { p_user_id: memberUserId });
-      return (data || []) as Array<{
-        id: string;
-        user_id: string;
-        first_name: string;
-        last_name: string;
-        depth: number;
-        linked_user_id: string | null;
-        status: string;
-        hyla_level: string | null;
-      }>;
-    },
-    enabled: !!memberUserId,
-  });
-
-  if (!memberUserId) {
+  if (descendants.length === 0 && !memberUserId) {
     return (
-      <div className="text-center py-8">
-        <p className="text-sm text-muted-foreground">Ce membre n'a pas de compte Triibu lié — pas de downline visible.</p>
+      <div className="text-center py-8 space-y-3">
+        <p className="text-sm text-muted-foreground">Aucune équipe sous {member.first_name} pour l'instant.</p>
+        <p className="text-xs text-muted-foreground/70">Tu peux ajouter une recrue sous cette personne via le bouton "+" en haut.</p>
       </div>
     );
   }
 
-  const directs = memberDownline.filter(m => m.depth === 1);
-  const totalDownline = memberDownline.length;
-  const activesDownline = memberDownline.filter(m => m.status === 'actif').length;
+  const totalDownline = descendants.length;
+  const activesDownline = descendants.filter(m => m.status === 'actif').length;
+  const directCount = descendants.filter(m => m.parent_member_id === member.id).length;
+  // Référence depth du member dans le tree global pour normaliser : ses directs = member.depth + 1
+  const memberDepth = (member as any).depth || 1;
 
   return (
     <div className="space-y-4">
@@ -3072,42 +3129,43 @@ function MemberDownlineModalContent({
         </div>
         <div className="rounded-xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 p-3">
           <p className="text-[10px] text-violet-600 dark:text-violet-400 font-semibold uppercase tracking-wider">Directs</p>
-          <p className="text-lg font-bold text-violet-700 dark:text-violet-300 mt-1">{directs.length}</p>
+          <p className="text-lg font-bold text-violet-700 dark:text-violet-300 mt-1">{directCount}</p>
         </div>
       </div>
 
-      {/* Action voir comme */}
-      <button
-        onClick={onImpersonate}
-        className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
-      >
-        <Eye className="h-4 w-4" />
-        Voir comme {member.first_name} (impersonation)
-      </button>
+      {/* Action voir comme — uniquement si le membre est lié à Triibu */}
+      {memberUserId && (
+        <button
+          onClick={onImpersonate}
+          className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+        >
+          <Eye className="h-4 w-4" />
+          Voir comme {member.first_name} (impersonation)
+        </button>
+      )}
 
       {/* Liste downline complète */}
       <div className="space-y-2">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lignées descendantes</p>
-        {memberDownline.length === 0 ? (
+        {descendants.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">Aucun membre dans la lignée de {member.first_name}</p>
         ) : (
-          memberDownline.map(m => {
+          descendants.map(m => {
             const lvl = HYLA_LEVELS.find(l => l.value === (m.hyla_level || 'vendeur'));
+            const relativeDepth = m.depth - memberDepth; // 1 = direct, 2 = grand-enfant, etc.
             return (
-              <div key={m.id} className="bg-muted/40 rounded-xl border border-border p-3 flex items-center gap-3">
-                <div style={{ marginLeft: `${(m.depth - 1) * 16}px` }} className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-violet-500/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-foreground font-bold text-[10px]">{m.first_name[0]}{m.last_name[0]}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{m.first_name} {m.last_name}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                      <span className="text-[10px] text-muted-foreground">{lvl?.shortLabel || 'Vendeur'}</span>
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-600 dark:text-indigo-300">N{m.depth}</span>
-                      <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
-                        m.status === 'actif' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'
-                      }`}>{m.status === 'actif' ? 'Actif' : 'Inactif'}</span>
-                    </div>
+              <div key={m.id} className="bg-muted/40 rounded-xl border border-border p-3 flex items-center gap-3" style={{ marginLeft: `${(relativeDepth - 1) * 16}px` }}>
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-violet-500/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-foreground font-bold text-[10px]">{m.first_name[0]}{m.last_name[0]}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{m.first_name} {m.last_name}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    <span className="text-[10px] text-muted-foreground">{lvl?.shortLabel || 'Vendeur'}</span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-600 dark:text-indigo-300">N{relativeDepth}</span>
+                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
+                      m.status === 'actif' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'
+                    }`}>{m.status === 'actif' ? 'Actif' : 'Inactif'}</span>
                   </div>
                 </div>
               </div>

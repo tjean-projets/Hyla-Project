@@ -227,7 +227,7 @@ export function ContactDrawer({ contact, onClose, onEdit }: ContactDrawerProps) 
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-5">
 
           {/* ── TAB : INFO ── */}
           {tab === 'info' && (
@@ -478,10 +478,10 @@ export function ContactDrawer({ contact, onClose, onEdit }: ContactDrawerProps) 
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-5 py-4 border-t border-border">
+        {/* Footer (sticky bottom) */}
+        <div className="flex-shrink-0 px-5 py-4 border-t border-border bg-card">
           <button onClick={() => { onEdit(contact); onClose(); }}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#3b82f6] text-white font-semibold text-sm rounded-xl hover:bg-[#3b82f6]/90 transition-colors">
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#3b82f6] text-white font-semibold text-sm rounded-xl hover:bg-[#3b82f6]/90 transition-colors shadow-md shadow-blue-500/20">
             <Edit2 className="h-4 w-4" />
             Modifier le contact
           </button>
