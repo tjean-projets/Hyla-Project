@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
@@ -9,7 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Users, UserPlus, Star, Trophy, Crown, Award, ChevronUp, Zap, Trash2, Target, Copy, Mail, Edit3, CheckCircle, Clock, Sparkles, Link2, Share2, Eye, EyeOff, AlertTriangle, ChevronDown, ChevronRight, Network, DollarSign, ShoppingCart, UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -1641,6 +1641,32 @@ export default function NetworkPage() {
     enabled: !!effectiveId,
   });
 
+  // ── Arbre complet des lignées descendantes (toutes profondeurs) ──
+  const { data: fullTree = [] } = useQuery({
+    queryKey: ['team-tree-full', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data, error } = await supabase.rpc('get_team_tree', { p_user_id: effectiveId });
+      if (error) throw error;
+      return (data || []) as Array<{
+        id: string;
+        user_id: string;
+        first_name: string;
+        last_name: string;
+        internal_id: string | null;
+        linked_user_id: string | null;
+        matching_names: string[] | null;
+        depth: number;
+        owner_user_id: string | null;
+        status: string;
+        hyla_level: string | null;
+        level: number;
+      }>;
+    },
+    enabled: !!effectiveId,
+    staleTime: 60000,
+  });
+
   // Deals des membres réseau ce mois (ventes réseau)
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
   const { data: reseauDeals = [] } = useQuery({
@@ -1751,6 +1777,33 @@ export default function NetworkPage() {
     !search || `${m.first_name} ${m.last_name} ${m.internal_id || ''}`.toLowerCase().includes(search.toLowerCase())
   );
 
+  // ── Recherche multi-lignées : quand search actif, on filtre sur tout l'arbre ──
+  // Pour chaque résultat, on construit le chemin de management (Toi → Marie → Sophie → résultat)
+  const searchResults = useMemo(() => {
+    if (!search.trim()) return null;
+    const q = search.toLowerCase();
+    const matches = fullTree.filter(m =>
+      `${m.first_name} ${m.last_name} ${m.internal_id || ''}`.toLowerCase().includes(q)
+    );
+    // Map: linked_user_id → tree node (pour remonter le chemin)
+    const byLinkedId = new Map<string, typeof fullTree[0]>();
+    for (const m of fullTree) {
+      if (m.linked_user_id) byLinkedId.set(m.linked_user_id, m);
+    }
+    return matches.map(match => {
+      const path: string[] = [];
+      let currentOwnerId = match.owner_user_id;
+      // Remonte la chaîne jusqu'à la racine (effectiveId)
+      while (currentOwnerId && currentOwnerId !== effectiveId) {
+        const parent = byLinkedId.get(currentOwnerId);
+        if (!parent) break;
+        path.unshift(`${parent.first_name} ${parent.last_name}`);
+        currentOwnerId = parent.owner_user_id;
+      }
+      return { member: match, path };
+    });
+  }, [search, fullTree, effectiveId]);
+
   const actifs = members.filter(m => m.status === 'actif').length;
   const inactifs = members.length - actifs;
   const maxLevel = members.reduce((max, m) => Math.max(max, m.level), 0);
@@ -1761,6 +1814,7 @@ export default function NetworkPage() {
   };
 
   const [fichemembre, setFichemembre] = useState<TeamMember | null>(null);
+  const [memberDownlineView, setMemberDownlineView] = useState<TeamMember | null>(null);
 
   const handleOpenEdit = (member: TeamMember) => {
     setFichemembre(member);
@@ -2073,8 +2127,75 @@ export default function NetworkPage() {
           </div>
         )}
 
-        {/* ── Member list ── */}
-        {showMemberList && !bulkEditMode && (
+        {/* ── Résultats recherche multi-lignées ── */}
+        {showMemberList && !bulkEditMode && searchResults && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800 text-xs text-blue-700 dark:text-blue-300">
+              <Search className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>
+                {searchResults.length} résultat{searchResults.length > 1 ? 's' : ''} dans toutes les lignées
+              </span>
+            </div>
+            {searchResults.length === 0 && (
+              <div className="text-center py-12">
+                <Users className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">Aucun membre trouvé dans toutes les lignées</p>
+              </div>
+            )}
+            {searchResults.map(({ member, path }) => {
+              const isDirect = path.length === 0;
+              const directMember = isDirect ? members.find(m => m.id === member.id) : null;
+              const levelInfo = HYLA_LEVELS.find(l => l.value === (member.hyla_level || 'vendeur'));
+              return (
+                <div
+                  key={member.id}
+                  className="bg-card rounded-2xl shadow-sm border border-border p-3 hover:border-blue-500/40 transition-all cursor-pointer"
+                  onClick={() => directMember ? handleOpenEdit(directMember) : null}
+                >
+                  {/* Path breadcrumb */}
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-2 truncate">
+                    <span className="font-semibold text-blue-600 dark:text-blue-400">Toi</span>
+                    {path.map((p, i) => (
+                      <span key={i} className="flex items-center gap-1">
+                        <ChevronRight className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{p}</span>
+                      </span>
+                    ))}
+                    <ChevronRight className="h-3 w-3 flex-shrink-0" />
+                    <span className="font-semibold text-foreground truncate">{member.first_name} {member.last_name}</span>
+                  </div>
+                  {/* Card content */}
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500/30 to-violet-500/30 flex items-center justify-center flex-shrink-0">
+                      <span className="text-foreground font-bold text-xs">
+                        {member.first_name.charAt(0)}{member.last_name.charAt(0)}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{member.first_name} {member.last_name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span className="text-[10px] text-muted-foreground">{levelInfo?.shortLabel || 'Vendeur'}</span>
+                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
+                          member.status === 'actif'
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {member.status === 'actif' ? 'Actif' : 'Inactif'}
+                        </span>
+                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-600 dark:text-indigo-300">
+                          N{member.depth}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Member list (1ère ligne) ── */}
+        {showMemberList && !bulkEditMode && !searchResults && (
           <div className="space-y-2">
             {filtered.map((member) => {
               const tier = getMemberLevel((member as any).hyla_level || (member.level >= 2 ? 'manager' : 'vendeur'));
@@ -2176,18 +2297,27 @@ export default function NetworkPage() {
                     </span>
                   )}
 
-                  {/* Expand sub-team */}
+                  {/* Expand sub-team + œil downline */}
                   {(member as any).linked_user_id && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); toggleTeamExpand(member.id); }}
-                      className="w-full flex items-center justify-center gap-1.5 py-2 mt-1 rounded-xl text-[11px] font-semibold bg-muted text-muted-foreground border border-border hover:bg-muted transition-colors active:scale-[0.98]"
-                    >
-                      {expandedTeamIds.has(member.id) ? (
-                        <><ChevronDown className="h-3.5 w-3.5" /> Masquer l'équipe</>
-                      ) : (
-                        <><ChevronRight className="h-3.5 w-3.5" /> Voir l'équipe</>
-                      )}
-                    </button>
+                    <div className="flex gap-1.5 mt-1">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleTeamExpand(member.id); }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-muted text-muted-foreground border border-border hover:bg-muted transition-colors active:scale-[0.98]"
+                      >
+                        {expandedTeamIds.has(member.id) ? (
+                          <><ChevronDown className="h-3.5 w-3.5" /> Masquer l'équipe</>
+                        ) : (
+                          <><ChevronRight className="h-3.5 w-3.5" /> Voir l'équipe</>
+                        )}
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setMemberDownlineView(member); }}
+                        className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-[11px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-300 border border-violet-500/30 hover:bg-violet-500/20 transition-colors active:scale-[0.98]"
+                        title="Voir l'équipe complète comme cette personne"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   )}
 
                   {/* Sub-team */}
@@ -2483,6 +2613,159 @@ export default function NetworkPage() {
           } : undefined}
         />
       )}
+
+      {/* ── Modal : Voir downline d'un membre (œil) ── */}
+      <Dialog open={!!memberDownlineView} onOpenChange={(o) => { if (!o) setMemberDownlineView(null); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 mx-4 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-3 shrink-0 border-b border-border">
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-violet-500" />
+              Équipe de {memberDownlineView?.first_name} {memberDownlineView?.last_name}
+            </DialogTitle>
+            <DialogDescription>
+              Vue de la lignée descendante avec performances du mois en cours
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-5">
+            {memberDownlineView && (
+              <MemberDownlineModalContent
+                member={memberDownlineView}
+                onImpersonate={() => {
+                  if ((memberDownlineView as any).linked_user_id) {
+                    startImpersonation(
+                      (memberDownlineView as any).linked_user_id,
+                      `${memberDownlineView.first_name} ${memberDownlineView.last_name}`,
+                      'individual',
+                    );
+                    setMemberDownlineView(null);
+                    navigate('/');
+                  }
+                }}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
+  );
+}
+
+/* ── Contenu du modal "voir downline d'un membre" ── */
+function MemberDownlineModalContent({
+  member,
+  onImpersonate,
+}: {
+  member: TeamMember;
+  onImpersonate: () => void;
+}) {
+  const memberUserId = (member as any).linked_user_id as string | undefined;
+  const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+
+  // Ventes perso du mois (deals du membre)
+  const { data: memberSales = 0 } = useQuery({
+    queryKey: ['member-sales-month', memberUserId, currentMonthStart],
+    queryFn: async () => {
+      if (!memberUserId) return 0;
+      const { count } = await supabase
+        .from('deals')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', memberUserId)
+        .eq('status', 'signee')
+        .gte('signed_at', currentMonthStart);
+      return count || 0;
+    },
+    enabled: !!memberUserId,
+  });
+
+  // Downline du membre (sa propre lignée)
+  const { data: memberDownline = [] } = useQuery({
+    queryKey: ['member-downline', memberUserId],
+    queryFn: async () => {
+      if (!memberUserId) return [];
+      const { data } = await supabase.rpc('get_team_tree', { p_user_id: memberUserId });
+      return (data || []) as Array<{
+        id: string;
+        user_id: string;
+        first_name: string;
+        last_name: string;
+        depth: number;
+        linked_user_id: string | null;
+        status: string;
+        hyla_level: string | null;
+      }>;
+    },
+    enabled: !!memberUserId,
+  });
+
+  if (!memberUserId) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-sm text-muted-foreground">Ce membre n'a pas de compte Triibu lié — pas de downline visible.</p>
+      </div>
+    );
+  }
+
+  const directs = memberDownline.filter(m => m.depth === 1);
+  const totalDownline = memberDownline.length;
+  const activesDownline = memberDownline.filter(m => m.status === 'actif').length;
+
+  return (
+    <div className="space-y-4">
+      {/* KPIs */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3">
+          <p className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold uppercase tracking-wider">Ventes mois</p>
+          <p className="text-lg font-bold text-blue-700 dark:text-blue-300 mt-1">{memberSales}</p>
+        </div>
+        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-3">
+          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">Équipe</p>
+          <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300 mt-1">{activesDownline}<span className="text-xs text-muted-foreground">/{totalDownline}</span></p>
+        </div>
+        <div className="rounded-xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 p-3">
+          <p className="text-[10px] text-violet-600 dark:text-violet-400 font-semibold uppercase tracking-wider">Directs</p>
+          <p className="text-lg font-bold text-violet-700 dark:text-violet-300 mt-1">{directs.length}</p>
+        </div>
+      </div>
+
+      {/* Action voir comme */}
+      <button
+        onClick={onImpersonate}
+        className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+      >
+        <Eye className="h-4 w-4" />
+        Voir comme {member.first_name} (impersonation)
+      </button>
+
+      {/* Liste downline complète */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lignées descendantes</p>
+        {memberDownline.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">Aucun membre dans la lignée de {member.first_name}</p>
+        ) : (
+          memberDownline.map(m => {
+            const lvl = HYLA_LEVELS.find(l => l.value === (m.hyla_level || 'vendeur'));
+            return (
+              <div key={m.id} className="bg-muted/40 rounded-xl border border-border p-3 flex items-center gap-3">
+                <div style={{ marginLeft: `${(m.depth - 1) * 16}px` }} className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-violet-500/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-foreground font-bold text-[10px]">{m.first_name[0]}{m.last_name[0]}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{m.first_name} {m.last_name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <span className="text-[10px] text-muted-foreground">{lvl?.shortLabel || 'Vendeur'}</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-600 dark:text-indigo-300">N{m.depth}</span>
+                      <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
+                        m.status === 'actif' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'
+                      }`}>{m.status === 'actif' ? 'Actif' : 'Inactif'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
   );
 }
