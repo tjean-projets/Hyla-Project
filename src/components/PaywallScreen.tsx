@@ -93,7 +93,7 @@ export function PaywallScreen({ feature, trialDaysLeft = 0, isTrial = false }: P
         {/* CTA */}
         <div className="space-y-2">
           <a
-            href="mailto:contact@hyla-crm.fr?subject=Abonnement Hyla CRM Manager"
+            href="mailto:contact@triibu.fr?subject=Abonnement Triibu Manager"
             className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold text-sm rounded-xl hover:bg-[#3b82f6]/90 transition-colors"
           >
             <Zap className="h-4 w-4" />

@@ -919,7 +919,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
           <p className="text-xs text-amber-700 dark:text-amber-400">
             <span className="font-semibold">Essai gratuit</span> — {trialDaysLeft} jour{trialDaysLeft > 1 ? 's' : ''} restant{trialDaysLeft > 1 ? 's' : ''}
             {' · '}
-            <a href="mailto:contact@hyla-crm.fr" className="underline font-semibold">Choisir un plan</a>
+            <a href="mailto:contact@triibu.fr" className="underline font-semibold">Choisir un plan</a>
           </p>
         </div>
       )}
