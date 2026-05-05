@@ -220,7 +220,7 @@ function ModuleFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md mx-4">
         <DialogHeader>
           <DialogTitle>{initial?.title ? 'Modifier le module' : 'Nouveau module'}</DialogTitle>
         </DialogHeader>
@@ -343,7 +343,7 @@ function LessonFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md mx-4">
         <DialogHeader>
           <DialogTitle>
             {initial?.title ? 'Modifier la leçon' : 'Nouvelle leçon'}
@@ -1410,7 +1410,7 @@ export default function FormationPage() {
         open={!!deleteModuleTarget}
         onOpenChange={(v) => !v && setDeleteModuleTarget(null)}
       >
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm mx-4">
           <DialogHeader>
             <DialogTitle>Supprimer le module ?</DialogTitle>
           </DialogHeader>
@@ -1437,7 +1437,7 @@ export default function FormationPage() {
         open={!!deleteLessonTarget}
         onOpenChange={(v) => !v && setDeleteLessonTarget(null)}
       >
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm mx-4">
           <DialogHeader>
             <DialogTitle>Supprimer la leçon ?</DialogTitle>
           </DialogHeader>

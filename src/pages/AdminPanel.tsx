@@ -369,7 +369,7 @@ export default function AdminPanel() {
 
         {/* User detail dialog */}
         <Dialog open={!!selectedUser} onOpenChange={(open) => { if (!open) setSelectedUser(null); }}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md mx-4">
             {selectedUser && (
               <>
                 <DialogHeader>
@@ -500,7 +500,7 @@ export default function AdminPanel() {
 
         {/* Delete confirmation - Step 1 */}
         <Dialog open={deleteStep === 1} onOpenChange={(open) => { if (!open) { setDeleteStep(0); setDeleteTarget(null); } }}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-w-sm mx-4">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-600">
                 <AlertTriangle className="h-5 w-5" />
@@ -530,7 +530,7 @@ export default function AdminPanel() {
 
         {/* Delete confirmation - Step 2 */}
         <Dialog open={deleteStep === 2} onOpenChange={(open) => { if (!open) { setDeleteStep(0); setDeleteTarget(null); setConfirmName(''); } }}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-w-sm mx-4">
             <DialogHeader>
               <DialogTitle className="text-red-600">Confirmation finale</DialogTitle>
             </DialogHeader>

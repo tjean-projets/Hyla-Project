@@ -1538,7 +1538,7 @@ ${networkRows.length > 0 ? `
 
             {/* ── Import Detail Dialog ── */}
             <Dialog open={!!selectedImport} onOpenChange={(v) => { if (!v) { setSelectedImport(null); setImportRows([]); } }}>
-              <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+              <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2 text-base">
                     <FileSpreadsheet className="h-5 w-5 text-[#3b82f6]" />

@@ -471,7 +471,7 @@ function FormationPageContent() {
 
         {/* Module form dialog */}
         <Dialog open={showModuleForm} onOpenChange={o => { if (!o) { setShowModuleForm(false); setEditingModule(null); } }}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md mx-4">
             <DialogHeader>
               <DialogTitle>{editingModule ? 'Modifier le module' : 'Nouveau module'}</DialogTitle>
             </DialogHeader>
@@ -619,7 +619,7 @@ function FormationPageContent() {
 
       {/* Lesson form dialog */}
       <Dialog open={showLessonForm} onOpenChange={o => { if (!o) { setShowLessonForm(false); setEditingLesson(null); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md mx-4">
           <DialogHeader>
             <DialogTitle>{editingLesson ? 'Modifier la leçon' : 'Nouvelle leçon'}</DialogTitle>
           </DialogHeader>

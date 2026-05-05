@@ -1094,7 +1094,7 @@ export default function Contacts() {
 
       {/* Stage Manager Dialog */}
       <Dialog open={showStageManager} onOpenChange={setShowStageManager}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md mx-4">
           <DialogHeader><DialogTitle>Gérer les étapes du pipeline</DialogTitle></DialogHeader>
           <div className="space-y-2 max-h-[50vh] overflow-y-auto">
             {editStages.sort((a, b) => a.position - b.position).map((stage, idx) => (

@@ -745,7 +745,7 @@ export default function Imports() {
       <div className="space-y-6">
         {/* Import dialog */}
         <Dialog open={showImport} onOpenChange={setShowImport}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto mx-4">
             <DialogHeader>
               <DialogTitle>
                 {flow.step === 'upload' && 'Importer un fichier de commissions'}
@@ -994,7 +994,7 @@ export default function Imports() {
 
         {/* TRV Import dialog */}
         <Dialog open={showTRVImport} onOpenChange={(open) => { if (!open && trvStep !== 'processing') setShowTRVImport(false); }}>
-          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto mx-4">
             <DialogHeader>
               <DialogTitle>
                 {trvStep === 'upload' && 'Importer un TRV Hyla'}
