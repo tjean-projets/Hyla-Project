@@ -683,6 +683,34 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
   });
   const hasAcademieAccess = isRealAdmin || academieSettings?.respire_academie_access === true;
 
+  // ── Académies accessibles (via academy_access) ──
+  const { data: accessibleAcademies = [] } = useQuery({
+    queryKey: ['accessible-academies-nav', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data: access } = await supabase
+        .from('academy_access')
+        .select('academy_id')
+        .eq('user_id', user.id);
+      const accessIds = (access || []).map((a: any) => a.academy_id);
+      // Inclut aussi les académies qu'on possède
+      const { data: owned } = await supabase
+        .from('academies')
+        .select('id')
+        .eq('owner_user_id', user.id);
+      const ownedIds = (owned || []).map((a: any) => a.id);
+      const allIds = Array.from(new Set([...accessIds, ...ownedIds]));
+      if (allIds.length === 0) return [];
+      const { data } = await supabase
+        .from('academies')
+        .select('id, name, slug, owner_user_id')
+        .in('id', allIds);
+      return (data || []) as Array<{ id: string; name: string; slug: string; owner_user_id: string }>;
+    },
+    enabled: !!user,
+    staleTime: 60000,
+  });
+
   // Amounts visibility toggle
   const { visible: amountsVisible, toggle: toggleAmounts } = useAmounts();
 
@@ -770,6 +798,31 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
               </NavLink>
             );
           })}
+
+          {/* ── Académies accessibles ── */}
+          {accessibleAcademies.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-white/5">
+              <p className="px-3 mb-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Mes académies</p>
+              {accessibleAcademies.map(a => (
+                <NavLink
+                  key={a.id}
+                  to={`/academie/${a.slug}`}
+                  className={({ isActive }) => cn(
+                    'flex items-center gap-3 px-3 py-2 rounded-xl text-[12px] font-medium transition-all duration-200',
+                    isActive
+                      ? 'bg-violet-500/20 text-violet-300'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  )}
+                >
+                  <GraduationCap className="h-[15px] w-[15px] flex-shrink-0" />
+                  <span className="truncate">{a.name}</span>
+                  {a.owner_user_id === user?.id && (
+                    <span className="ml-auto text-[8px] font-bold bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded flex-shrink-0">MOI</span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          )}
         </nav>
 
         {/* Admin link */}

@@ -12,12 +12,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import {
   GraduationCap, Plus, Upload, Link as LinkIcon, FileText, Video, Image as ImageIcon,
-  FileBox, Trash2, Users, Settings, Copy, ExternalLink, X, Check, Eye,
+  FileBox, Trash2, Users, Settings, Copy, ExternalLink, X, Eye, FolderPlus,
+  ChevronUp, ChevronDown, Folder, Edit2, Check,
 } from 'lucide-react';
 
 type AcademyFile = {
   id: string;
   academy_id: string;
+  section_id: string | null;
   uploaded_by: string;
   title: string;
   description: string | null;
@@ -28,6 +30,14 @@ type AcademyFile = {
   category: string | null;
   sort_order: number;
   created_at: string;
+};
+
+type AcademySection = {
+  id: string;
+  academy_id: string;
+  title: string;
+  description: string | null;
+  sort_order: number;
 };
 
 type Academy = {
@@ -69,11 +79,16 @@ export default function MonAcademiePage() {
 
   const [tab, setTab] = useState<'contenu' | 'acces' | 'parametres'>('contenu');
   const [createForm, setCreateForm] = useState({ name: '', description: '' });
-  const [uploadTitle, setUploadTitle] = useState('');
-  const [uploadCategory, setUploadCategory] = useState('');
-  const [linkForm, setLinkForm] = useState({ title: '', url: '', category: '' });
-  const [showLinkForm, setShowLinkForm] = useState(false);
   const [grantEmail, setGrantEmail] = useState('');
+  const [editingSection, setEditingSection] = useState<AcademySection | null>(null);
+  const [showSectionForm, setShowSectionForm] = useState(false);
+  const [sectionForm, setSectionForm] = useState({ title: '', description: '' });
+  const [activeUploadSection, setActiveUploadSection] = useState<string | null>(null);
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [showLinkForm, setShowLinkForm] = useState<string | null>(null);
+  const [linkForm, setLinkForm] = useState({ title: '', url: '' });
+  const [editingFile, setEditingFile] = useState<AcademyFile | null>(null);
+  const [editingFileTitle, setEditingFileTitle] = useState('');
 
   // Mon académie
   const { data: academy, isLoading } = useQuery({
@@ -88,6 +103,21 @@ export default function MonAcademiePage() {
       return data as Academy | null;
     },
     enabled: !!user,
+  });
+
+  // Sections
+  const { data: sections = [] } = useQuery({
+    queryKey: ['academy-sections', academy?.id],
+    queryFn: async () => {
+      if (!academy) return [];
+      const { data } = await supabase
+        .from('academy_sections')
+        .select('*')
+        .eq('academy_id', academy.id)
+        .order('sort_order', { ascending: true });
+      return (data || []) as AcademySection[];
+    },
+    enabled: !!academy,
   });
 
   // Fichiers
@@ -149,9 +179,65 @@ export default function MonAcademiePage() {
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
 
+  // ── Sections CRUD ──
+  const saveSection = useMutation({
+    mutationFn: async () => {
+      if (!academy) throw new Error('Pas d\'académie');
+      if (editingSection) {
+        const { error } = await supabase.from('academy_sections')
+          .update({ title: sectionForm.title, description: sectionForm.description || null })
+          .eq('id', editingSection.id);
+        if (error) throw error;
+      } else {
+        const nextOrder = (sections[sections.length - 1]?.sort_order ?? -1) + 1;
+        const { error } = await supabase.from('academy_sections').insert({
+          academy_id: academy.id,
+          title: sectionForm.title,
+          description: sectionForm.description || null,
+          sort_order: nextOrder,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['academy-sections'] });
+      setShowSectionForm(false);
+      setEditingSection(null);
+      setSectionForm({ title: '', description: '' });
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  const deleteSection = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('academy_sections').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['academy-sections'] });
+      queryClient.invalidateQueries({ queryKey: ['academy-files'] });
+      toast({ title: 'Section supprimée' });
+    },
+  });
+
+  const moveSection = useMutation({
+    mutationFn: async ({ section, dir }: { section: AcademySection; dir: 'up' | 'down' }) => {
+      const idx = sections.findIndex(s => s.id === section.id);
+      const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= sections.length) return;
+      const swap = sections[swapIdx];
+      // Swap sort_order
+      await supabase.from('academy_sections').update({ sort_order: swap.sort_order }).eq('id', section.id);
+      await supabase.from('academy_sections').update({ sort_order: section.sort_order }).eq('id', swap.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['academy-sections'] });
+    },
+  });
+
   // Upload fichier
   const uploadFile = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, sectionId }: { file: File; sectionId: string | null }) => {
       if (!academy || !user) throw new Error('Pas d\'académie');
       const fileId = crypto.randomUUID();
       const ext = file.name.split('.').pop() || '';
@@ -159,50 +245,82 @@ export default function MonAcademiePage() {
       const { error: uErr } = await supabase.storage.from('academy-files').upload(path, file);
       if (uErr) throw uErr;
       const fileType = inferFileType(file);
+      const sectionFiles = files.filter(f => f.section_id === sectionId);
+      const nextOrder = (sectionFiles[sectionFiles.length - 1]?.sort_order ?? -1) + 1;
       const { error } = await supabase.from('academy_files').insert({
         academy_id: academy.id,
+        section_id: sectionId,
         uploaded_by: user.id,
         title: uploadTitle || file.name,
         file_url: path,
         file_type: fileType,
         is_external: false,
         file_size_mb: Math.ceil(file.size / 1024 / 1024),
-        category: uploadCategory || null,
+        sort_order: nextOrder,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academy-files'] });
       setUploadTitle('');
-      setUploadCategory('');
+      setActiveUploadSection(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       toast({ title: 'Fichier uploadé' });
     },
     onError: (e: Error) => toast({ title: 'Erreur upload', description: e.message, variant: 'destructive' }),
   });
 
-  // Ajouter un lien externe
   const addLink = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (sectionId: string | null) => {
       if (!academy || !user || !linkForm.url) throw new Error('Lien invalide');
+      const sectionFiles = files.filter(f => f.section_id === sectionId);
+      const nextOrder = (sectionFiles[sectionFiles.length - 1]?.sort_order ?? -1) + 1;
       const { error } = await supabase.from('academy_files').insert({
         academy_id: academy.id,
+        section_id: sectionId,
         uploaded_by: user.id,
         title: linkForm.title || linkForm.url,
         file_url: linkForm.url,
         file_type: 'link',
         is_external: true,
-        category: linkForm.category || null,
+        sort_order: nextOrder,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academy-files'] });
-      setLinkForm({ title: '', url: '', category: '' });
-      setShowLinkForm(false);
+      setLinkForm({ title: '', url: '' });
+      setShowLinkForm(null);
       toast({ title: 'Lien ajouté' });
     },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  const updateFileTitle = useMutation({
+    mutationFn: async () => {
+      if (!editingFile) return;
+      const { error } = await supabase.from('academy_files').update({ title: editingFileTitle }).eq('id', editingFile.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['academy-files'] });
+      setEditingFile(null);
+    },
+  });
+
+  const moveFile = useMutation({
+    mutationFn: async ({ file, dir }: { file: AcademyFile; dir: 'up' | 'down' }) => {
+      const sectionFiles = files.filter(f => f.section_id === file.section_id).sort((a, b) => a.sort_order - b.sort_order);
+      const idx = sectionFiles.findIndex(f => f.id === file.id);
+      const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= sectionFiles.length) return;
+      const swap = sectionFiles[swapIdx];
+      await supabase.from('academy_files').update({ sort_order: swap.sort_order }).eq('id', file.id);
+      await supabase.from('academy_files').update({ sort_order: file.sort_order }).eq('id', swap.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['academy-files'] });
+    },
   });
 
   const deleteFile = useMutation({
@@ -217,7 +335,6 @@ export default function MonAcademiePage() {
       queryClient.invalidateQueries({ queryKey: ['academy-files'] });
       toast({ title: 'Fichier supprimé' });
     },
-    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
 
   const grantAccess = useMutation({
@@ -239,7 +356,7 @@ export default function MonAcademiePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academy-access'] });
       setGrantEmail('');
-      toast({ title: 'Accès accordé' });
+      toast({ title: 'Accès accordé', description: 'L\'utilisateur recevra une notification.' });
     },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
@@ -247,22 +364,16 @@ export default function MonAcademiePage() {
   const revokeAccess = useMutation({
     mutationFn: async (userId: string) => {
       if (!academy) return;
-      const { error } = await supabase.from('academy_access')
-        .delete()
-        .eq('academy_id', academy.id)
-        .eq('user_id', userId);
+      const { error } = await supabase.from('academy_access').delete().eq('academy_id', academy.id).eq('user_id', userId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academy-access'] });
       toast({ title: 'Accès révoqué' });
     },
-    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
 
-  if (!isPro) {
-    return <AppLayout><PaywallScreen feature="finance" /></AppLayout>;
-  }
+  if (!isPro) return <AppLayout><PaywallScreen feature="finance" /></AppLayout>;
 
   if (isLoading) {
     return (
@@ -274,7 +385,6 @@ export default function MonAcademiePage() {
     );
   }
 
-  // ── Pas d'académie : formulaire de création ──
   if (!academy) {
     return (
       <AppLayout>
@@ -285,33 +395,19 @@ export default function MonAcademiePage() {
             </div>
             <h1 className="text-2xl font-bold mb-2">Créer mon académie</h1>
             <p className="text-sm text-muted-foreground">
-              Mets à disposition tes formations, vidéos, documents et liens à tes conseillers.
+              Structure tes formations en sections (modules) et leçons. Inspiré de Skool.
             </p>
           </div>
           <div className="bg-card rounded-2xl border border-border p-5 space-y-4">
             <div>
               <Label>Nom de l'académie *</Label>
-              <Input
-                value={createForm.name}
-                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                placeholder="Ex: Académie Marie Conseil"
-                className="h-11"
-              />
+              <Input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} placeholder="Ex: Académie Marie Conseil" className="h-11" />
             </div>
             <div>
               <Label>Description</Label>
-              <Textarea
-                value={createForm.description}
-                onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-                placeholder="Quelques mots sur le contenu proposé..."
-                rows={3}
-              />
+              <Textarea value={createForm.description} onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })} placeholder="Quelques mots sur le contenu proposé..." rows={3} />
             </div>
-            <button
-              onClick={() => createAcademy.mutate()}
-              disabled={!createForm.name || createAcademy.isPending}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-violet-600 text-white font-semibold rounded-xl disabled:opacity-50 hover:opacity-90 transition-opacity"
-            >
+            <button onClick={() => createAcademy.mutate()} disabled={!createForm.name || createAcademy.isPending} className="w-full py-3 bg-gradient-to-r from-blue-600 to-violet-600 text-white font-semibold rounded-xl disabled:opacity-50 hover:opacity-90 transition-opacity">
               {createAcademy.isPending ? 'Création...' : 'Créer mon académie'}
             </button>
           </div>
@@ -320,7 +416,9 @@ export default function MonAcademiePage() {
     );
   }
 
-  // ── Académie existante : gestion ──
+  // Files sans section
+  const orphanFiles = files.filter(f => !f.section_id);
+
   return (
     <AppLayout>
       <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
@@ -335,20 +433,19 @@ export default function MonAcademiePage() {
               {academy.description && <p className="text-xs text-muted-foreground line-clamp-2">{academy.description}</p>}
             </div>
           </div>
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-3">
-            <span>{files.length} fichier{files.length > 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-3 flex-wrap">
+            <span>{sections.length} section{sections.length > 1 ? 's' : ''}</span>
             <span>•</span>
-            <span>{accessList.length} accès accordé{accessList.length > 1 ? 's' : ''}</span>
+            <span>{files.length} leçon{files.length > 1 ? 's' : ''}</span>
+            <span>•</span>
+            <span>{accessList.length} accès</span>
             <span>•</span>
             <span>{academy.storage_used_mb}/{academy.storage_quota_mb} MB</span>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/academie/${academy.slug}`);
-                toast({ title: 'Lien copié' });
-              }}
-              className="ml-auto flex items-center gap-1 text-blue-500 hover:text-blue-400"
-            >
+            <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/academie/${academy.slug}`); toast({ title: 'Lien copié' }); }} className="ml-auto flex items-center gap-1 text-blue-500 hover:text-blue-400">
               <Copy className="h-3 w-3" /> Lien
+            </button>
+            <button onClick={() => navigate(`/academie/${academy.slug}`)} className="flex items-center gap-1 text-violet-500 hover:text-violet-400">
+              <Eye className="h-3 w-3" /> Voir
             </button>
           </div>
         </div>
@@ -360,13 +457,7 @@ export default function MonAcademiePage() {
             { key: 'acces', label: 'Accès', icon: Users },
             { key: 'parametres', label: 'Paramètres', icon: Settings },
           ] as const).map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-colors ${
-                tab === key ? 'bg-blue-600 text-white' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
+            <button key={key} onClick={() => setTab(key)} className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-colors ${tab === key ? 'bg-blue-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}>
               <Icon className="h-3.5 w-3.5" />
               {label}
             </button>
@@ -376,117 +467,129 @@ export default function MonAcademiePage() {
         {/* Tab : Contenu */}
         {tab === 'contenu' && (
           <div className="space-y-3">
-            {/* Upload zone */}
-            <div className="bg-card border border-border rounded-2xl p-4">
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <Upload className="h-4 w-4 text-blue-500" />
-                Ajouter du contenu
-              </h3>
-              <div className="space-y-2">
-                <Input
-                  placeholder="Titre du contenu (optionnel)"
-                  value={uploadTitle}
-                  onChange={(e) => setUploadTitle(e.target.value)}
-                />
-                <Input
-                  placeholder="Catégorie (optionnel) - ex: Formation, Vidéos, Outils..."
-                  value={uploadCategory}
-                  onChange={(e) => setUploadCategory(e.target.value)}
-                />
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="video/*,image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) uploadFile.mutate(f);
-                  }}
-                  className="hidden"
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadFile.isPending}
-                    className="py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    <Upload className="h-3.5 w-3.5" />
-                    {uploadFile.isPending ? 'Upload...' : 'Choisir un fichier'}
-                  </button>
-                  <button
-                    onClick={() => setShowLinkForm(!showLinkForm)}
-                    className="py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold flex items-center justify-center gap-2"
-                  >
-                    <LinkIcon className="h-3.5 w-3.5" />
-                    Ajouter un lien
-                  </button>
-                </div>
-                {showLinkForm && (
-                  <div className="mt-3 p-3 rounded-xl bg-muted space-y-2">
-                    <Input placeholder="Titre du lien" value={linkForm.title} onChange={(e) => setLinkForm({ ...linkForm, title: e.target.value })} />
-                    <Input placeholder="URL (Canva, YouTube, Google Drive...)" value={linkForm.url} onChange={(e) => setLinkForm({ ...linkForm, url: e.target.value })} />
-                    <Input placeholder="Catégorie (optionnel)" value={linkForm.category} onChange={(e) => setLinkForm({ ...linkForm, category: e.target.value })} />
-                    <div className="flex gap-2">
-                      <button onClick={() => addLink.mutate()} disabled={!linkForm.url || addLink.isPending} className="flex-1 py-2 rounded-lg bg-violet-600 text-white text-xs font-semibold disabled:opacity-50">Ajouter</button>
-                      <button onClick={() => setShowLinkForm(false)} className="py-2 px-3 rounded-lg bg-muted text-muted-foreground text-xs">Annuler</button>
+            {/* Add section button */}
+            <button
+              onClick={() => { setEditingSection(null); setSectionForm({ title: '', description: '' }); setShowSectionForm(true); }}
+              className="w-full py-3 rounded-2xl border-2 border-dashed border-border hover:border-blue-500/50 hover:bg-muted/30 transition-colors flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"
+            >
+              <FolderPlus className="h-4 w-4" />
+              Nouvelle section
+            </button>
+
+            {/* Sections */}
+            {sections.map((section, idx) => {
+              const sectionFiles = files.filter(f => f.section_id === section.id).sort((a, b) => a.sort_order - b.sort_order);
+              return (
+                <div key={section.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                  <div className="px-4 py-3 bg-muted/30 border-b border-border flex items-center gap-2">
+                    <Folder className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{section.title}</p>
+                      {section.description && <p className="text-[10px] text-muted-foreground truncate">{section.description}</p>}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{sectionFiles.length} leçon{sectionFiles.length > 1 ? 's' : ''}</span>
+                    <div className="flex items-center gap-0.5">
+                      <button onClick={() => moveSection.mutate({ section, dir: 'up' })} disabled={idx === 0} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground"><ChevronUp className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => moveSection.mutate({ section, dir: 'down' })} disabled={idx === sections.length - 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground"><ChevronDown className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => { setEditingSection(section); setSectionForm({ title: section.title, description: section.description || '' }); setShowSectionForm(true); }} className="p-1.5 rounded hover:bg-muted text-muted-foreground"><Edit2 className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => { if (confirm('Supprimer cette section ? Les leçons seront déplacées en "Sans section".')) deleteSection.mutate(section.id); }} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
-                )}
-                <p className="text-[10px] text-muted-foreground">
-                  Vidéos, images, PDF, Word, Excel, PowerPoint acceptés. Max 500 MB par fichier.
-                </p>
-              </div>
-            </div>
 
-            {/* Liste fichiers */}
-            <div className="space-y-2">
-              {files.length === 0 && (
-                <div className="text-center py-12 bg-card border border-border rounded-2xl">
-                  <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">Aucun contenu pour l'instant</p>
-                </div>
-              )}
-              {files.map(f => {
-                const Icon = FILE_TYPE_ICONS[f.file_type];
-                return (
-                  <div key={f.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{f.title}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[10px] text-muted-foreground uppercase">{f.file_type}</span>
-                        {f.category && (
-                          <>
-                            <span className="text-[10px] text-muted-foreground">•</span>
-                            <span className="text-[10px] text-muted-foreground truncate">{f.category}</span>
-                          </>
-                        )}
-                        {f.file_size_mb && (
-                          <>
-                            <span className="text-[10px] text-muted-foreground">•</span>
-                            <span className="text-[10px] text-muted-foreground">{f.file_size_mb} MB</span>
-                          </>
+                  {/* Files in section */}
+                  <div className="divide-y divide-border">
+                    {sectionFiles.map((f, fIdx) => {
+                      const Icon = FILE_TYPE_ICONS[f.file_type];
+                      const isEditing = editingFile?.id === f.id;
+                      return (
+                        <div key={f.id} className="px-4 py-2.5 flex items-center gap-2.5">
+                          <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0"><Icon className="h-4 w-4" /></div>
+                          {isEditing ? (
+                            <Input value={editingFileTitle} onChange={(e) => setEditingFileTitle(e.target.value)} className="h-8 flex-1 text-sm" autoFocus onKeyDown={(e) => { if (e.key === 'Enter') updateFileTitle.mutate(); if (e.key === 'Escape') setEditingFile(null); }} />
+                          ) : (
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{f.title}</p>
+                              <p className="text-[10px] text-muted-foreground uppercase">{f.file_type}{f.file_size_mb ? ` · ${f.file_size_mb} MB` : ''}</p>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-0.5">
+                            <button onClick={() => moveFile.mutate({ file: f, dir: 'up' })} disabled={fIdx === 0} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground"><ChevronUp className="h-3 w-3" /></button>
+                            <button onClick={() => moveFile.mutate({ file: f, dir: 'down' })} disabled={fIdx === sectionFiles.length - 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground"><ChevronDown className="h-3 w-3" /></button>
+                            {isEditing ? (
+                              <button onClick={() => updateFileTitle.mutate()} className="p-1.5 rounded hover:bg-emerald-500/10 text-emerald-500"><Check className="h-3.5 w-3.5" /></button>
+                            ) : (
+                              <button onClick={() => { setEditingFile(f); setEditingFileTitle(f.title); }} className="p-1.5 rounded hover:bg-muted text-muted-foreground"><Edit2 className="h-3 w-3" /></button>
+                            )}
+                            {f.is_external && <a href={f.file_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded hover:bg-muted text-muted-foreground"><ExternalLink className="h-3 w-3" /></a>}
+                            <button onClick={() => { if (confirm('Supprimer ?')) deleteFile.mutate(f); }} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {sectionFiles.length === 0 && (
+                      <p className="px-4 py-4 text-xs text-muted-foreground text-center italic">Aucune leçon dans cette section</p>
+                    )}
+                  </div>
+
+                  {/* Add to section */}
+                  <div className="px-4 py-2 border-t border-border bg-muted/20">
+                    {activeUploadSection === section.id ? (
+                      <div className="space-y-2">
+                        <Input placeholder="Titre de la leçon (optionnel)" value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="h-9 text-xs" />
+                        <input ref={fileInputRef} type="file" accept="video/*,image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile.mutate({ file: f, sectionId: section.id }); }} className="hidden" />
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <button onClick={() => fileInputRef.current?.click()} disabled={uploadFile.isPending} className="py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold flex items-center justify-center gap-1 disabled:opacity-50"><Upload className="h-3 w-3" />{uploadFile.isPending ? '...' : 'Fichier'}</button>
+                          <button onClick={() => setShowLinkForm(section.id)} className="py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-semibold flex items-center justify-center gap-1"><LinkIcon className="h-3 w-3" />Lien</button>
+                          <button onClick={() => { setActiveUploadSection(null); setUploadTitle(''); setShowLinkForm(null); }} className="py-1.5 rounded-lg bg-muted text-muted-foreground text-[11px] font-semibold">Annuler</button>
+                        </div>
+                        {showLinkForm === section.id && (
+                          <div className="space-y-1.5 pt-2">
+                            <Input placeholder="Titre du lien" value={linkForm.title} onChange={(e) => setLinkForm({ ...linkForm, title: e.target.value })} className="h-9 text-xs" />
+                            <Input placeholder="URL (Canva, YouTube, GDrive...)" value={linkForm.url} onChange={(e) => setLinkForm({ ...linkForm, url: e.target.value })} className="h-9 text-xs" />
+                            <button onClick={() => addLink.mutate(section.id)} disabled={!linkForm.url || addLink.isPending} className="w-full py-1.5 rounded-lg bg-violet-600 text-white text-[11px] font-semibold disabled:opacity-50">Ajouter le lien</button>
+                          </div>
                         )}
                       </div>
-                    </div>
-                    {f.is_external && (
-                      <a href={f.file_url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-blue-600">
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
+                    ) : (
+                      <button onClick={() => setActiveUploadSection(section.id)} className="w-full py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center justify-center gap-1.5">
+                        <Plus className="h-3.5 w-3.5" /> Ajouter une leçon
+                      </button>
                     )}
-                    <button
-                      onClick={() => {
-                        if (confirm('Supprimer ce contenu ?')) deleteFile.mutate(f);
-                      }}
-                      className="p-2 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-500"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
+
+            {/* Orphan files (sans section) */}
+            {orphanFiles.length > 0 && (
+              <div className="bg-card border border-amber-500/30 rounded-2xl overflow-hidden">
+                <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/30">
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Sans section ({orphanFiles.length})</p>
+                </div>
+                <div className="divide-y divide-border">
+                  {orphanFiles.map(f => {
+                    const Icon = FILE_TYPE_ICONS[f.file_type];
+                    return (
+                      <div key={f.id} className="px-4 py-2.5 flex items-center gap-2.5">
+                        <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0"><Icon className="h-4 w-4" /></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{f.title}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase">{f.file_type}</p>
+                        </div>
+                        <button onClick={() => { if (confirm('Supprimer ?')) deleteFile.mutate(f); }} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {sections.length === 0 && orphanFiles.length === 0 && (
+              <div className="text-center py-12 bg-card border border-border rounded-2xl">
+                <Folder className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">Crée ta première section pour commencer</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -499,50 +602,27 @@ export default function MonAcademiePage() {
                 Accorder l'accès
               </h3>
               <div className="flex gap-2">
-                <Input
-                  placeholder="Email de l'utilisateur"
-                  value={grantEmail}
-                  onChange={(e) => setGrantEmail(e.target.value)}
-                  type="email"
-                  className="flex-1"
-                />
-                <button
-                  onClick={() => grantAccess.mutate()}
-                  disabled={!grantEmail || grantAccess.isPending}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-50"
-                >
+                <Input placeholder="Email de l'utilisateur" value={grantEmail} onChange={(e) => setGrantEmail(e.target.value)} type="email" className="flex-1" />
+                <button onClick={() => grantAccess.mutate()} disabled={!grantEmail || grantAccess.isPending} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-50">
                   {grantAccess.isPending ? '...' : 'Accorder'}
                 </button>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-2">
-                L'utilisateur doit déjà avoir un compte Triibu avec cet email.
-              </p>
+              <p className="text-[10px] text-muted-foreground mt-2">L'utilisateur recevra une notification dans Triibu.</p>
             </div>
 
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
               <div className="px-4 py-2 border-b border-border bg-muted/30">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  {accessList.length} accès actif{accessList.length > 1 ? 's' : ''}
-                </p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{accessList.length} accès actif{accessList.length > 1 ? 's' : ''}</p>
               </div>
-              {accessList.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-8">Aucun accès accordé pour l'instant</p>
-              )}
+              {accessList.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Aucun accès accordé pour l'instant</p>}
               {accessList.map((a: any) => (
                 <div key={a.user_id} className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-0">
-                  <div className="h-9 w-9 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center text-xs font-bold">
-                    {a.profile?.full_name?.split(' ').map((s: string) => s[0]).slice(0, 2).join('') || '?'}
-                  </div>
+                  <div className="h-9 w-9 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center text-xs font-bold">{a.profile?.full_name?.split(' ').map((s: string) => s[0]).slice(0, 2).join('') || '?'}</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{a.profile?.full_name || 'Utilisateur'}</p>
                     <p className="text-[10px] text-muted-foreground truncate">{a.profile?.email || a.user_id}</p>
                   </div>
-                  <button
-                    onClick={() => revokeAccess.mutate(a.user_id)}
-                    className="p-2 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-500"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                  <button onClick={() => revokeAccess.mutate(a.user_id)} className="p-2 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-500"><X className="h-4 w-4" /></button>
                 </div>
               ))}
             </div>
@@ -552,18 +632,41 @@ export default function MonAcademiePage() {
         {/* Tab : Paramètres */}
         {tab === 'parametres' && (
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-            <p className="text-sm text-muted-foreground">Paramètres avancés à venir (édition nom/description, suppression, etc.)</p>
+            <p className="text-sm text-muted-foreground">Paramètres avancés à venir.</p>
             <div className="rounded-xl bg-muted p-3 space-y-1">
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Lien public</p>
               <p className="text-xs font-mono text-foreground break-all">{window.location.origin}/academie/{academy.slug}</p>
             </div>
-            <button
-              onClick={() => navigate(`/academie/${academy.slug}`)}
-              className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-blue-700"
-            >
+            <button onClick={() => navigate(`/academie/${academy.slug}`)} className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-blue-700">
               <Eye className="h-4 w-4" />
               Voir mon académie côté visiteur
             </button>
+            <p className="text-[10px] text-muted-foreground">
+              Stockage : {academy.storage_used_mb} MB utilisés sur {academy.storage_quota_mb} MB. Pour augmenter, contacte contact@triibu.fr.
+            </p>
+          </div>
+        )}
+
+        {/* Section Form Dialog */}
+        {showSectionForm && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setShowSectionForm(false)}>
+            <div className="bg-background rounded-2xl max-w-md w-full p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-base font-bold">{editingSection ? 'Modifier la section' : 'Nouvelle section'}</h3>
+              <div>
+                <Label>Titre *</Label>
+                <Input value={sectionForm.title} onChange={(e) => setSectionForm({ ...sectionForm, title: e.target.value })} placeholder="Ex: Module 1 — Les bases" autoFocus />
+              </div>
+              <div>
+                <Label>Description (optionnel)</Label>
+                <Textarea value={sectionForm.description} onChange={(e) => setSectionForm({ ...sectionForm, description: e.target.value })} placeholder="Que va-t-on apprendre ici ?" rows={2} />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => setShowSectionForm(false)} className="flex-1 py-2.5 rounded-xl bg-muted text-foreground text-sm font-semibold">Annuler</button>
+                <button onClick={() => saveSection.mutate()} disabled={!sectionForm.title || saveSection.isPending} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-50">
+                  {saveSection.isPending ? '...' : editingSection ? 'Modifier' : 'Créer'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

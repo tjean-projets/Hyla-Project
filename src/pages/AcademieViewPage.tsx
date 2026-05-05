@@ -1,14 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   GraduationCap, FileText, Video, Image as ImageIcon, FileBox, Link as LinkIcon,
-  Download, ExternalLink, Lock, X, Search,
+  Download, ExternalLink, Lock, ChevronRight, ChevronDown, CheckCircle2, Circle,
+  PlayCircle, ArrowLeft,
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 
 const FILE_TYPE_ICONS = {
   video: Video,
@@ -21,6 +21,7 @@ const FILE_TYPE_ICONS = {
 type AcademyFile = {
   id: string;
   academy_id: string;
+  section_id: string | null;
   title: string;
   description: string | null;
   file_url: string;
@@ -28,101 +29,139 @@ type AcademyFile = {
   is_external: boolean;
   file_size_mb: number | null;
   category: string | null;
-  created_at: string;
+  sort_order: number;
+};
+
+type AcademySection = {
+  id: string;
+  academy_id: string;
+  title: string;
+  description: string | null;
+  sort_order: number;
 };
 
 export default function AcademieViewPage() {
   const { slug } = useParams<{ slug: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [previewFile, setPreviewFile] = useState<AcademyFile | null>(null);
-  const [previewSignedUrl, setPreviewSignedUrl] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [activeFileId, setActiveFileId] = useState<string | null>(null);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [mobileShowList, setMobileShowList] = useState(true);
 
-  // Fetch academy par slug (RLS filtre automatiquement)
   const { data: academy, isLoading } = useQuery({
     queryKey: ['academy-view', slug],
     queryFn: async () => {
       if (!slug) return null;
-      const { data } = await supabase
-        .from('academies')
-        .select('*')
-        .eq('slug', slug)
-        .maybeSingle();
+      const { data } = await supabase.from('academies').select('*').eq('slug', slug).maybeSingle();
       return data;
     },
     enabled: !!slug && !!user,
   });
 
-  // Fichiers de l'académie
+  const { data: sections = [] } = useQuery({
+    queryKey: ['academy-view-sections', academy?.id],
+    queryFn: async () => {
+      if (!academy) return [];
+      const { data } = await supabase.from('academy_sections').select('*').eq('academy_id', academy.id).order('sort_order');
+      return (data || []) as AcademySection[];
+    },
+    enabled: !!academy,
+  });
+
   const { data: files = [] } = useQuery({
     queryKey: ['academy-view-files', academy?.id],
     queryFn: async () => {
       if (!academy) return [];
-      const { data } = await supabase
-        .from('academy_files')
-        .select('*')
-        .eq('academy_id', academy.id)
-        .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: false });
+      const { data } = await supabase.from('academy_files').select('*').eq('academy_id', academy.id).order('sort_order');
       return (data || []) as AcademyFile[];
     },
     enabled: !!academy,
   });
 
-  // Catégories uniques
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    files.forEach(f => { if (f.category) set.add(f.category); });
-    return Array.from(set);
-  }, [files]);
+  const { data: progress = [] } = useQuery({
+    queryKey: ['academy-progress', user?.id, academy?.id],
+    queryFn: async () => {
+      if (!user || !academy) return [];
+      const fileIds = files.map(f => f.id);
+      if (fileIds.length === 0) return [];
+      const { data } = await supabase
+        .from('academy_file_progress')
+        .select('file_id')
+        .eq('user_id', user.id)
+        .in('file_id', fileIds);
+      return (data || []).map((p: any) => p.file_id) as string[];
+    },
+    enabled: !!user && !!academy && files.length > 0,
+  });
 
-  const filteredFiles = useMemo(() => {
-    if (!search.trim()) return files;
-    const q = search.toLowerCase();
-    return files.filter(f =>
-      f.title.toLowerCase().includes(q) ||
-      (f.category || '').toLowerCase().includes(q)
-    );
-  }, [files, search]);
+  const completedSet = useMemo(() => new Set(progress), [progress]);
 
-  const openPreview = async (file: AcademyFile) => {
-    if (file.is_external) {
-      window.open(file.file_url, '_blank');
+  // Auto-select first lesson if none + auto-expand first section
+  useEffect(() => {
+    if (sections.length > 0 && expandedSections.size === 0) {
+      setExpandedSections(new Set([sections[0].id]));
+    }
+  }, [sections]);
+
+  useEffect(() => {
+    if (!activeFileId && files.length > 0) {
+      // Pick first file in first section
+      const firstSection = sections[0];
+      if (firstSection) {
+        const sFiles = files.filter(f => f.section_id === firstSection.id).sort((a, b) => a.sort_order - b.sort_order);
+        if (sFiles.length > 0) setActiveFileId(sFiles[0].id);
+      } else if (files.length > 0) {
+        setActiveFileId(files[0].id);
+      }
+    }
+  }, [files, sections, activeFileId]);
+
+  // Fetch signed URL for active file
+  useEffect(() => {
+    let cancelled = false;
+    const f = files.find(f => f.id === activeFileId);
+    if (!f) { setSignedUrl(null); return; }
+    if (f.is_external) { setSignedUrl(f.file_url); return; }
+    setSignedUrl(null);
+    supabase.storage.from('academy-files').createSignedUrl(f.file_url, 3600).then(({ data }) => {
+      if (!cancelled) setSignedUrl(data?.signedUrl || null);
+    });
+    return () => { cancelled = true; };
+  }, [activeFileId, files]);
+
+  const toggleProgress = useMutation({
+    mutationFn: async (fileId: string) => {
+      if (!user) return;
+      if (completedSet.has(fileId)) {
+        await supabase.from('academy_file_progress').delete().eq('user_id', user.id).eq('file_id', fileId);
+      } else {
+        await supabase.from('academy_file_progress').insert({ user_id: user.id, file_id: fileId });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['academy-progress'] });
+    },
+  });
+
+  const downloadFile = async (f: AcademyFile) => {
+    if (f.is_external) {
+      window.open(f.file_url, '_blank');
       return;
     }
-    setPreviewFile(file);
-    const { data } = await supabase.storage
-      .from('academy-files')
-      .createSignedUrl(file.file_url, 3600);
-    setPreviewSignedUrl(data?.signedUrl || null);
-  };
-
-  const downloadFile = async (file: AcademyFile) => {
-    if (file.is_external) {
-      window.open(file.file_url, '_blank');
-      return;
-    }
-    const { data } = await supabase.storage
-      .from('academy-files')
-      .createSignedUrl(file.file_url, 60);
+    const { data } = await supabase.storage.from('academy-files').createSignedUrl(f.file_url, 60);
     if (data?.signedUrl) {
       const a = document.createElement('a');
       a.href = data.signedUrl;
-      a.download = file.title;
+      a.download = f.title;
       a.click();
     }
   };
 
   if (isLoading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="h-6 w-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-        </div>
-      </AppLayout>
-    );
+    return <AppLayout><div className="flex items-center justify-center min-h-[60vh]"><div className="h-6 w-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" /></div></AppLayout>;
   }
 
   if (!academy) {
@@ -131,144 +170,235 @@ export default function AcademieViewPage() {
         <div className="max-w-md mx-auto px-4 py-16 text-center">
           <Lock className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
           <h1 className="text-xl font-bold mb-2">Accès refusé</h1>
-          <p className="text-sm text-muted-foreground mb-6">
-            Cette académie n'existe pas ou tu n'as pas l'autorisation de la consulter.
-            Contacte le propriétaire pour demander l'accès.
-          </p>
-          <button onClick={() => navigate('/dashboard')} className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold">
-            Retour au dashboard
-          </button>
+          <p className="text-sm text-muted-foreground mb-6">Cette académie n'existe pas ou tu n'as pas l'autorisation de la consulter.</p>
+          <button onClick={() => navigate('/dashboard')} className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold">Retour au dashboard</button>
         </div>
       </AppLayout>
     );
   }
 
+  const totalFiles = files.length;
+  const completedCount = files.filter(f => completedSet.has(f.id)).length;
+  const overallProgress = totalFiles > 0 ? Math.round((completedCount / totalFiles) * 100) : 0;
+
+  const activeFile = files.find(f => f.id === activeFileId);
+  const orphanFiles = files.filter(f => !f.section_id);
+
+  const toggleSection = (id: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <AppLayout>
-      <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
-        {/* Header */}
-        <div className="bg-gradient-to-br from-blue-600/20 to-violet-600/20 border border-blue-500/30 rounded-2xl p-5">
-          <div className="flex items-center gap-3">
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        {/* Header avec progression globale */}
+        <div className="bg-gradient-to-br from-blue-600/15 to-violet-600/15 border border-blue-500/20 rounded-2xl p-4 sm:p-5 mb-4">
+          <div className="flex items-center gap-3 mb-3">
             <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0">
               <GraduationCap className="h-6 w-6 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-bold truncate">{academy.name}</h1>
-              {academy.description && <p className="text-xs text-muted-foreground line-clamp-2">{academy.description}</p>}
+              <h1 className="text-lg sm:text-xl font-bold truncate">{academy.name}</h1>
+              {academy.description && <p className="text-xs text-muted-foreground line-clamp-1">{academy.description}</p>}
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-2xl font-black text-foreground leading-none">{overallProgress}%</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">{completedCount}/{totalFiles}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 mt-3 text-[11px] text-muted-foreground">
-            <span>{files.length} ressource{files.length > 1 ? 's' : ''}</span>
-            {categories.length > 0 && (
-              <>
-                <span>•</span>
-                <span>{categories.length} catégorie{categories.length > 1 ? 's' : ''}</span>
-              </>
-            )}
-          </div>
+          {totalFiles > 0 && (
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-blue-500 to-violet-500 transition-all" style={{ width: `${overallProgress}%` }} />
+            </div>
+          )}
         </div>
 
-        {/* Recherche */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher une ressource..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        {/* Files grouped by category */}
-        {filteredFiles.length === 0 && (
-          <div className="text-center py-12 bg-card border border-border rounded-2xl">
-            <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">Aucune ressource trouvée</p>
+        {/* Layout Skool-style : sidebar + content */}
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
+          {/* Mobile : toggle list/lesson */}
+          <div className="lg:hidden flex gap-2 mb-2">
+            <button onClick={() => setMobileShowList(true)} className={`flex-1 py-2 rounded-xl text-xs font-semibold ${mobileShowList ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground'}`}>Programme</button>
+            <button onClick={() => setMobileShowList(false)} className={`flex-1 py-2 rounded-xl text-xs font-semibold ${!mobileShowList ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground'}`}>Leçon</button>
           </div>
-        )}
 
-        {(() => {
-          const grouped: Record<string, AcademyFile[]> = {};
-          for (const f of filteredFiles) {
-            const cat = f.category || 'Sans catégorie';
-            if (!grouped[cat]) grouped[cat] = [];
-            grouped[cat].push(f);
-          }
-          return Object.entries(grouped).map(([cat, list]) => (
-            <div key={cat} className="space-y-2">
-              <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-1">{cat}</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {list.map(f => {
-                  const Icon = FILE_TYPE_ICONS[f.file_type];
-                  return (
-                    <div
-                      key={f.id}
-                      onClick={() => openPreview(f)}
-                      className="bg-card border border-border rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:border-blue-500/40 transition-colors"
-                    >
-                      <div className="h-10 w-10 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0">
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{f.title}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase">{f.file_type}{f.file_size_mb ? ` · ${f.file_size_mb} MB` : ''}</p>
-                      </div>
-                      {f.is_external ? (
-                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); downloadFile(f); }}
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
-                          title="Télécharger"
-                        >
-                          <Download className="h-4 w-4" />
-                        </button>
+          {/* Sidebar : sections + lessons */}
+          <div className={`${mobileShowList ? 'block' : 'hidden'} lg:block bg-card border border-border rounded-2xl overflow-hidden lg:max-h-[calc(100vh-220px)] lg:sticky lg:top-4 lg:overflow-y-auto`}>
+            {sections.map(section => {
+              const sFiles = files.filter(f => f.section_id === section.id).sort((a, b) => a.sort_order - b.sort_order);
+              const sCompleted = sFiles.filter(f => completedSet.has(f.id)).length;
+              const isExpanded = expandedSections.has(section.id);
+              return (
+                <div key={section.id} className="border-b border-border last:border-0">
+                  <button onClick={() => toggleSection(section.id)} className="w-full flex items-center gap-2 px-4 py-3 hover:bg-muted/50 transition-colors text-left">
+                    {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{section.title}</p>
+                      <p className="text-[10px] text-muted-foreground">{sCompleted}/{sFiles.length} terminé{sCompleted > 1 ? 's' : ''}</p>
+                    </div>
+                    {sFiles.length > 0 && sCompleted === sFiles.length && (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                    )}
+                  </button>
+                  {isExpanded && (
+                    <div className="bg-muted/20">
+                      {sFiles.map(f => {
+                        const Icon = FILE_TYPE_ICONS[f.file_type];
+                        const isActive = activeFileId === f.id;
+                        const isDone = completedSet.has(f.id);
+                        return (
+                          <button
+                            key={f.id}
+                            onClick={() => { setActiveFileId(f.id); setMobileShowList(false); }}
+                            className={`w-full flex items-center gap-2.5 pl-9 pr-4 py-2.5 hover:bg-muted/50 transition-colors text-left ${isActive ? 'bg-blue-500/10 border-l-2 border-blue-500' : ''}`}
+                          >
+                            {isDone ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                            ) : (
+                              <Circle className="h-3.5 w-3.5 text-muted-foreground/50 flex-shrink-0" />
+                            )}
+                            <Icon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <p className={`text-xs truncate flex-1 ${isActive ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>{f.title}</p>
+                          </button>
+                        );
+                      })}
+                      {sFiles.length === 0 && (
+                        <p className="px-9 py-2 text-[10px] text-muted-foreground italic">Vide</p>
                       )}
                     </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Orphan files */}
+            {orphanFiles.length > 0 && (
+              <div className="border-t border-border bg-amber-500/5">
+                <p className="px-4 py-2 text-[10px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Sans section</p>
+                {orphanFiles.map(f => {
+                  const Icon = FILE_TYPE_ICONS[f.file_type];
+                  const isActive = activeFileId === f.id;
+                  const isDone = completedSet.has(f.id);
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => { setActiveFileId(f.id); setMobileShowList(false); }}
+                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 hover:bg-muted/50 transition-colors text-left ${isActive ? 'bg-blue-500/10 border-l-2 border-blue-500' : ''}`}
+                    >
+                      {isDone ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground/50 flex-shrink-0" />}
+                      <Icon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <p className={`text-xs truncate flex-1 ${isActive ? 'font-semibold' : 'text-muted-foreground'}`}>{f.title}</p>
+                    </button>
                   );
                 })}
               </div>
-            </div>
-          ));
-        })()}
-      </div>
+            )}
 
-      {/* Preview modal */}
-      {previewFile && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => { setPreviewFile(null); setPreviewSignedUrl(null); }}>
-          <div className="bg-background rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-3 p-4 border-b border-border">
-              <p className="text-sm font-semibold flex-1 truncate">{previewFile.title}</p>
-              <button onClick={() => downloadFile(previewFile)} className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-blue-500" title="Télécharger">
-                <Download className="h-4 w-4" />
-              </button>
-              <button onClick={() => { setPreviewFile(null); setPreviewSignedUrl(null); }} className="p-2 rounded-lg hover:bg-muted text-muted-foreground">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-auto bg-muted/30 flex items-center justify-center">
-              {!previewSignedUrl ? (
-                <div className="h-6 w-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-              ) : previewFile.file_type === 'video' ? (
-                <video controls className="max-w-full max-h-full" src={previewSignedUrl} />
-              ) : previewFile.file_type === 'image' ? (
-                <img src={previewSignedUrl} alt={previewFile.title} className="max-w-full max-h-full object-contain" />
-              ) : previewFile.file_type === 'pdf' ? (
-                <iframe src={previewSignedUrl} className="w-full h-[70vh]" title={previewFile.title} />
-              ) : (
-                <div className="p-8 text-center">
-                  <FileBox className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground mb-4">Pas d'aperçu disponible pour ce type de fichier.</p>
-                  <button onClick={() => downloadFile(previewFile)} className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold flex items-center gap-2 mx-auto">
-                    <Download className="h-4 w-4" />
-                    Télécharger
+            {sections.length === 0 && orphanFiles.length === 0 && (
+              <div className="text-center py-10 px-4">
+                <FileText className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">Aucune leçon disponible</p>
+              </div>
+            )}
+          </div>
+
+          {/* Lesson content */}
+          <div className={`${!mobileShowList ? 'block' : 'hidden'} lg:block`}>
+            {!activeFile ? (
+              <div className="bg-card border border-border rounded-2xl p-12 text-center">
+                <PlayCircle className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">Sélectionne une leçon pour commencer</p>
+              </div>
+            ) : (
+              <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                {/* Mobile back */}
+                <button onClick={() => setMobileShowList(true)} className="lg:hidden flex items-center gap-2 px-4 py-2 text-xs text-muted-foreground hover:text-foreground border-b border-border">
+                  <ArrowLeft className="h-3.5 w-3.5" /> Retour au programme
+                </button>
+
+                {/* Player area */}
+                <div className="bg-black/5 dark:bg-black/30 min-h-[300px] flex items-center justify-center">
+                  {!signedUrl ? (
+                    <div className="h-6 w-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                  ) : activeFile.file_type === 'video' ? (
+                    <video controls className="w-full max-h-[60vh]" src={signedUrl} key={activeFile.id} />
+                  ) : activeFile.file_type === 'image' ? (
+                    <img src={signedUrl} alt={activeFile.title} className="w-full max-h-[60vh] object-contain" />
+                  ) : activeFile.file_type === 'pdf' ? (
+                    <iframe src={signedUrl} className="w-full h-[60vh]" title={activeFile.title} />
+                  ) : activeFile.file_type === 'link' ? (
+                    <div className="p-12 text-center w-full">
+                      <LinkIcon className="h-10 w-10 text-violet-500 mx-auto mb-3" />
+                      <p className="text-sm font-medium mb-3">Cette ressource s'ouvre dans un nouvel onglet</p>
+                      <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold">
+                        <ExternalLink className="h-4 w-4" />
+                        Ouvrir le lien
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="p-12 text-center">
+                      <FileBox className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+                      <p className="text-sm text-muted-foreground mb-4">Aperçu non disponible pour ce type de fichier.</p>
+                      <button onClick={() => downloadFile(activeFile)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold">
+                        <Download className="h-4 w-4" />
+                        Télécharger
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Lesson info + actions */}
+                <div className="p-4 sm:p-5 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-base sm:text-lg font-bold">{activeFile.title}</h2>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
+                        {activeFile.file_type}
+                        {activeFile.file_size_mb ? ` · ${activeFile.file_size_mb} MB` : ''}
+                      </p>
+                    </div>
+                    {!activeFile.is_external && (
+                      <button onClick={() => downloadFile(activeFile)} className="flex-shrink-0 p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-blue-500" title="Télécharger">
+                        <Download className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  {activeFile.description && (
+                    <p className="text-sm text-muted-foreground leading-relaxed">{activeFile.description}</p>
+                  )}
+
+                  {/* Mark complete */}
+                  <button
+                    onClick={() => toggleProgress.mutate(activeFile.id)}
+                    disabled={toggleProgress.isPending}
+                    className={`w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
+                      completedSet.has(activeFile.id)
+                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    } disabled:opacity-50`}
+                  >
+                    {completedSet.has(activeFile.id) ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4" />
+                        Leçon terminée
+                      </>
+                    ) : (
+                      <>
+                        <Circle className="h-4 w-4" />
+                        Marquer comme terminée
+                      </>
+                    )}
                   </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </AppLayout>
   );
 }
