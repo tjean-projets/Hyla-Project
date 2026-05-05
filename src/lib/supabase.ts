@@ -120,37 +120,32 @@ export const IMPORT_STATUS_COLORS: Record<ImportStatus, string> = {
 
 // ── Barème Hyla ──
 
-// Commissions ventes personnelles — échelle glissante par vente dans le mois
-// (les valeurs cumulées sont calculées dynamiquement par getHylaCommission)
+// Commissions ventes personnelles — taux fixe par appareil selon total vendu dans le mois
+// Ex : 2 ventes → 350€ × 2 = 700€ (pas 300+350)
 export const HYLA_COMMISSION_SCALE = [
-  { machines: 1, commission: 300,  label: '1 vente' },
-  { machines: 2, commission: 650,  label: '2 ventes' },   // 300+350
-  { machines: 3, commission: 1050, label: '3 ventes' },   // 650+400
-  { machines: 4, commission: 1500, label: '4 ventes' },   // 1050+450
-  { machines: 5, commission: 1950, label: '5 ventes' },   // 1500+450
-  { machines: 6, commission: 2400, label: '6 ventes' },   // 1950+450
-  { machines: 7, commission: 2850, label: '7 ventes' },   // 2400+450
-  { machines: 8, commission: 3350, label: '8 ventes' },   // 2850+500
+  { machines: 1, commission: 300,  label: '1 vente' },   // 1×300
+  { machines: 2, commission: 700,  label: '2 ventes' },  // 2×350
+  { machines: 3, commission: 1200, label: '3 ventes' },  // 3×400
+  { machines: 4, commission: 1800, label: '4 ventes' },  // 4×450
+  { machines: 5, commission: 2250, label: '5 ventes' },  // 5×450
+  { machines: 6, commission: 2700, label: '6 ventes' },  // 6×450
+  { machines: 7, commission: 3150, label: '7 ventes' },  // 7×450
+  { machines: 8, commission: 4000, label: '8 ventes' },  // 8×500
 ];
 
-/** Retourne la commission cumulée estimée pour N ventes perso dans le mois */
-export function getHylaCommission(machinesSold: number): number {
-  if (machinesSold <= 0) return 0;
-  // Calcul exact via l'échelle glissante
-  let total = 0;
-  for (let i = 1; i <= machinesSold; i++) {
-    total += i === 1 ? 300 : i === 2 ? 350 : i === 3 ? 400 : i <= 7 ? 450 : 500;
-  }
-  return total;
+/** Retourne le taux par appareil selon le total vendu dans le mois */
+export function getPersonalSaleCommission(totalSalesThisMonth: number): number {
+  if (totalSalesThisMonth <= 1) return 300;
+  if (totalSalesThisMonth === 2) return 350;
+  if (totalSalesThisMonth === 3) return 400;
+  if (totalSalesThisMonth <= 7) return 450;
+  return 500;
 }
 
-/** Commission pour la Nième vente perso du mois (échelle glissante) */
-export function getPersonalSaleCommission(rank: number): number {
-  if (rank <= 1) return 300;
-  if (rank === 2) return 350;
-  if (rank === 3) return 400;
-  if (rank <= 7) return 450;
-  return 500;
+/** Retourne la commission totale pour N ventes perso dans le mois (taux flat × N) */
+export function getHylaCommission(machinesSold: number): number {
+  if (machinesSold <= 0) return 0;
+  return machinesSold * getPersonalSaleCommission(machinesSold);
 }
 
 // ── 6 niveaux Hyla + Elite en 3 sous-niveaux ──

@@ -40,12 +40,13 @@ export function CommissionCalculator() {
 
   const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
+  // Taux flat : toutes les ventes du mois au même tarif selon le total
   const persoBreakdown = useMemo(() => {
-    const rows: { rank: number; com: number }[] = [];
-    for (let i = 1; i <= nbVentes; i++) rows.push({ rank: i, com: getPersonalSaleCommission(i) });
-    return rows;
+    if (nbVentes === 0) return [];
+    const rate = getPersonalSaleCommission(nbVentes);
+    return Array.from({ length: nbVentes }, (_, i) => ({ rank: i + 1, com: rate }));
   }, [nbVentes]);
-  const totalPerso = persoBreakdown.reduce((s, r) => s + r.com, 0);
+  const totalPerso = nbVentes * getPersonalSaleCommission(nbVentes);
 
   const teamSalesTotal = nbVentes + nbRecrues * ventesMoyRecrue;
   const recruesCommission = nbRecrues * ventesMoyRecrue * levelData.recruteCommission;

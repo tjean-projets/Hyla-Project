@@ -354,8 +354,19 @@ export default function Finance() {
     // Utilise le nom du profil pour identifier les lignes perso
     const ownerName = profile?.full_name || '';
     const myLevel = (settings as any)?.hyla_level || 'manager';
-    // Compteur de rang pour les ventes perso (barème glissant)
-    let ownerRank = 0;
+    // Taux flat : pré-compter les ventes owner pour appliquer le même taux à toutes
+    let ownerRank = 0; // garde pour compatibilité
+    const totalOwnerSales = rawData.filter((row) => {
+      const firstName = flow.mapping?.firstname_col ? String(row[flow.mapping.firstname_col] || '').trim() : '';
+      const lastName = String(row[flow.mapping?.name_col || ''] || '').trim();
+      const rName = firstName ? `${firstName} ${lastName}` : lastName;
+      if (!ownerName) return false;
+      if (matchScore(ownerName, rName) >= 75) return true;
+      const reversed = ownerName.split(' ').reverse().join(' ');
+      if (matchScore(reversed, rName) >= 75) return true;
+      return false;
+    }).length;
+    const ownerRate = getPersonalSaleCommission(totalOwnerSales);
 
     const results = rawData.map((row) => {
       const firstName = mapping.firstname_col ? String(row[mapping.firstname_col] || '').trim() : '';
@@ -421,8 +432,8 @@ export default function Finance() {
       // Commission calculée sur le barème Hyla (pas le prix machine du CSV)
       let commissionAmount: number;
       if (isOwner) {
-        ownerRank++;
-        commissionAmount = getPersonalSaleCommission(ownerRank);
+        ownerRank++; // garde pour compatibilité avec le reste du code
+        commissionAmount = ownerRate; // taux flat selon total du mois
       } else if (matchedMember) {
         commissionAmount = getRecrueCommission(myLevel);
       } else {

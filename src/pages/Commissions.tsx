@@ -566,10 +566,11 @@ export default function Commissions() {
             </div>
             <div className="divide-y divide-amber-200 dark:divide-amber-800">
               {(() => {
-                // Base rank = commissions directes validées déjà connues ce mois
+                // Taux flat : total projeté = confirmées + toutes les en attente du mois
                 const confirmedDirectCount = filteredCommissions.filter((c: any) => c.type === 'directe' && c.status === 'validee').length;
+                const estimatedRate = getPersonalSaleCommission(confirmedDirectCount + pending.length);
                 return pending.map((p: any, idx: number) => {
-                const estimated = getPersonalSaleCommission(confirmedDirectCount + idx + 1);
+                const estimated = estimatedRate;
                 return (
                   <div key={p.deal_id} className="flex items-center gap-3 px-4 py-3">
                     <div className="flex-1 min-w-0">

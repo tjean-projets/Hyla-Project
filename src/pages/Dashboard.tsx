@@ -341,9 +341,8 @@ export default function Dashboard() {
     })
     .sort((a: any, b: any) => new Date(a.signed_at).getTime() - new Date(b.signed_at).getTime());
 
-  const comAttendue = currentMonthDeals.reduce((sum: number, _: any, idx: number) => {
-    return sum + getPersonalSaleCommission(idx + 1);
-  }, 0);
+  // Taux flat : toutes les ventes du mois au même tarif selon le total
+  const comAttendue = getHylaCommission(currentMonthDeals.length);
 
   // Com confirmée = depuis imports TRV (commissions consolidées)
   const comConfirmee = commTotal; // commDirecte + commReseau depuis KPIs

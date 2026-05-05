@@ -328,10 +328,10 @@ export default function Imports() {
 
     // Taux Hyla — commission recrue directe selon le niveau de l'utilisateur
     const TAUX_RECRUE_DIRECTE = getRecrueCommission(settings?.hyla_level || 'manager');
-    // Taux personnels (ventes propres) : échelle glissante mensuelle via helper centralisé
-    const tauxPersonnel = (nieme: number) => getPersonalSaleCommission(nieme);
-
-    let ownerSaleCount = 0; // compteur pour l'échelle glissante des ventes perso
+    // Taux personnels (ventes propres) : taux flat selon total du mois
+    // On pré-compte le nombre de ventes owner pour appliquer le même taux à toutes
+    const totalOwnerSales = rawData.filter(r => ownerNames.some((n: string) => matchScore(n, r['VENDEUR'] || '') >= 85)).length;
+    const ownerRate = getPersonalSaleCommission(totalOwnerSales);
 
     return rawData.map((row) => {
       const rowName = row['VENDEUR'] || '';
@@ -354,8 +354,7 @@ export default function Imports() {
 
       let commission = 0;
       if (isOwner) {
-        ownerSaleCount++;
-        commission = tauxPersonnel(ownerSaleCount); // 300→500€ selon le rang mensuel
+        commission = ownerRate; // taux flat : toutes les ventes du mois au même tarif
       } else if (matchStatus !== 'non_reconnu') {
         commission = TAUX_RECRUE_DIRECTE; // 120€ par vente d'une recrue directe
       }
