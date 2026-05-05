@@ -1586,7 +1586,9 @@ export default function NetworkPage() {
     start_date: new Date().toISOString().slice(0, 10),
     end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
     reward: '',
+    participants_mode: 'all' as 'all' | 'selected',
   });
+  const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set());
 
   const toggleTeamExpand = (memberId: string) => {
     setExpandedTeamIds(prev => {
@@ -1690,6 +1692,37 @@ export default function NetworkPage() {
     staleTime: 60000,
   });
 
+  // ── Tous les deals signés des linked_user_ids de ma downline (6 derniers mois pour Rookie) ──
+  const sixMonthsAgo = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 6);
+    return d.toISOString();
+  }, []);
+
+  const allDownlineUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const node of fullTree) {
+      if (node.linked_user_id) ids.add(node.linked_user_id);
+    }
+    return Array.from(ids);
+  }, [fullTree]);
+
+  const { data: allDownlineDeals = [] } = useQuery({
+    queryKey: ['all-downline-deals', allDownlineUserIds.sort().join(','), sixMonthsAgo],
+    queryFn: async () => {
+      if (allDownlineUserIds.length === 0) return [];
+      const { data } = await supabase
+        .from('deals')
+        .select('id, user_id, signed_at, status')
+        .in('user_id', allDownlineUserIds)
+        .eq('status', 'signee')
+        .gte('signed_at', sixMonthsAgo);
+      return (data || []) as Array<{ id: string; user_id: string; signed_at: string; status: string }>;
+    },
+    enabled: allDownlineUserIds.length > 0,
+    staleTime: 60000,
+  });
+
   const { data: activeChallenge, refetch: refetchChallenge } = useQuery({
     queryKey: ['team-challenge', effectiveId],
     queryFn: async () => {
@@ -1773,6 +1806,136 @@ export default function NetworkPage() {
     staleTime: 30000,
   });
 
+  // ── Participants des challenges custom (pour mode 'selected') ──
+  const { data: challengeParticipants = [] } = useQuery({
+    queryKey: ['challenge-participants', activeChallenge?.id],
+    queryFn: async () => {
+      if (!activeChallenge) return [];
+      const { data } = await supabase
+        .from('team_challenge_participants')
+        .select('challenge_id, member_id')
+        .eq('challenge_id', activeChallenge.id);
+      return (data || []) as Array<{ challenge_id: string; member_id: string }>;
+    },
+    enabled: !!activeChallenge,
+  });
+
+  // ── Stats par membre direct : ventes mois, équipe mois, Hyla challenges progress ──
+  const currentMonthStartIso = useMemo(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+  }, []);
+
+  const memberStats = useMemo(() => {
+    const stats = new Map<string, {
+      personalSalesMonth: number;
+      teamSalesMonth: number;
+      countdownProgress: number;
+      countdownActive: boolean;
+      rookieProgress: number;
+      rookieActive: boolean;
+    }>();
+
+    // Map enfant : owner_user_id → enfants
+    const childMap = new Map<string, typeof fullTree>();
+    for (const node of fullTree) {
+      if (node.owner_user_id) {
+        if (!childMap.has(node.owner_user_id)) childMap.set(node.owner_user_id, []);
+        childMap.get(node.owner_user_id)!.push(node);
+      }
+    }
+
+    for (const m of members) {
+      const userId = (m as any).linked_user_id as string | undefined;
+      if (!userId) {
+        stats.set(m.id, {
+          personalSalesMonth: 0, teamSalesMonth: 0,
+          countdownProgress: 0, countdownActive: false,
+          rookieProgress: 0, rookieActive: false,
+        });
+        continue;
+      }
+
+      // Downline du membre (descendants récursifs)
+      const downlineSet = new Set<string>();
+      const stack: string[] = [userId];
+      while (stack.length > 0) {
+        const cur = stack.pop()!;
+        const children = childMap.get(cur) || [];
+        for (const c of children) {
+          if (c.linked_user_id) {
+            downlineSet.add(c.linked_user_id);
+            stack.push(c.linked_user_id);
+          }
+        }
+      }
+
+      // Ventes perso du mois
+      const personalSalesMonth = allDownlineDeals.filter(d =>
+        d.user_id === userId && d.signed_at >= currentMonthStartIso
+      ).length;
+
+      // Ventes équipe du mois (downline)
+      const teamSalesMonth = allDownlineDeals.filter(d =>
+        downlineSet.has(d.user_id) && d.signed_at >= currentMonthStartIso
+      ).length;
+
+      // Challenges Hyla
+      const joinedAt = m.joined_at ? new Date(m.joined_at) : null;
+      let countdownActive = false, countdownProgress = 0;
+      let rookieActive = false, rookieProgress = 0;
+      if (joinedAt) {
+        const countdownEnd = new Date(joinedAt);
+        countdownEnd.setMonth(countdownEnd.getMonth() + 2);
+        countdownActive = new Date() <= countdownEnd;
+        countdownProgress = allDownlineDeals.filter(d => {
+          if (d.user_id !== userId || !d.signed_at) return false;
+          const sd = new Date(d.signed_at);
+          return sd >= joinedAt && sd <= countdownEnd;
+        }).length;
+
+        const rookieEnd = new Date(joinedAt);
+        rookieEnd.setMonth(rookieEnd.getMonth() + 6);
+        rookieActive = new Date() <= rookieEnd;
+        rookieProgress = allDownlineDeals.filter(d => {
+          if (d.user_id !== userId || !d.signed_at) return false;
+          const sd = new Date(d.signed_at);
+          return sd >= joinedAt && sd <= rookieEnd;
+        }).length;
+      }
+
+      stats.set(m.id, {
+        personalSalesMonth, teamSalesMonth,
+        countdownProgress, countdownActive,
+        rookieProgress, rookieActive,
+      });
+    }
+    return stats;
+  }, [members, fullTree, allDownlineDeals, currentMonthStartIso]);
+
+  // ── Pour chaque membre : challenges custom auxquels il participe + sa progression ──
+  const memberChallenges = useMemo(() => {
+    const map = new Map<string, { id: string; title: string; objective_type: string; target: number; progress: number }>();
+    if (!activeChallenge) return map;
+    const participantIds = new Set(challengeParticipants.map(p => p.member_id));
+    for (const m of members) {
+      const isParticipant = activeChallenge.participants_mode === 'all'
+        || participantIds.has(m.id);
+      if (!isParticipant) continue;
+      // Cherche la progression dans challengeProgress (déjà calculée pour les directs)
+      const cp = (challengeProgress as any[]).find(c => c.member?.id === m.id);
+      const progress = cp ? cp.progress : 0;
+      map.set(m.id, {
+        id: activeChallenge.id,
+        title: activeChallenge.title,
+        objective_type: activeChallenge.objective_type,
+        target: activeChallenge.target_value,
+        progress,
+      });
+    }
+    return map;
+  }, [activeChallenge, challengeParticipants, members, challengeProgress]);
+
   const filtered = members.filter(m =>
     !search || `${m.first_name} ${m.last_name} ${m.internal_id || ''}`.toLowerCase().includes(search.toLowerCase())
   );
@@ -1827,7 +1990,7 @@ export default function NetworkPage() {
       if (activeChallenge) {
         await supabase.from('team_challenges').update({ status: 'terminé' }).eq('id', activeChallenge.id);
       }
-      const { error } = await supabase.from('team_challenges').insert({
+      const { data: inserted, error } = await supabase.from('team_challenges').insert({
         user_id: effectiveId,
         title: challengeForm.title,
         description: challengeForm.description || null,
@@ -1837,14 +2000,26 @@ export default function NetworkPage() {
         end_date: challengeForm.end_date,
         reward: challengeForm.reward || null,
         status: 'actif',
-      });
+        participants_mode: challengeForm.participants_mode,
+      } as any).select('id').single();
       if (error) throw error;
+      // Si mode 'selected', insère les participants
+      if (challengeForm.participants_mode === 'selected' && inserted && selectedParticipants.size > 0) {
+        const rows = Array.from(selectedParticipants).map(member_id => ({
+          challenge_id: inserted.id,
+          member_id,
+        }));
+        const { error: pErr } = await supabase.from('team_challenge_participants').insert(rows);
+        if (pErr) throw pErr;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['team-challenge'] });
       queryClient.invalidateQueries({ queryKey: ['challenge-progress'] });
+      queryClient.invalidateQueries({ queryKey: ['challenge-participants'] });
       setShowChallengeForm(false);
-      setChallengeForm({ title: '', description: '', objective_type: 'ventes', target_value: '5', start_date: new Date().toISOString().slice(0, 10), end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), reward: '' });
+      setChallengeForm({ title: '', description: '', objective_type: 'ventes', target_value: '5', start_date: new Date().toISOString().slice(0, 10), end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), reward: '', participants_mode: 'all' });
+      setSelectedParticipants(new Set());
       toast({ title: 'Challenge créé !' });
     },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
@@ -2240,6 +2415,64 @@ export default function NetworkPage() {
                     </div>
                   </div>
 
+                  {/* ── Stats du mois + challenges en cours ── */}
+                  {(() => {
+                    const stats = memberStats.get(member.id);
+                    const customChallenge = memberChallenges.get(member.id);
+                    if (!stats) return null;
+                    const hasAny = stats.personalSalesMonth > 0 || stats.teamSalesMonth > 0 || stats.countdownActive || stats.rookieActive || !!customChallenge;
+                    if (!(member as any).linked_user_id && !hasAny) return null;
+                    return (
+                      <div className="mt-3 space-y-2">
+                        {/* Ventes du mois */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 px-2.5 py-1.5 border border-blue-100 dark:border-blue-900">
+                            <p className="text-[8px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">Ventes mois</p>
+                            <p className="text-base font-bold text-blue-700 dark:text-blue-300 leading-tight">
+                              {stats.personalSalesMonth}
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1.5 border border-emerald-100 dark:border-emerald-900">
+                            <p className="text-[8px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Équipe mois</p>
+                            <p className="text-base font-bold text-emerald-700 dark:text-emerald-300 leading-tight">
+                              {stats.teamSalesMonth}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Challenges */}
+                        {(stats.countdownActive || stats.rookieActive || customChallenge) && (
+                          <div className="space-y-1.5">
+                            {stats.countdownActive && (
+                              <ChallengeRow
+                                label="Countdown Hyla"
+                                progress={stats.countdownProgress}
+                                target={5}
+                                color="blue"
+                              />
+                            )}
+                            {stats.rookieActive && (
+                              <ChallengeRow
+                                label="Rookie Hyla"
+                                progress={stats.rookieProgress}
+                                target={15}
+                                color="violet"
+                              />
+                            )}
+                            {customChallenge && (
+                              <ChallengeRow
+                                label={`🏆 ${customChallenge.title}`}
+                                progress={customChallenge.progress}
+                                target={customChallenge.target}
+                                color="amber"
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {/* Action buttons */}
                   <div className="flex flex-wrap gap-2 mt-3">
                     <button
@@ -2520,6 +2753,70 @@ export default function NetworkPage() {
                   className="h-11"
                 />
               </div>
+              {/* Sélection des participants */}
+              <div>
+                <Label>Participants</Label>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setChallengeForm({ ...challengeForm, participants_mode: 'all' })}
+                    className={`py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
+                      challengeForm.participants_mode === 'all'
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-muted text-muted-foreground border-border'
+                    }`}
+                  >
+                    Tous les membres
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChallengeForm({ ...challengeForm, participants_mode: 'selected' })}
+                    className={`py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
+                      challengeForm.participants_mode === 'selected'
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-muted text-muted-foreground border-border'
+                    }`}
+                  >
+                    Sélection
+                  </button>
+                </div>
+                {challengeForm.participants_mode === 'selected' && (
+                  <div className="mt-2 max-h-48 overflow-y-auto space-y-1 border border-border rounded-xl p-2 bg-muted/30">
+                    {members.filter(m => m.status === 'actif').length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-3">Aucun membre actif</p>
+                    )}
+                    {members.filter(m => m.status === 'actif').map(m => {
+                      const checked = selectedParticipants.has(m.id);
+                      return (
+                        <label key={m.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setSelectedParticipants(prev => {
+                                const next = new Set(prev);
+                                if (next.has(m.id)) next.delete(m.id);
+                                else next.add(m.id);
+                                return next;
+                              });
+                            }}
+                            className="h-3.5 w-3.5"
+                          />
+                          <span className="text-xs text-foreground">{m.first_name} {m.last_name}</span>
+                          {(m as any).hyla_level && (m as any).hyla_level !== 'vendeur' && (
+                            <span className="text-[9px] text-muted-foreground ml-auto">
+                              {HYLA_LEVELS.find(l => l.value === (m as any).hyla_level)?.shortLabel}
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {challengeForm.participants_mode === 'selected' && selectedParticipants.size > 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-1">{selectedParticipants.size} membre{selectedParticipants.size > 1 ? 's' : ''} sélectionné{selectedParticipants.size > 1 ? 's' : ''}</p>
+                )}
+              </div>
               {activeChallenge && (
                 <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 p-3 text-xs text-amber-700">
                   ⚠ Un challenge actif sera automatiquement terminé à la création du nouveau.
@@ -2647,6 +2944,35 @@ export default function NetworkPage() {
         </DialogContent>
       </Dialog>
     </AppLayout>
+  );
+}
+
+/* ── Petite barre de progression challenge ── */
+function ChallengeRow({
+  label,
+  progress,
+  target,
+  color,
+}: {
+  label: string;
+  progress: number;
+  target: number;
+  color: 'blue' | 'violet' | 'amber';
+}) {
+  const pct = Math.min(100, Math.round((progress / Math.max(1, target)) * 100));
+  const colors = {
+    blue: { bar: 'bg-blue-500', track: 'bg-blue-100 dark:bg-blue-950/40', text: 'text-blue-700 dark:text-blue-300' },
+    violet: { bar: 'bg-violet-500', track: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-300' },
+    amber: { bar: 'bg-amber-500', track: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-300' },
+  }[color];
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`text-[10px] font-medium ${colors.text} w-28 truncate flex-shrink-0`}>{label}</span>
+      <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${colors.track}`}>
+        <div className={`h-full ${colors.bar} transition-all`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className={`text-[10px] font-bold ${colors.text} flex-shrink-0`}>{progress}/{target}</span>
+    </div>
   );
 }
 
