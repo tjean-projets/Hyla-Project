@@ -13,7 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 import {
   GraduationCap, Plus, Upload, Link as LinkIcon, FileText, Video, Image as ImageIcon,
   FileBox, Trash2, Users, Settings, Copy, ExternalLink, X, Eye, FolderPlus,
-  ChevronUp, ChevronDown, Folder, Edit2, Check,
+  ChevronUp, ChevronDown, Folder, Edit2, Check, TrendingUp, CheckCircle2,
 } from 'lucide-react';
 
 type AcademyFile = {
@@ -77,7 +77,7 @@ export default function MonAcademiePage() {
 
   const isPro = plan === 'manager' || isLegacy || isSuperAdmin(user?.email);
 
-  const [tab, setTab] = useState<'contenu' | 'acces' | 'parametres'>('contenu');
+  const [tab, setTab] = useState<'contenu' | 'acces' | 'stats' | 'parametres'>('contenu');
   const [createForm, setCreateForm] = useState({ name: '', description: '' });
   const [grantEmail, setGrantEmail] = useState('');
   const [editingSection, setEditingSection] = useState<AcademySection | null>(null);
@@ -89,6 +89,8 @@ export default function MonAcademiePage() {
   const [linkForm, setLinkForm] = useState({ title: '', url: '' });
   const [editingFile, setEditingFile] = useState<AcademyFile | null>(null);
   const [editingFileTitle, setEditingFileTitle] = useState('');
+  const [editingFileDescription, setEditingFileDescription] = useState('');
+  const [showFileEditModal, setShowFileEditModal] = useState(false);
 
   // Mon académie
   const { data: academy, isLoading } = useQuery({
@@ -134,6 +136,22 @@ export default function MonAcademiePage() {
       return (data || []) as AcademyFile[];
     },
     enabled: !!academy,
+  });
+
+  // ── Stats : progression par user / par leçon ──
+  const { data: progressData = [] } = useQuery({
+    queryKey: ['academy-progress-stats', academy?.id],
+    queryFn: async () => {
+      if (!academy) return [];
+      const fileIds = files.map(f => f.id);
+      if (fileIds.length === 0) return [];
+      const { data } = await supabase
+        .from('academy_file_progress')
+        .select('file_id, user_id, completed_at')
+        .in('file_id', fileIds);
+      return (data || []) as Array<{ file_id: string; user_id: string; completed_at: string }>;
+    },
+    enabled: !!academy && files.length > 0,
   });
 
   // Accès accordés
@@ -296,15 +314,20 @@ export default function MonAcademiePage() {
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
 
-  const updateFileTitle = useMutation({
+  const updateFile = useMutation({
     mutationFn: async () => {
       if (!editingFile) return;
-      const { error } = await supabase.from('academy_files').update({ title: editingFileTitle }).eq('id', editingFile.id);
+      const { error } = await supabase.from('academy_files').update({
+        title: editingFileTitle,
+        description: editingFileDescription || null,
+      }).eq('id', editingFile.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academy-files'] });
       setEditingFile(null);
+      setShowFileEditModal(false);
+      toast({ title: 'Leçon modifiée' });
     },
   });
 
@@ -451,10 +474,11 @@ export default function MonAcademiePage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-card rounded-xl p-1 border border-border">
+        <div className="flex gap-1 bg-card rounded-xl p-1 border border-border overflow-x-auto">
           {([
             { key: 'contenu', label: 'Contenu', icon: FileText },
             { key: 'acces', label: 'Accès', icon: Users },
+            { key: 'stats', label: 'Stats', icon: TrendingUp },
             { key: 'parametres', label: 'Paramètres', icon: Settings },
           ] as const).map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setTab(key)} className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-colors ${tab === key ? 'bg-blue-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}>
@@ -500,26 +524,27 @@ export default function MonAcademiePage() {
                   <div className="divide-y divide-border">
                     {sectionFiles.map((f, fIdx) => {
                       const Icon = FILE_TYPE_ICONS[f.file_type];
-                      const isEditing = editingFile?.id === f.id;
                       return (
                         <div key={f.id} className="px-4 py-2.5 flex items-center gap-2.5">
                           <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0"><Icon className="h-4 w-4" /></div>
-                          {isEditing ? (
-                            <Input value={editingFileTitle} onChange={(e) => setEditingFileTitle(e.target.value)} className="h-8 flex-1 text-sm" autoFocus onKeyDown={(e) => { if (e.key === 'Enter') updateFileTitle.mutate(); if (e.key === 'Escape') setEditingFile(null); }} />
-                          ) : (
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{f.title}</p>
-                              <p className="text-[10px] text-muted-foreground uppercase">{f.file_type}{f.file_size_mb ? ` · ${f.file_size_mb} MB` : ''}</p>
-                            </div>
-                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{f.title}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase">{f.file_type}{f.file_size_mb ? ` · ${f.file_size_mb} MB` : ''}{f.description ? ' · 📝' : ''}</p>
+                          </div>
                           <div className="flex items-center gap-0.5">
                             <button onClick={() => moveFile.mutate({ file: f, dir: 'up' })} disabled={fIdx === 0} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground"><ChevronUp className="h-3 w-3" /></button>
                             <button onClick={() => moveFile.mutate({ file: f, dir: 'down' })} disabled={fIdx === sectionFiles.length - 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground"><ChevronDown className="h-3 w-3" /></button>
-                            {isEditing ? (
-                              <button onClick={() => updateFileTitle.mutate()} className="p-1.5 rounded hover:bg-emerald-500/10 text-emerald-500"><Check className="h-3.5 w-3.5" /></button>
-                            ) : (
-                              <button onClick={() => { setEditingFile(f); setEditingFileTitle(f.title); }} className="p-1.5 rounded hover:bg-muted text-muted-foreground"><Edit2 className="h-3 w-3" /></button>
-                            )}
+                            <button
+                              onClick={() => {
+                                setEditingFile(f);
+                                setEditingFileTitle(f.title);
+                                setEditingFileDescription(f.description || '');
+                                setShowFileEditModal(true);
+                              }}
+                              className="p-1.5 rounded hover:bg-muted text-muted-foreground"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </button>
                             {f.is_external && <a href={f.file_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded hover:bg-muted text-muted-foreground"><ExternalLink className="h-3 w-3" /></a>}
                             <button onClick={() => { if (confirm('Supprimer ?')) deleteFile.mutate(f); }} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
                           </div>
@@ -629,6 +654,109 @@ export default function MonAcademiePage() {
           </div>
         )}
 
+        {/* Tab : Stats */}
+        {tab === 'stats' && (
+          <div className="space-y-3">
+            {(() => {
+              // Agrégations par user
+              const completedByUser = new Map<string, Set<string>>();
+              for (const p of progressData) {
+                if (!completedByUser.has(p.user_id)) completedByUser.set(p.user_id, new Set());
+                completedByUser.get(p.user_id)!.add(p.file_id);
+              }
+              // Agrégations par leçon
+              const completedByFile = new Map<string, number>();
+              for (const p of progressData) {
+                completedByFile.set(p.file_id, (completedByFile.get(p.file_id) || 0) + 1);
+              }
+              const totalStudents = accessList.length;
+              const totalLessons = files.length;
+              const avgCompletion = totalStudents > 0 && totalLessons > 0
+                ? Math.round(
+                    (Array.from(completedByUser.values()).reduce((s, set) => s + set.size, 0) / (totalStudents * totalLessons)) * 100
+                  )
+                : 0;
+
+              return (
+                <>
+                  {/* Headline KPIs */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3">
+                      <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">Étudiants</p>
+                      <p className="text-2xl font-black text-blue-700 dark:text-blue-300 mt-1">{totalStudents}</p>
+                    </div>
+                    <div className="rounded-xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 p-3">
+                      <p className="text-[10px] text-violet-600 dark:text-violet-400 font-bold uppercase tracking-wider">Leçons</p>
+                      <p className="text-2xl font-black text-violet-700 dark:text-violet-300 mt-1">{totalLessons}</p>
+                    </div>
+                    <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-3">
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Avancement</p>
+                      <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-1">{avgCompletion}%</p>
+                    </div>
+                  </div>
+
+                  {/* Par étudiant */}
+                  <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                    <div className="px-4 py-2 border-b border-border bg-muted/30">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Progression par étudiant</p>
+                    </div>
+                    {accessList.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Aucun étudiant</p>}
+                    {accessList.map((a: any) => {
+                      const completed = completedByUser.get(a.user_id)?.size || 0;
+                      const pct = totalLessons > 0 ? Math.round((completed / totalLessons) * 100) : 0;
+                      return (
+                        <div key={a.user_id} className="px-4 py-3 border-b border-border last:border-0">
+                          <div className="flex items-center gap-3 mb-1.5">
+                            <div className="h-8 w-8 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                              {a.profile?.full_name?.split(' ').map((s: string) => s[0]).slice(0, 2).join('') || '?'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{a.profile?.full_name || 'Utilisateur'}</p>
+                              <p className="text-[10px] text-muted-foreground">{completed}/{totalLessons} leçons terminées</p>
+                            </div>
+                            <span className={`text-xs font-bold ${pct >= 80 ? 'text-emerald-500' : pct >= 40 ? 'text-amber-500' : 'text-muted-foreground'}`}>{pct}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div className={`h-full transition-all ${pct >= 80 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Par leçon */}
+                  <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                    <div className="px-4 py-2 border-b border-border bg-muted/30">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Engagement par leçon</p>
+                    </div>
+                    {files.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Aucune leçon</p>}
+                    {files.map(f => {
+                      const completed = completedByFile.get(f.id) || 0;
+                      const pct = totalStudents > 0 ? Math.round((completed / totalStudents) * 100) : 0;
+                      const Icon = FILE_TYPE_ICONS[f.file_type];
+                      return (
+                        <div key={f.id} className="px-4 py-2.5 border-b border-border last:border-0">
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-7 w-7 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0">
+                              <Icon className="h-3.5 w-3.5" />
+                            </div>
+                            <p className="text-sm font-medium flex-1 truncate">{f.title}</p>
+                            <span className="text-[11px] text-muted-foreground">{completed}/{totalStudents}</span>
+                            <CheckCircle2 className={`h-3.5 w-3.5 ${pct >= 80 ? 'text-emerald-500' : pct >= 40 ? 'text-amber-500' : 'text-muted-foreground/30'}`} />
+                          </div>
+                          <div className="h-1 rounded-full bg-muted overflow-hidden mt-1.5 ml-9">
+                            <div className={`h-full transition-all ${pct >= 80 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
+
         {/* Tab : Paramètres */}
         {tab === 'parametres' && (
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
@@ -664,6 +792,40 @@ export default function MonAcademiePage() {
                 <button onClick={() => setShowSectionForm(false)} className="flex-1 py-2.5 rounded-xl bg-muted text-foreground text-sm font-semibold">Annuler</button>
                 <button onClick={() => saveSection.mutate()} disabled={!sectionForm.title || saveSection.isPending} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-50">
                   {saveSection.isPending ? '...' : editingSection ? 'Modifier' : 'Créer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* File Edit Modal — titre + description Markdown */}
+        {showFileEditModal && editingFile && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setShowFileEditModal(false)}>
+            <div className="bg-background rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col p-5 gap-3" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-base font-bold flex-shrink-0">Modifier la leçon</h3>
+              <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
+                <div>
+                  <Label>Titre</Label>
+                  <Input value={editingFileTitle} onChange={(e) => setEditingFileTitle(e.target.value)} autoFocus />
+                </div>
+                <div>
+                  <Label>Description (Markdown supporté)</Label>
+                  <Textarea
+                    value={editingFileDescription}
+                    onChange={(e) => setEditingFileDescription(e.target.value)}
+                    rows={8}
+                    placeholder={`# Titre\n\nTexte avec **gras** et *italique*.\n\n- Liste\n- Item 2\n\n[Un lien](https://exemple.fr)`}
+                    className="font-mono text-xs"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Markdown supporté : titres (#), gras (**), italique (*), listes (-), liens [texte](url), code (```)
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2 flex-shrink-0">
+                <button onClick={() => setShowFileEditModal(false)} className="flex-1 py-2.5 rounded-xl bg-muted text-foreground text-sm font-semibold">Annuler</button>
+                <button onClick={() => updateFile.mutate()} disabled={!editingFileTitle || updateFile.isPending} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-50">
+                  {updateFile.isPending ? '...' : 'Enregistrer'}
                 </button>
               </div>
             </div>

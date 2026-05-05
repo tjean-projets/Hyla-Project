@@ -4,10 +4,12 @@ import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   GraduationCap, FileText, Video, Image as ImageIcon, FileBox, Link as LinkIcon,
   Download, ExternalLink, Lock, ChevronRight, ChevronDown, CheckCircle2, Circle,
-  PlayCircle, ArrowLeft,
+  PlayCircle, ArrowLeft, MessageCircle, Send, Trash2,
 } from 'lucide-react';
 
 const FILE_TYPE_ICONS = {
@@ -368,7 +370,11 @@ export default function AcademieViewPage() {
                     )}
                   </div>
                   {activeFile.description && (
-                    <p className="text-sm text-muted-foreground leading-relaxed">{activeFile.description}</p>
+                    <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-a:text-blue-500 prose-li:text-muted-foreground prose-code:text-foreground prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {activeFile.description}
+                      </ReactMarkdown>
+                    </div>
                   )}
 
                   {/* Mark complete */}
@@ -394,11 +400,138 @@ export default function AcademieViewPage() {
                     )}
                   </button>
                 </div>
+
+                {/* Comments section */}
+                <LessonComments fileId={activeFile.id} academyOwnerId={academy.owner_user_id} />
               </div>
             )}
           </div>
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+/* ── Section commentaires sous une leçon (style Skool) ── */
+function LessonComments({ fileId, academyOwnerId }: { fileId: string; academyOwnerId: string }) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [body, setBody] = useState('');
+
+  const { data: comments = [] } = useQuery({
+    queryKey: ['lesson-comments', fileId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('academy_lesson_comments')
+        .select('*')
+        .eq('file_id', fileId)
+        .order('created_at', { ascending: true });
+      if (!data || data.length === 0) return [];
+      const userIds = Array.from(new Set(data.map((c: any) => c.user_id)));
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+      return data.map((c: any) => ({
+        ...c,
+        author: profiles?.find((p: any) => p.id === c.user_id) || null,
+      }));
+    },
+  });
+
+  const postComment = useMutation({
+    mutationFn: async () => {
+      if (!user || !body.trim()) return;
+      const { error } = await supabase.from('academy_lesson_comments').insert({
+        file_id: fileId,
+        user_id: user.id,
+        body: body.trim(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setBody('');
+      queryClient.invalidateQueries({ queryKey: ['lesson-comments', fileId] });
+    },
+  });
+
+  const deleteComment = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('academy_lesson_comments').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lesson-comments', fileId] });
+    },
+  });
+
+  return (
+    <div className="border-t border-border pt-4 mt-4">
+      <div className="flex items-center gap-2 mb-3">
+        <MessageCircle className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold">{comments.length} commentaire{comments.length > 1 ? 's' : ''}</h3>
+      </div>
+
+      {/* Form */}
+      <div className="flex gap-2 mb-3">
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Écris un commentaire..."
+          rows={2}
+          className="flex-1 px-3 py-2 rounded-xl border border-border bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              postComment.mutate();
+            }
+          }}
+        />
+        <button
+          onClick={() => postComment.mutate()}
+          disabled={!body.trim() || postComment.isPending}
+          className="self-end p-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+        >
+          <Send className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* List */}
+      <div className="space-y-3">
+        {comments.length === 0 && (
+          <p className="text-xs text-muted-foreground italic text-center py-3">Sois le premier à commenter</p>
+        )}
+        {comments.map((c: any) => {
+          const initials = c.author?.full_name?.split(' ').map((s: string) => s[0]).slice(0, 2).join('') || '?';
+          const isOwn = c.user_id === user?.id;
+          const isOwner = c.user_id === academyOwnerId;
+          const canDelete = isOwn || user?.id === academyOwnerId;
+          const date = new Date(c.created_at);
+          const dateStr = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          return (
+            <div key={c.id} className="flex gap-2.5">
+              <div className="h-8 w-8 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                {initials}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="bg-muted/40 rounded-xl px-3 py-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-xs font-semibold text-foreground truncate">{c.author?.full_name || 'Utilisateur'}</p>
+                    {isOwner && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-600 dark:text-violet-300">PROF</span>}
+                    <span className="text-[10px] text-muted-foreground">{dateStr}</span>
+                    {canDelete && (
+                      <button onClick={() => { if (confirm('Supprimer ?')) deleteComment.mutate(c.id); }} className="ml-auto p-1 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-sm text-foreground whitespace-pre-line break-words">{c.body}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
