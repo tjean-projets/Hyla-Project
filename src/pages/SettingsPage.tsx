@@ -3,11 +3,13 @@ import { AppLayout, ALL_MOBILE_TABS } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, HYLA_LEVELS, type HylaLevel } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint, Eye, Target, CreditCard, TrendingUp, MoreHorizontal } from 'lucide-react';
+import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint, Eye, Target, CreditCard, TrendingUp, MoreHorizontal, Trophy, X, Edit2 } from 'lucide-react';
 import { useRespireAcademie } from '@/hooks/useRespireAcademie';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useThemeSafe } from '@/hooks/useTheme';
 import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
@@ -257,6 +259,18 @@ export default function SettingsPage() {
   const [monthlyCaTarget, setMonthlyCaTarget] = useState('');
   const [savingObjectives, setSavingObjectives] = useState(false);
   const [hylaLevel, setHylaLevel] = useState<HylaLevel>('manager');
+  // Personal challenges
+  const [showPersonalChallengeForm, setShowPersonalChallengeForm] = useState(false);
+  const [editingPersonalChallenge, setEditingPersonalChallenge] = useState<any>(null);
+  const [pcForm, setPcForm] = useState({
+    title: '',
+    description: '',
+    objective_type: 'ventes',
+    target_value: '5',
+    start_date: new Date().toISOString().slice(0, 10),
+    end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    reward: '',
+  });
   const [savingLevel, setSavingLevel] = useState(false);
 
   // Mobile nav customization
@@ -412,6 +426,74 @@ export default function SettingsPage() {
       }
     }
   }, [userSettings]);
+
+  // ── Personal challenges CRUD ──
+  const { data: personalChallenges = [] } = useQuery({
+    queryKey: ['personal-challenges', effectiveUserId],
+    queryFn: async () => {
+      if (!effectiveUserId) return [];
+      const { data } = await supabase
+        .from('personal_challenges')
+        .select('*')
+        .eq('user_id', effectiveUserId)
+        .order('created_at', { ascending: false });
+      return (data || []) as Array<{
+        id: string;
+        title: string;
+        description: string | null;
+        objective_type: string;
+        target_value: number;
+        start_date: string;
+        end_date: string;
+        reward: string | null;
+        status: string;
+      }>;
+    },
+    enabled: !!effectiveUserId,
+  });
+
+  const savePersonalChallenge = useMutation({
+    mutationFn: async () => {
+      if (!effectiveUserId) throw new Error('Pas d\'user');
+      const payload = {
+        user_id: effectiveUserId,
+        title: pcForm.title,
+        description: pcForm.description || null,
+        objective_type: pcForm.objective_type,
+        target_value: parseInt(pcForm.target_value) || 5,
+        start_date: pcForm.start_date,
+        end_date: pcForm.end_date,
+        reward: pcForm.reward || null,
+        status: 'actif',
+      };
+      if (editingPersonalChallenge) {
+        const { error } = await supabase.from('personal_challenges').update(payload).eq('id', editingPersonalChallenge.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('personal_challenges').insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['personal-challenges'] });
+      setShowPersonalChallengeForm(false);
+      setEditingPersonalChallenge(null);
+      setPcForm({ title: '', description: '', objective_type: 'ventes', target_value: '5', start_date: new Date().toISOString().slice(0, 10), end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), reward: '' });
+      toast({ title: editingPersonalChallenge ? 'Défi modifié' : 'Défi créé' });
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  const deletePersonalChallenge = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('personal_challenges').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['personal-challenges'] });
+      toast({ title: 'Défi supprimé' });
+    },
+  });
 
   const saveProfile = useMutation({
     mutationFn: async () => {
@@ -777,6 +859,140 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
+
+        {/* ── Mes défis personnels ── */}
+        {!isImpersonating && (
+          <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Trophy className="h-4 w-4 text-amber-500" />
+              <h3 className="text-base font-semibold text-foreground">Mes défis personnels</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Crée tes propres défis pour rester motivé. Visibles sur ton dashboard avec la progression en temps réel.
+            </p>
+
+            <div className="space-y-2 mb-4">
+              {personalChallenges.length === 0 && (
+                <p className="text-xs text-muted-foreground italic text-center py-3">Aucun défi pour l'instant</p>
+              )}
+              {personalChallenges.map(pc => {
+                const isActive = pc.status === 'actif';
+                return (
+                  <div key={pc.id} className={`rounded-xl border p-3 ${isActive ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800' : 'bg-muted/30 border-border'}`}>
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">{pc.title}</p>
+                        {pc.description && <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{pc.description}</p>}
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap text-[10px]">
+                          <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-semibold">
+                            🎯 {pc.target_value} {pc.objective_type === 'ventes' ? 'ventes' : pc.objective_type === 'ca' ? '€ CA' : 'recrues'}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {new Date(pc.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} → {new Date(pc.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                          </span>
+                          {pc.reward && <span className="text-amber-600">🏆 {pc.reward}</span>}
+                          {!isActive && <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-semibold">{pc.status}</span>}
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => {
+                            setEditingPersonalChallenge(pc);
+                            setPcForm({
+                              title: pc.title,
+                              description: pc.description || '',
+                              objective_type: pc.objective_type,
+                              target_value: String(pc.target_value),
+                              start_date: pc.start_date,
+                              end_date: pc.end_date,
+                              reward: pc.reward || '',
+                            });
+                            setShowPersonalChallengeForm(true);
+                          }}
+                          className="p-1.5 rounded hover:bg-muted text-muted-foreground"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => { if (confirm('Supprimer ce défi ?')) deletePersonalChallenge.mutate(pc.id); }}
+                          className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => {
+                setEditingPersonalChallenge(null);
+                setPcForm({ title: '', description: '', objective_type: 'ventes', target_value: '5', start_date: new Date().toISOString().slice(0, 10), end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), reward: '' });
+                setShowPersonalChallengeForm(true);
+              }}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold text-sm rounded-xl hover:opacity-90 transition-opacity"
+            >
+              <Plus className="h-4 w-4" />
+              Nouveau défi
+            </button>
+          </div>
+        )}
+
+        {/* Personal challenge form Dialog */}
+        <Dialog open={showPersonalChallengeForm} onOpenChange={(o) => { if (!o) { setShowPersonalChallengeForm(false); setEditingPersonalChallenge(null); } }}>
+          <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto mx-4">
+            <DialogHeader><DialogTitle>{editingPersonalChallenge ? 'Modifier le défi' : 'Nouveau défi personnel'}</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label>Titre *</Label>
+                <Input value={pcForm.title} onChange={(e) => setPcForm({ ...pcForm, title: e.target.value })} placeholder="Ex: 5 ventes en juin" />
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Textarea value={pcForm.description} onChange={(e) => setPcForm({ ...pcForm, description: e.target.value })} placeholder="Pourquoi ce défi ? Comment l'atteindre ?" rows={2} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label>Type</Label>
+                  <Select value={pcForm.objective_type} onValueChange={(v) => setPcForm({ ...pcForm, objective_type: v })}>
+                    <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ventes">Ventes</SelectItem>
+                      <SelectItem value="ca">Chiffre d'affaires</SelectItem>
+                      <SelectItem value="recrues">Recrues</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Objectif</Label>
+                  <Input type="number" min="1" value={pcForm.target_value} onChange={(e) => setPcForm({ ...pcForm, target_value: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label>Début</Label>
+                  <Input type="date" value={pcForm.start_date} onChange={(e) => setPcForm({ ...pcForm, start_date: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Fin</Label>
+                  <Input type="date" value={pcForm.end_date} onChange={(e) => setPcForm({ ...pcForm, end_date: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <Label>Récompense (optionnel)</Label>
+                <Input value={pcForm.reward} onChange={(e) => setPcForm({ ...pcForm, reward: e.target.value })} placeholder="Ex: Restaurant gastronomique" />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => { setShowPersonalChallengeForm(false); setEditingPersonalChallenge(null); }} className="flex-1 py-2.5 rounded-xl bg-muted text-foreground text-sm font-semibold">Annuler</button>
+                <button onClick={() => savePersonalChallenge.mutate()} disabled={!pcForm.title || savePersonalChallenge.isPending} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold disabled:opacity-50">
+                  {savePersonalChallenge.isPending ? '...' : editingPersonalChallenge ? 'Modifier' : 'Créer'}
+                </button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Mes objectifs personnels */}
         {!isImpersonating && (

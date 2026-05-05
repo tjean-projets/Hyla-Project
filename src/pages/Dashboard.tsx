@@ -187,6 +187,85 @@ export default function Dashboard() {
     enabled: !!myManagerChallenge && !!effectiveId,
   });
 
+  // ── Objectifs reçus de mon manager (si je suis une recrue) ──
+  const { data: myRecruitObjective } = useQuery({
+    queryKey: ['my-recruit-objective', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return null;
+      // Trouve l'entrée team_members où linked_user_id = moi (= je suis recrue de quelqu'un)
+      const { data: tm } = await supabase
+        .from('team_members')
+        .select('id, user_id')
+        .eq('linked_user_id', effectiveId)
+        .eq('sponsor_id', null as any)
+        .maybeSingle();
+      if (!tm) return null;
+      // Récupère les objectifs liés
+      const { data: obj } = await supabase
+        .from('member_objectives')
+        .select('*')
+        .eq('team_member_id', (tm as any).id)
+        .maybeSingle();
+      if (!obj) return null;
+      // Récupère le nom du manager qui a fixé l'objectif
+      const { data: managerProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', (tm as any).user_id)
+        .maybeSingle();
+      return { ...obj, managerName: (managerProfile as any)?.full_name || 'Mon manager' };
+    },
+    enabled: !!effectiveId,
+    staleTime: 60000,
+  });
+
+  // ── Mes défis personnels (avec progression calculée) ──
+  const { data: personalChallenges = [] } = useQuery({
+    queryKey: ['personal-challenges-dashboard', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase
+        .from('personal_challenges')
+        .select('*')
+        .eq('user_id', effectiveId)
+        .eq('status', 'actif')
+        .order('created_at', { ascending: false });
+      if (!data) return [];
+      // Calcule la progression pour chaque défi
+      const withProgress = await Promise.all(data.map(async (pc: any) => {
+        let progress = 0;
+        if (pc.objective_type === 'ventes') {
+          const { count } = await supabase.from('deals')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', effectiveId)
+            .eq('status', 'signee')
+            .gte('signed_at', pc.start_date)
+            .lte('signed_at', pc.end_date);
+          progress = count || 0;
+        } else if (pc.objective_type === 'ca') {
+          const { data: deals } = await supabase.from('deals')
+            .select('amount')
+            .eq('user_id', effectiveId)
+            .eq('status', 'signee')
+            .gte('signed_at', pc.start_date)
+            .lte('signed_at', pc.end_date);
+          progress = (deals || []).reduce((s: number, d: any) => s + (d.amount || 0), 0);
+        } else if (pc.objective_type === 'recrues') {
+          const { count } = await supabase.from('team_members')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', effectiveId)
+            .gte('joined_at', pc.start_date)
+            .lte('joined_at', pc.end_date);
+          progress = count || 0;
+        }
+        return { ...pc, progress };
+      }));
+      return withProgress;
+    },
+    enabled: !!effectiveId,
+    staleTime: 60000,
+  });
+
   const { data: teamMembers = [] } = useQuery({
     queryKey: ['team-members-dash', effectiveId],
     queryFn: async () => {
@@ -493,6 +572,105 @@ export default function Dashboard() {
                 <p className="text-[10px] opacity-70 mt-1.5">Bonus {HYLA_CHALLENGES.rookie.bonus}€ · {HYLA_CHALLENGES.rookie.months} mois</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Mes objectifs (fixés avec mon manager) ── */}
+        {myRecruitObjective && (
+          <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-violet-50 dark:from-blue-950/30 dark:to-violet-950/30 border border-blue-200 dark:border-blue-800 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-blue-600" />
+              <h3 className="text-sm font-bold text-foreground">Mes objectifs avec {myRecruitObjective.managerName}</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-card rounded-xl border border-border p-2.5">
+                <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">Ce mois</p>
+                <div className="mt-1 space-y-0.5">
+                  {myRecruitObjective.ventes_objectif_mois > 0 && <p className="text-xs"><strong>{myRecruitObjective.ventes_objectif_mois}</strong> ventes</p>}
+                  {myRecruitObjective.recrues_objectif_mois > 0 && <p className="text-xs"><strong>{myRecruitObjective.recrues_objectif_mois}</strong> recrues</p>}
+                  {!myRecruitObjective.ventes_objectif_mois && !myRecruitObjective.recrues_objectif_mois && <p className="text-[11px] text-muted-foreground italic">—</p>}
+                </div>
+              </div>
+              <div className="bg-card rounded-xl border border-border p-2.5">
+                <p className="text-[9px] text-violet-600 dark:text-violet-400 font-bold uppercase tracking-wider">3 mois</p>
+                <div className="mt-1 space-y-0.5">
+                  {myRecruitObjective.ventes_objectif_3mois > 0 && <p className="text-xs"><strong>{myRecruitObjective.ventes_objectif_3mois}</strong> ventes</p>}
+                  {myRecruitObjective.recrues_objectif_3mois > 0 && <p className="text-xs"><strong>{myRecruitObjective.recrues_objectif_3mois}</strong> recrues</p>}
+                  {!myRecruitObjective.ventes_objectif_3mois && !myRecruitObjective.recrues_objectif_3mois && <p className="text-[11px] text-muted-foreground italic">—</p>}
+                </div>
+              </div>
+              <div className="bg-card rounded-xl border border-border p-2.5">
+                <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">1 an</p>
+                <div className="mt-1 space-y-0.5">
+                  {myRecruitObjective.ventes_objectif_1an > 0 && <p className="text-xs"><strong>{myRecruitObjective.ventes_objectif_1an}</strong> ventes</p>}
+                  {myRecruitObjective.recrues_objectif_1an > 0 && <p className="text-xs"><strong>{myRecruitObjective.recrues_objectif_1an}</strong> recrues</p>}
+                  {!myRecruitObjective.ventes_objectif_1an && !myRecruitObjective.recrues_objectif_1an && <p className="text-[11px] text-muted-foreground italic">—</p>}
+                </div>
+              </div>
+            </div>
+            {(myRecruitObjective.objectif_mois || myRecruitObjective.actions) && (
+              <div className="bg-card rounded-xl border border-border p-3 space-y-2">
+                {myRecruitObjective.objectif_mois && (
+                  <div>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Mon objectif principal</p>
+                    <p className="text-xs text-foreground mt-0.5">{myRecruitObjective.objectif_mois}</p>
+                  </div>
+                )}
+                {myRecruitObjective.actions && (
+                  <div>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Mon plan d'action</p>
+                    <p className="text-xs text-foreground mt-0.5 whitespace-pre-line">{myRecruitObjective.actions}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Mes défis personnels ── */}
+        {personalChallenges.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Trophy className="h-3.5 w-3.5 text-amber-500" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Mes défis perso</h3>
+            </div>
+            <div className={`grid gap-2 ${personalChallenges.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {personalChallenges.map((pc: any) => {
+                const target = pc.target_value;
+                const progress = pc.progress;
+                const pct = Math.min(100, Math.round((progress / Math.max(1, target)) * 100));
+                const endDate = new Date(pc.end_date);
+                const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                const isComplete = progress >= target;
+                const isExpired = daysLeft < 0;
+                const unit = pc.objective_type === 'ventes' ? 'ventes' : pc.objective_type === 'ca' ? '€' : 'recrues';
+                return (
+                  <div key={pc.id} className={`rounded-2xl p-3.5 text-white cursor-pointer active:scale-[0.98] transition-transform ${
+                    isComplete
+                      ? 'bg-gradient-to-br from-emerald-500 to-teal-500'
+                      : isExpired
+                      ? 'bg-gradient-to-br from-gray-500 to-gray-600'
+                      : 'bg-gradient-to-br from-pink-500 to-rose-500'
+                  }`}>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Trophy className="h-4 w-4" />
+                      <span className="text-xs font-bold uppercase tracking-wide truncate">{pc.title}</span>
+                    </div>
+                    <div className="flex items-end justify-between mb-2">
+                      <span className="text-2xl font-black leading-none">
+                        {pc.objective_type === 'ca' ? `${(progress / 1000).toFixed(0)}k` : progress}/{pc.objective_type === 'ca' ? `${(target / 1000).toFixed(0)}k` : target}
+                      </span>
+                      <span className="text-xs font-bold opacity-90">{isExpired ? 'Expiré' : `${daysLeft}j`}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/25 overflow-hidden">
+                      <div className="h-full rounded-full bg-white/80 transition-all duration-700" style={{ width: `${pct}%` }} />
+                    </div>
+                    {pc.reward && <p className="text-[10px] opacity-70 mt-1.5 truncate">🏆 {pc.reward}</p>}
+                    {isComplete && <div className="mt-1.5 text-center bg-white/20 rounded-lg py-1 text-xs font-bold">Atteint ! 🎉</div>}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
