@@ -186,7 +186,7 @@ export function ContactDrawer({ contact, onClose, onEdit }: ContactDrawerProps) 
   return (
     <>
       <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 animate-fade-in" onClick={onClose} />
-      <div className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border shadow-2xl z-50 flex flex-col animate-slide-up">
+      <div className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-card border-l border-border shadow-2xl z-50 grid grid-rows-[auto_auto_1fr_auto] animate-slide-up">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -227,7 +227,7 @@ export function ContactDrawer({ contact, onClose, onEdit }: ContactDrawerProps) 
         </div>
 
         {/* Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-5">
+        <div className="overflow-y-auto p-5 space-y-5 min-h-0">
 
           {/* ── TAB : INFO ── */}
           {tab === 'info' && (
@@ -479,7 +479,7 @@ export function ContactDrawer({ contact, onClose, onEdit }: ContactDrawerProps) 
         </div>
 
         {/* Footer (toujours visible en bas) */}
-        <div className="mt-auto flex-shrink-0 px-5 py-4 border-t border-border bg-card sticky bottom-0">
+        <div className="px-5 py-4 border-t border-border bg-card">
           <button onClick={() => { onEdit(contact); onClose(); }}
             className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold text-sm rounded-xl hover:bg-[#3b82f6]/90 transition-colors shadow-lg shadow-blue-500/30">
             <Edit2 className="h-4 w-4" />
