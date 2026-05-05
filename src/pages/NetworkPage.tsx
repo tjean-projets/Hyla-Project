@@ -1788,66 +1788,58 @@ export default function NetworkPage() {
   });
 
   const { data: challengeProgress = [] } = useQuery({
-    queryKey: ['challenge-progress', activeChallenge?.id, effectiveId],
+    queryKey: ['challenge-progress', activeChallenge?.id, effectiveId, members.length],
     queryFn: async () => {
       if (!activeChallenge || !effectiveId) return [];
       // Membres directs actifs (1ère ligne seulement)
       const directMembers = members.filter((m: any) => !m.sponsor_id && m.status === 'actif');
       if (directMembers.length === 0) return [];
 
-      const results = await Promise.all(directMembers.map(async (m: any) => {
-        let progress = 0;
-        // Si le membre a un compte lié → chercher ses deals
+      const linkedUserIds = directMembers.filter((m: any) => m.linked_user_id).map((m: any) => m.linked_user_id);
+      const memberIds = directMembers.map((m: any) => m.id);
+      const objType = activeChallenge.objective_type;
+      const startDate = activeChallenge.start_date;
+      const endDate = activeChallenge.end_date;
+
+      // Fetch en parallèle au lieu de N requêtes séquentielles
+      let linkedDeals: Array<{ user_id: string; amount?: number }> = [];
+      let soldByDeals: Array<{ sold_by: string; amount?: number }> = [];
+      let recruesData: Array<{ user_id: string }> = [];
+
+      if (objType === 'ventes' || objType === 'ca') {
+        const [linkedRes, soldByRes] = await Promise.all([
+          linkedUserIds.length > 0
+            ? supabase.from('deals').select('user_id, amount').in('user_id', linkedUserIds).eq('status', 'signee').gte('signed_at', startDate).lte('signed_at', endDate)
+            : Promise.resolve({ data: [] }),
+          supabase.from('deals').select('sold_by, amount').eq('user_id', effectiveId).in('sold_by', memberIds).eq('status', 'signee').gte('signed_at', startDate).lte('signed_at', endDate),
+        ]);
+        linkedDeals = (linkedRes.data || []) as any;
+        soldByDeals = (soldByRes.data || []) as any;
+      } else if (objType === 'recrues' && linkedUserIds.length > 0) {
+        const { data } = await supabase.from('team_members').select('user_id').in('user_id', linkedUserIds).gte('joined_at', startDate).lte('joined_at', endDate);
+        recruesData = (data || []) as any;
+      }
+
+      // Calcule la progression par membre en mémoire
+      return directMembers.map((m: any) => {
+        let prog = 0;
         if (m.linked_user_id) {
-          if (activeChallenge.objective_type === 'ventes') {
-            const { count } = await supabase.from('deals')
-              .select('id', { count: 'exact', head: true })
-              .eq('user_id', m.linked_user_id)
-              .eq('status', 'signee')
-              .gte('signed_at', activeChallenge.start_date)
-              .lte('signed_at', activeChallenge.end_date);
-            progress = count || 0;
-          } else if (activeChallenge.objective_type === 'ca') {
-            const { data: deals } = await supabase.from('deals')
-              .select('amount')
-              .eq('user_id', m.linked_user_id)
-              .eq('status', 'signee')
-              .gte('signed_at', activeChallenge.start_date)
-              .lte('signed_at', activeChallenge.end_date);
-            progress = (deals || []).reduce((s: number, d: any) => s + (d.amount || 0), 0);
-          } else if (activeChallenge.objective_type === 'recrues') {
-            const { count } = await supabase.from('team_members')
-              .select('id', { count: 'exact', head: true })
-              .eq('user_id', m.linked_user_id)
-              .gte('joined_at', activeChallenge.start_date)
-              .lte('joined_at', activeChallenge.end_date);
-            progress = count || 0;
+          if (objType === 'ventes') {
+            prog = linkedDeals.filter(d => d.user_id === m.linked_user_id).length;
+          } else if (objType === 'ca') {
+            prog = linkedDeals.filter(d => d.user_id === m.linked_user_id).reduce((s, d) => s + (d.amount || 0), 0);
+          } else if (objType === 'recrues') {
+            prog = recruesData.filter(r => r.user_id === m.linked_user_id).length;
           }
         } else {
-          // Pas de compte lié → chercher deals avec sold_by = member.id
-          if (activeChallenge.objective_type === 'ventes') {
-            const { count } = await supabase.from('deals')
-              .select('id', { count: 'exact', head: true })
-              .eq('user_id', effectiveId)
-              .eq('sold_by', m.id)
-              .eq('status', 'signee')
-              .gte('signed_at', activeChallenge.start_date)
-              .lte('signed_at', activeChallenge.end_date);
-            progress = count || 0;
-          } else if (activeChallenge.objective_type === 'ca') {
-            const { data: deals } = await supabase.from('deals')
-              .select('amount')
-              .eq('user_id', effectiveId)
-              .eq('sold_by', m.id)
-              .eq('status', 'signee')
-              .gte('signed_at', activeChallenge.start_date)
-              .lte('signed_at', activeChallenge.end_date);
-            progress = (deals || []).reduce((s: number, d: any) => s + (d.amount || 0), 0);
+          if (objType === 'ventes') {
+            prog = soldByDeals.filter(d => d.sold_by === m.id).length;
+          } else if (objType === 'ca') {
+            prog = soldByDeals.filter(d => d.sold_by === m.id).reduce((s, d) => s + (d.amount || 0), 0);
           }
         }
-        return { member: m, progress };
-      }));
-      return results.sort((a, b) => b.progress - a.progress);
+        return { member: m, progress: prog };
+      }).sort((a, b) => b.progress - a.progress);
     },
     enabled: !!activeChallenge && members.length > 0,
     staleTime: 30000,

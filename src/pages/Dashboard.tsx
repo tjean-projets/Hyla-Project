@@ -219,7 +219,7 @@ export default function Dashboard() {
     staleTime: 60000,
   });
 
-  // ── Mes défis personnels (avec progression calculée) ──
+  // ── Mes défis personnels (avec progression calculée — UNE SEULE requête deals/team) ──
   const { data: personalChallenges = [] } = useQuery({
     queryKey: ['personal-challenges-dashboard', effectiveId],
     queryFn: async () => {
@@ -230,37 +230,38 @@ export default function Dashboard() {
         .eq('user_id', effectiveId)
         .eq('status', 'actif')
         .order('created_at', { ascending: false });
-      if (!data) return [];
-      // Calcule la progression pour chaque défi
-      const withProgress = await Promise.all(data.map(async (pc: any) => {
+      if (!data || data.length === 0) return [];
+
+      // Calcule la fenêtre globale (min start, max end) pour fetch en 1 fois
+      const minStart = data.reduce((m: string, pc: any) => pc.start_date < m ? pc.start_date : m, data[0].start_date);
+      const maxEnd = data.reduce((m: string, pc: any) => pc.end_date > m ? pc.end_date : m, data[0].end_date);
+
+      const needsDeals = data.some((pc: any) => pc.objective_type === 'ventes' || pc.objective_type === 'ca');
+      const needsRecrues = data.some((pc: any) => pc.objective_type === 'recrues');
+
+      const [dealsRes, recruesRes] = await Promise.all([
+        needsDeals
+          ? supabase.from('deals').select('amount, signed_at').eq('user_id', effectiveId).eq('status', 'signee').gte('signed_at', minStart).lte('signed_at', maxEnd)
+          : Promise.resolve({ data: [] }),
+        needsRecrues
+          ? supabase.from('team_members').select('joined_at').eq('user_id', effectiveId).gte('joined_at', minStart).lte('joined_at', maxEnd)
+          : Promise.resolve({ data: [] }),
+      ]);
+      const allDeals = (dealsRes.data || []) as Array<{ amount: number; signed_at: string }>;
+      const allRecrues = (recruesRes.data || []) as Array<{ joined_at: string }>;
+
+      // Filtre en mémoire pour chaque challenge
+      return data.map((pc: any) => {
         let progress = 0;
         if (pc.objective_type === 'ventes') {
-          const { count } = await supabase.from('deals')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', effectiveId)
-            .eq('status', 'signee')
-            .gte('signed_at', pc.start_date)
-            .lte('signed_at', pc.end_date);
-          progress = count || 0;
+          progress = allDeals.filter(d => d.signed_at >= pc.start_date && d.signed_at <= pc.end_date).length;
         } else if (pc.objective_type === 'ca') {
-          const { data: deals } = await supabase.from('deals')
-            .select('amount')
-            .eq('user_id', effectiveId)
-            .eq('status', 'signee')
-            .gte('signed_at', pc.start_date)
-            .lte('signed_at', pc.end_date);
-          progress = (deals || []).reduce((s: number, d: any) => s + (d.amount || 0), 0);
+          progress = allDeals.filter(d => d.signed_at >= pc.start_date && d.signed_at <= pc.end_date).reduce((s, d) => s + (d.amount || 0), 0);
         } else if (pc.objective_type === 'recrues') {
-          const { count } = await supabase.from('team_members')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', effectiveId)
-            .gte('joined_at', pc.start_date)
-            .lte('joined_at', pc.end_date);
-          progress = count || 0;
+          progress = allRecrues.filter(r => r.joined_at >= pc.start_date && r.joined_at <= pc.end_date).length;
         }
         return { ...pc, progress };
-      }));
-      return withProgress;
+      });
     },
     enabled: !!effectiveId,
     staleTime: 60000,
