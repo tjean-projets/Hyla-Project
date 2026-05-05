@@ -169,12 +169,20 @@ export default function LandingPage() {
           </div>
           <span className="text-xl font-bold tracking-tight">Triibu</span>
         </div>
-        <Link
-          to="/login"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/[0.07] border border-white/[0.10] text-sm font-medium hover:bg-white/[0.12] transition-all"
-        >
-          Se connecter <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/tarifs"
+            className="text-white/40 hover:text-white/70 text-sm font-medium transition-colors"
+          >
+            Tarifs
+          </Link>
+          <Link
+            to="/login"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/[0.07] border border-white/[0.10] text-sm font-medium hover:bg-white/[0.12] transition-all"
+          >
+            Se connecter <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       </header>
 
       {/* ════════════════════════════════════════
@@ -407,6 +415,60 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════
+          PRICING TEASER
+      ════════════════════════════════════════ */}
+      <section className="relative z-10 px-6 py-16 max-w-4xl mx-auto">
+        <div className="text-center mb-10">
+          <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-3">Tarifs transparents</h2>
+          <p className="text-white/40 text-sm">14 jours d'essai gratuit sur les deux formules. Sans carte bancaire.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8">
+          {/* Conseiller */}
+          <div className="rounded-2xl bg-white/[0.04] border border-white/[0.10] p-7 flex flex-col">
+            <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-3">Conseiller</p>
+            <div className="flex items-end gap-1.5 mb-3">
+              <span className="text-4xl font-black text-white">9.99€</span>
+              <span className="text-white/35 text-sm mb-1">/mois</span>
+            </div>
+            <p className="text-white/40 text-sm mb-5">Pour gérer vos ventes, contacts et commissions personnelles.</p>
+            <ul className="space-y-2 text-sm text-white/55 mb-6 flex-1">
+              {['Dashboard & KPIs', 'Contacts illimités', 'Pipeline de ventes', 'Commissions personnelles', 'App mobile incluse'].map(f => (
+                <li key={f} className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />{f}</li>
+              ))}
+            </ul>
+            <Link to="/login" className="w-full text-center py-2.5 rounded-xl bg-white/[0.08] border border-white/[0.12] text-white/80 text-sm font-semibold hover:bg-white/[0.13] transition-all">
+              Commencer gratuitement
+            </Link>
+          </div>
+          {/* Manager */}
+          <div className="rounded-2xl bg-gradient-to-br from-blue-600/20 to-violet-600/15 border border-blue-500/30 p-7 flex flex-col relative">
+            <div className="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[10px] font-bold">
+              <Star className="h-3 w-3" />Recommandé
+            </div>
+            <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider mb-3">Manager</p>
+            <div className="flex items-end gap-1.5 mb-3">
+              <span className="text-4xl font-black text-white">29.99€</span>
+              <span className="text-white/35 text-sm mb-1">/mois</span>
+            </div>
+            <p className="text-white/40 text-sm mb-5">Pour piloter votre réseau et maximiser vos revenus groupe.</p>
+            <ul className="space-y-2 text-sm text-white/55 mb-6 flex-1">
+              {['Tout ce qui est dans Conseiller', 'Gestion réseau & équipe', 'Import données officiel', 'Statistiques avancées', 'Commissions réseau & groupe'].map(f => (
+                <li key={f} className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-blue-400 shrink-0" />{f}</li>
+              ))}
+            </ul>
+            <Link to="/login" className="w-full text-center py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-all shadow-lg shadow-blue-600/20">
+              Démarrer avec Manager
+            </Link>
+          </div>
+        </div>
+        <div className="text-center">
+          <Link to="/tarifs" className="inline-flex items-center gap-1.5 text-white/30 hover:text-white/60 text-sm transition-colors">
+            Voir la comparaison complète <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
       </section>
 

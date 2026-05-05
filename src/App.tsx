@@ -16,6 +16,7 @@ import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import LandingPage from "./pages/LandingPage";
+import PricingPage from "./pages/PricingPage";
 
 // Pages lazy-loadées
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -134,6 +135,7 @@ function AppRoutes() {
         <Route path="/partner/wallet" element={<ProtectedRoute><PartnerWallet /></ProtectedRoute>} />
 
         <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+        <Route path="/tarifs" element={<PricingPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
