@@ -197,7 +197,7 @@ export default function Dashboard() {
         .from('team_members')
         .select('id, user_id')
         .eq('linked_user_id', effectiveId)
-        .eq('sponsor_id', null as any)
+        .is('sponsor_id', null)
         .maybeSingle();
       if (!tm) return null;
       // Récupère les objectifs liés
