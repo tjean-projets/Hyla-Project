@@ -13,8 +13,11 @@ import { useToast } from '@/components/ui/use-toast';
 import {
   GraduationCap, Plus, Upload, Link as LinkIcon, FileText, Video, Image as ImageIcon,
   FileBox, Trash2, Users, Settings, Copy, ExternalLink, X, Eye, FolderPlus,
-  ChevronUp, ChevronDown, Folder, Edit2, Check, TrendingUp, CheckCircle2,
+  Folder, Edit2, TrendingUp, CheckCircle2, GripVertical,
 } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 type AcademyFile = {
   id: string;
@@ -91,6 +94,33 @@ export default function MonAcademiePage() {
   const [editingFileTitle, setEditingFileTitle] = useState('');
   const [editingFileDescription, setEditingFileDescription] = useState('');
   const [showFileEditModal, setShowFileEditModal] = useState(false);
+
+  // Sensors pour le drag & drop (delay 250ms pour différencier d'un click)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleSectionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = sections.findIndex(s => s.id === active.id);
+    const newIdx = sections.findIndex(s => s.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const newOrder = arrayMove(sections, oldIdx, newIdx).map(s => s.id);
+    reorderSections.mutate(newOrder);
+  };
+
+  const handleLessonDragEnd = (event: DragEndEvent, sectionId: string | null) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const sectionFiles = files.filter(f => f.section_id === sectionId).sort((a, b) => a.sort_order - b.sort_order);
+    const oldIdx = sectionFiles.findIndex(f => f.id === active.id);
+    const newIdx = sectionFiles.findIndex(f => f.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const newOrder = arrayMove(sectionFiles, oldIdx, newIdx).map(f => f.id);
+    reorderFiles.mutate(newOrder);
+  };
 
   // Mon académie
   const { data: academy, isLoading } = useQuery({
@@ -238,17 +268,33 @@ export default function MonAcademiePage() {
     },
   });
 
-  const moveSection = useMutation({
-    mutationFn: async ({ section, dir }: { section: AcademySection; dir: 'up' | 'down' }) => {
-      const idx = sections.findIndex(s => s.id === section.id);
-      const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
-      if (swapIdx < 0 || swapIdx >= sections.length) return;
-      const swap = sections[swapIdx];
-      // Swap sort_order
-      await supabase.from('academy_sections').update({ sort_order: swap.sort_order }).eq('id', section.id);
-      await supabase.from('academy_sections').update({ sort_order: section.sort_order }).eq('id', swap.id);
+  // Reorder sections en batch (utilisé par drag & drop)
+  const reorderSections = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      // Update tous les sort_order d'un coup
+      await Promise.all(
+        orderedIds.map((id, idx) =>
+          supabase.from('academy_sections').update({ sort_order: idx }).eq('id', id)
+        )
+      );
     },
-    onSuccess: () => {
+    onMutate: async (orderedIds) => {
+      // Optimistic update : applique le nouvel ordre immédiatement
+      await queryClient.cancelQueries({ queryKey: ['academy-sections', academy?.id] });
+      const previous = queryClient.getQueryData(['academy-sections', academy?.id]) as AcademySection[] | undefined;
+      if (previous) {
+        const reordered = orderedIds
+          .map(id => previous.find(s => s.id === id))
+          .filter(Boolean)
+          .map((s, idx) => ({ ...s!, sort_order: idx }));
+        queryClient.setQueryData(['academy-sections', academy?.id], reordered);
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(['academy-sections', academy?.id], ctx.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['academy-sections'] });
     },
   });
@@ -331,17 +377,31 @@ export default function MonAcademiePage() {
     },
   });
 
-  const moveFile = useMutation({
-    mutationFn: async ({ file, dir }: { file: AcademyFile; dir: 'up' | 'down' }) => {
-      const sectionFiles = files.filter(f => f.section_id === file.section_id).sort((a, b) => a.sort_order - b.sort_order);
-      const idx = sectionFiles.findIndex(f => f.id === file.id);
-      const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
-      if (swapIdx < 0 || swapIdx >= sectionFiles.length) return;
-      const swap = sectionFiles[swapIdx];
-      await supabase.from('academy_files').update({ sort_order: swap.sort_order }).eq('id', file.id);
-      await supabase.from('academy_files').update({ sort_order: file.sort_order }).eq('id', swap.id);
+  // Reorder fichiers en batch (drag & drop dans une section)
+  const reorderFiles = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      await Promise.all(
+        orderedIds.map((id, idx) =>
+          supabase.from('academy_files').update({ sort_order: idx }).eq('id', id)
+        )
+      );
     },
-    onSuccess: () => {
+    onMutate: async (orderedIds) => {
+      await queryClient.cancelQueries({ queryKey: ['academy-files', academy?.id] });
+      const previous = queryClient.getQueryData(['academy-files', academy?.id]) as AcademyFile[] | undefined;
+      if (previous) {
+        const idToOrder = new Map(orderedIds.map((id, idx) => [id, idx]));
+        const updated = previous.map(f =>
+          idToOrder.has(f.id) ? { ...f, sort_order: idToOrder.get(f.id)! } : f
+        );
+        queryClient.setQueryData(['academy-files', academy?.id], updated);
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(['academy-files', academy?.id], ctx.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['academy-files'] });
     },
   });
@@ -500,90 +560,106 @@ export default function MonAcademiePage() {
               Nouvelle section
             </button>
 
-            {/* Sections */}
-            {sections.map((section, idx) => {
-              const sectionFiles = files.filter(f => f.section_id === section.id).sort((a, b) => a.sort_order - b.sort_order);
-              return (
-                <div key={section.id} className="bg-card border border-border rounded-2xl overflow-hidden">
-                  <div className="px-4 py-3 bg-muted/30 border-b border-border flex items-center gap-2">
-                    <Folder className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{section.title}</p>
-                      {section.description && <p className="text-[10px] text-muted-foreground truncate">{section.description}</p>}
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">{sectionFiles.length} leçon{sectionFiles.length > 1 ? 's' : ''}</span>
-                    <div className="flex items-center gap-0.5">
-                      <button onClick={() => moveSection.mutate({ section, dir: 'up' })} disabled={idx === 0} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground"><ChevronUp className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => moveSection.mutate({ section, dir: 'down' })} disabled={idx === sections.length - 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground"><ChevronDown className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => { setEditingSection(section); setSectionForm({ title: section.title, description: section.description || '' }); setShowSectionForm(true); }} className="p-1.5 rounded hover:bg-muted text-muted-foreground"><Edit2 className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => { if (confirm('Supprimer cette section ? Les leçons seront déplacées en "Sans section".')) deleteSection.mutate(section.id); }} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
-                    </div>
-                  </div>
+            {/* Sections — drag & drop pour réordonner */}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
+              <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-3">
+                  {sections.map((section) => {
+                    const sectionFiles = files.filter(f => f.section_id === section.id).sort((a, b) => a.sort_order - b.sort_order);
+                    return (
+                      <SortableSection key={section.id} id={section.id}>
+                        {(dragHandle) => (
+                          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                            <div className="px-4 py-3 bg-muted/30 border-b border-border flex items-center gap-2">
+                              {dragHandle}
+                              <Folder className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold truncate">{section.title}</p>
+                                {section.description && <p className="text-[10px] text-muted-foreground truncate">{section.description}</p>}
+                              </div>
+                              <span className="text-[10px] text-muted-foreground">{sectionFiles.length} leçon{sectionFiles.length > 1 ? 's' : ''}</span>
+                              <div className="flex items-center gap-0.5">
+                                <button onClick={() => { setEditingSection(section); setSectionForm({ title: section.title, description: section.description || '' }); setShowSectionForm(true); }} className="p-1.5 rounded hover:bg-muted text-muted-foreground"><Edit2 className="h-3.5 w-3.5" /></button>
+                                <button onClick={() => { if (confirm('Supprimer cette section ? Les leçons seront déplacées en "Sans section".')) deleteSection.mutate(section.id); }} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                              </div>
+                            </div>
 
-                  {/* Files in section */}
-                  <div className="divide-y divide-border">
-                    {sectionFiles.map((f, fIdx) => {
-                      const Icon = FILE_TYPE_ICONS[f.file_type];
-                      return (
-                        <div key={f.id} className="px-4 py-2.5 flex items-center gap-2.5">
-                          <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0"><Icon className="h-4 w-4" /></div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{f.title}</p>
-                            <p className="text-[10px] text-muted-foreground uppercase">{f.file_type}{f.file_size_mb ? ` · ${f.file_size_mb} MB` : ''}{f.description ? ' · 📝' : ''}</p>
-                          </div>
-                          <div className="flex items-center gap-0.5">
-                            <button onClick={() => moveFile.mutate({ file: f, dir: 'up' })} disabled={fIdx === 0} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground"><ChevronUp className="h-3 w-3" /></button>
-                            <button onClick={() => moveFile.mutate({ file: f, dir: 'down' })} disabled={fIdx === sectionFiles.length - 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground"><ChevronDown className="h-3 w-3" /></button>
-                            <button
-                              onClick={() => {
-                                setEditingFile(f);
-                                setEditingFileTitle(f.title);
-                                setEditingFileDescription(f.description || '');
-                                setShowFileEditModal(true);
-                              }}
-                              className="p-1.5 rounded hover:bg-muted text-muted-foreground"
-                            >
-                              <Edit2 className="h-3 w-3" />
-                            </button>
-                            {f.is_external && <a href={f.file_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded hover:bg-muted text-muted-foreground"><ExternalLink className="h-3 w-3" /></a>}
-                            <button onClick={() => { if (confirm('Supprimer ?')) deleteFile.mutate(f); }} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {sectionFiles.length === 0 && (
-                      <p className="px-4 py-4 text-xs text-muted-foreground text-center italic">Aucune leçon dans cette section</p>
-                    )}
-                  </div>
+                            {/* Files in section — drag & drop pour réordonner */}
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleLessonDragEnd(e, section.id)}>
+                              <SortableContext items={sectionFiles.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                                <div className="divide-y divide-border">
+                                  {sectionFiles.map((f) => {
+                                    const Icon = FILE_TYPE_ICONS[f.file_type];
+                                    return (
+                                      <SortableLesson key={f.id} id={f.id}>
+                                        {(lessonHandle) => (
+                                          <div className="px-4 py-2.5 flex items-center gap-2.5">
+                                            {lessonHandle}
+                                            <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0"><Icon className="h-4 w-4" /></div>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-sm font-medium truncate">{f.title}</p>
+                                              <p className="text-[10px] text-muted-foreground uppercase">{f.file_type}{f.file_size_mb ? ` · ${f.file_size_mb} MB` : ''}{f.description ? ' · 📝' : ''}</p>
+                                            </div>
+                                            <div className="flex items-center gap-0.5">
+                                              <button
+                                                onClick={() => {
+                                                  setEditingFile(f);
+                                                  setEditingFileTitle(f.title);
+                                                  setEditingFileDescription(f.description || '');
+                                                  setShowFileEditModal(true);
+                                                }}
+                                                className="p-1.5 rounded hover:bg-muted text-muted-foreground"
+                                              >
+                                                <Edit2 className="h-3 w-3" />
+                                              </button>
+                                              {f.is_external && <a href={f.file_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded hover:bg-muted text-muted-foreground"><ExternalLink className="h-3 w-3" /></a>}
+                                              <button onClick={() => { if (confirm('Supprimer ?')) deleteFile.mutate(f); }} className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </SortableLesson>
+                                    );
+                                  })}
+                                  {sectionFiles.length === 0 && (
+                                    <p className="px-4 py-4 text-xs text-muted-foreground text-center italic">Aucune leçon dans cette section</p>
+                                  )}
+                                </div>
+                              </SortableContext>
+                            </DndContext>
 
-                  {/* Add to section */}
-                  <div className="px-4 py-2 border-t border-border bg-muted/20">
-                    {activeUploadSection === section.id ? (
-                      <div className="space-y-2">
-                        <Input placeholder="Titre de la leçon (optionnel)" value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="h-9 text-xs" />
-                        <input ref={fileInputRef} type="file" accept="video/*,image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile.mutate({ file: f, sectionId: section.id }); }} className="hidden" />
-                        <div className="grid grid-cols-3 gap-1.5">
-                          <button onClick={() => fileInputRef.current?.click()} disabled={uploadFile.isPending} className="py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold flex items-center justify-center gap-1 disabled:opacity-50"><Upload className="h-3 w-3" />{uploadFile.isPending ? '...' : 'Fichier'}</button>
-                          <button onClick={() => setShowLinkForm(section.id)} className="py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-semibold flex items-center justify-center gap-1"><LinkIcon className="h-3 w-3" />Lien</button>
-                          <button onClick={() => { setActiveUploadSection(null); setUploadTitle(''); setShowLinkForm(null); }} className="py-1.5 rounded-lg bg-muted text-muted-foreground text-[11px] font-semibold">Annuler</button>
-                        </div>
-                        {showLinkForm === section.id && (
-                          <div className="space-y-1.5 pt-2">
-                            <Input placeholder="Titre du lien" value={linkForm.title} onChange={(e) => setLinkForm({ ...linkForm, title: e.target.value })} className="h-9 text-xs" />
-                            <Input placeholder="URL (Canva, YouTube, GDrive...)" value={linkForm.url} onChange={(e) => setLinkForm({ ...linkForm, url: e.target.value })} className="h-9 text-xs" />
-                            <button onClick={() => addLink.mutate(section.id)} disabled={!linkForm.url || addLink.isPending} className="w-full py-1.5 rounded-lg bg-violet-600 text-white text-[11px] font-semibold disabled:opacity-50">Ajouter le lien</button>
+                            {/* Add to section */}
+                            <div className="px-4 py-2 border-t border-border bg-muted/20">
+                              {activeUploadSection === section.id ? (
+                                <div className="space-y-2">
+                                  <Input placeholder="Titre de la leçon (optionnel)" value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="h-9 text-xs" />
+                                  <input ref={fileInputRef} type="file" accept="video/*,image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile.mutate({ file: f, sectionId: section.id }); }} className="hidden" />
+                                  <div className="grid grid-cols-3 gap-1.5">
+                                    <button onClick={() => fileInputRef.current?.click()} disabled={uploadFile.isPending} className="py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold flex items-center justify-center gap-1 disabled:opacity-50"><Upload className="h-3 w-3" />{uploadFile.isPending ? '...' : 'Fichier'}</button>
+                                    <button onClick={() => setShowLinkForm(section.id)} className="py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-semibold flex items-center justify-center gap-1"><LinkIcon className="h-3 w-3" />Lien</button>
+                                    <button onClick={() => { setActiveUploadSection(null); setUploadTitle(''); setShowLinkForm(null); }} className="py-1.5 rounded-lg bg-muted text-muted-foreground text-[11px] font-semibold">Annuler</button>
+                                  </div>
+                                  {showLinkForm === section.id && (
+                                    <div className="space-y-1.5 pt-2">
+                                      <Input placeholder="Titre du lien" value={linkForm.title} onChange={(e) => setLinkForm({ ...linkForm, title: e.target.value })} className="h-9 text-xs" />
+                                      <Input placeholder="URL (Canva, YouTube, GDrive...)" value={linkForm.url} onChange={(e) => setLinkForm({ ...linkForm, url: e.target.value })} className="h-9 text-xs" />
+                                      <button onClick={() => addLink.mutate(section.id)} disabled={!linkForm.url || addLink.isPending} className="w-full py-1.5 rounded-lg bg-violet-600 text-white text-[11px] font-semibold disabled:opacity-50">Ajouter le lien</button>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <button onClick={() => setActiveUploadSection(section.id)} className="w-full py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center justify-center gap-1.5">
+                                  <Plus className="h-3.5 w-3.5" /> Ajouter une leçon
+                                </button>
+                              )}
+                            </div>
                           </div>
                         )}
-                      </div>
-                    ) : (
-                      <button onClick={() => setActiveUploadSection(section.id)} className="w-full py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center justify-center gap-1.5">
-                        <Plus className="h-3.5 w-3.5" /> Ajouter une leçon
-                      </button>
-                    )}
-                  </div>
+                      </SortableSection>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </SortableContext>
+            </DndContext>
 
             {/* Orphan files (sans section) */}
             {orphanFiles.length > 0 && (
@@ -833,5 +909,60 @@ export default function MonAcademiePage() {
         )}
       </div>
     </AppLayout>
+  );
+}
+
+
+/* ── Wrapper Sortable pour une section (drag & drop) ── */
+function SortableSection({ id, children }: { id: string; children: (handle: React.ReactNode) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : "auto",
+  };
+  const handle = (
+    <button
+      {...attributes}
+      {...listeners}
+      type="button"
+      aria-label="Glisser pour réorganiser"
+      className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted text-muted-foreground touch-none"
+    >
+      <GripVertical className="h-4 w-4" />
+    </button>
+  );
+  return (
+    <div ref={setNodeRef} style={style as React.CSSProperties}>
+      {children(handle)}
+    </div>
+  );
+}
+
+/* ── Wrapper Sortable pour une leçon (drag & drop) ── */
+function SortableLesson({ id, children }: { id: string; children: (handle: React.ReactNode) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    backgroundColor: isDragging ? "hsl(var(--muted))" : undefined,
+  };
+  const handle = (
+    <button
+      {...attributes}
+      {...listeners}
+      type="button"
+      aria-label="Glisser pour réorganiser"
+      className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted text-muted-foreground/60 touch-none"
+    >
+      <GripVertical className="h-3.5 w-3.5" />
+    </button>
+  );
+  return (
+    <div ref={setNodeRef} style={style as React.CSSProperties}>
+      {children(handle)}
+    </div>
   );
 }
