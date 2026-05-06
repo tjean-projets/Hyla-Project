@@ -1350,19 +1350,28 @@ function OrgTreeNode({ node, isLast = false }: { node: OrgNode; isLast?: boolean
   );
 }
 
-/* ── Organigramme simple ── */
-function DownlineSection({ currentUserId, members }: { currentUserId: string; members: TeamMember[] }) {
+/* ── Organigramme cliquable / éditable ── */
+function DownlineSection({ currentUserId, members, onEdit }: { currentUserId: string; members: TeamMember[]; onEdit?: (member: TeamMember) => void }) {
   const orgTree = buildOrgTree(members);
+  const memberById = new Map(members.map(m => [m.id, m]));
 
   if (members.length === 0) return null;
 
+  const handleClick = (memberId: string) => {
+    const m = memberById.get(memberId);
+    if (m && onEdit) onEdit(m);
+  };
+
   return (
     <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-1">
         <Network className="h-4 w-4 text-violet-500" />
         <h3 className="text-sm font-semibold text-foreground">Organigramme</h3>
         <span className="ml-auto text-xs text-muted-foreground">{members.length} membre{members.length > 1 ? 's' : ''}</span>
       </div>
+      <p className="text-[10px] text-muted-foreground mb-4">
+        💡 Clique sur n'importe qui pour modifier (nom, rang, parrain, statut…)
+      </p>
 
       {/* Moi */}
       <div className="flex flex-col items-center mb-3">
@@ -1376,44 +1385,55 @@ function DownlineSection({ currentUserId, members }: { currentUserId: string; me
       {/* Membres — tous sur la même ligne de base, sous-hiérarchie uniquement si sponsor documenté */}
       {orgTree.length > 0 && (
         <>
-          {/* Ligne horizontale de connexion */}
           {orgTree.length > 1 && (
             <div className="flex justify-center mb-0">
               <div className="h-px bg-border w-full max-w-[90%]" />
             </div>
           )}
-          {/* Grille responsive : jusqu'à 50 membres, même niveau visuel */}
           <div className="flex flex-wrap justify-center gap-3 mt-0 max-h-[320px] overflow-y-auto pr-1">
             {orgTree.map((node) => (
               <div key={node.id} className="flex flex-col items-center" style={{ minWidth: 64, maxWidth: 80 }}>
                 <div className="w-px h-4 bg-border mb-1" />
-                <div className={`h-9 w-9 rounded-xl flex items-center justify-center mb-1 ${
-                  node.children.length > 0
-                    ? 'bg-amber-100 dark:bg-amber-900/40'
-                    : 'bg-violet-100 dark:bg-violet-900/30'
-                }`}>
-                  <span className={`font-bold text-[10px] ${
-                    node.children.length > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-violet-700 dark:text-violet-400'
-                  }`}>{node.initials}</span>
-                </div>
-                <p className="text-[10px] font-medium text-foreground text-center leading-tight line-clamp-2">{node.name}</p>
-                <span className={`text-[8px] font-semibold px-1 py-0.5 rounded-full mt-0.5 ${
-                  node.status === 'actif' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-muted text-muted-foreground'
-                }`}>
-                  {node.status === 'actif' ? 'Actif' : 'Inactif'}
-                </span>
-                {/* Sous-nœuds uniquement si hiérarchie réellement documentée (sponsor_id) */}
+                <button
+                  type="button"
+                  onClick={() => handleClick(node.id)}
+                  className="flex flex-col items-center cursor-pointer group focus:outline-none focus:ring-2 focus:ring-violet-400 rounded-xl p-0.5 hover:bg-muted/50 transition-colors"
+                  title={`Modifier ${node.name}`}
+                >
+                  <div className={`h-9 w-9 rounded-xl flex items-center justify-center mb-1 transition-transform group-hover:scale-110 ${
+                    node.children.length > 0
+                      ? 'bg-amber-100 dark:bg-amber-900/40'
+                      : 'bg-violet-100 dark:bg-violet-900/30'
+                  }`}>
+                    <span className={`font-bold text-[10px] ${
+                      node.children.length > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-violet-700 dark:text-violet-400'
+                    }`}>{node.initials}</span>
+                  </div>
+                  <p className="text-[10px] font-medium text-foreground text-center leading-tight line-clamp-2 group-hover:underline">{node.name}</p>
+                  <span className={`text-[8px] font-semibold px-1 py-0.5 rounded-full mt-0.5 ${
+                    node.status === 'actif' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {node.status === 'actif' ? 'Actif' : 'Inactif'}
+                  </span>
+                </button>
+                {/* Sous-nœuds — cliquables aussi */}
                 {node.children.length > 0 && (
                   <div className="mt-1.5 flex flex-col items-center gap-1">
                     <div className="w-px h-2.5 bg-border" />
                     <div className="flex flex-wrap justify-center gap-1">
                       {node.children.map((child) => (
-                        <div key={child.id} title={child.name} className="flex flex-col items-center w-12">
-                          <div className="h-6 w-6 rounded-lg bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center mb-0.5">
+                        <button
+                          key={child.id}
+                          type="button"
+                          onClick={() => handleClick(child.id)}
+                          title={`Modifier ${child.name}`}
+                          className="flex flex-col items-center w-12 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-lg p-0.5 hover:bg-muted/50"
+                        >
+                          <div className="h-6 w-6 rounded-lg bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center mb-0.5 group-hover:scale-110 transition-transform">
                             <span className="text-blue-600 dark:text-blue-400 font-bold text-[8px]">{child.initials}</span>
                           </div>
-                          <p className="text-[8px] text-muted-foreground text-center leading-tight line-clamp-1">{child.name.split(' ')[0]}</p>
-                        </div>
+                          <p className="text-[8px] text-muted-foreground text-center leading-tight line-clamp-1 group-hover:underline">{child.name.split(' ')[0]}</p>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -2960,8 +2980,14 @@ export default function NetworkPage() {
           </DialogContent>
         </Dialog>
 
-        {/* ── Organigramme ── */}
-        {effectiveId && <DownlineSection currentUserId={effectiveId} members={members} />}
+        {/* ── Organigramme cliquable ── */}
+        {effectiveId && (
+          <DownlineSection
+            currentUserId={effectiveId}
+            members={members}
+            onEdit={(m) => { setEditingMember(m); setShowForm(true); }}
+          />
+        )}
       </div>
 
       {/* Sub-member edit confirmation dialog */}

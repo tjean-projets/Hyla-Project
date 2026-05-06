@@ -39,6 +39,7 @@ export default function StatsPage() {
   const fmtAmt = (n: number) => amountsVisible ? n.toLocaleString('fr-FR') : '•••';
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear().toString());
+  const [linkPeriod, setLinkPeriod] = useState<'7j' | '30j' | '90j' | 'all'>('30j');
 
   const { data: commissions = [], isLoading: commissionsLoading } = useQuery({
     queryKey: ['stats-commissions', effectiveId, selectedYear],
@@ -108,6 +109,37 @@ export default function StatsPage() {
         .eq('status', 'annulee')
         .not('loss_reason_category', 'is', null);
       return data || [];
+    },
+    enabled: !!effectiveId,
+  });
+
+  // Clics Page de contact (Bio/Story/Direct) — trace immuable
+  const { data: linkClicks = [] } = useQuery({
+    queryKey: ['contact-link-clicks', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await (supabase as any)
+        .from('contact_link_clicks')
+        .select('source, created_at')
+        .eq('profile_owner_id', effectiveId)
+        .order('created_at', { ascending: false })
+        .limit(5000);
+      return (data || []) as Array<{ source: string; created_at: string }>;
+    },
+    enabled: !!effectiveId,
+  });
+
+  // Conversions par source (= contacts créés depuis chaque lien)
+  const { data: linkConversions = [] } = useQuery({
+    queryKey: ['contact-link-conversions', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await (supabase as any)
+        .from('contacts')
+        .select('link_source, created_at')
+        .eq('user_id', effectiveId)
+        .not('link_source', 'is', null);
+      return (data || []) as Array<{ link_source: string; created_at: string }>;
     },
     enabled: !!effectiveId,
   });
@@ -419,6 +451,109 @@ export default function StatsPage() {
             </div>
           </div>
         )}
+
+        {/* ── Stats Page de contact (clics + conversions par lien) ── */}
+        {(() => {
+          const periodMs = {
+            '7j': 7 * 24 * 60 * 60 * 1000,
+            '30j': 30 * 24 * 60 * 60 * 1000,
+            '90j': 90 * 24 * 60 * 60 * 1000,
+            'all': Infinity,
+          }[linkPeriod];
+          const since = linkPeriod === 'all' ? '1970-01-01' : new Date(Date.now() - periodMs).toISOString();
+          const filteredClicks = linkClicks.filter(c => c.created_at >= since);
+          const filteredConversions = linkConversions.filter(c => c.created_at >= since);
+
+          const sources = ['bio', 'story', 'direct', 'autre'] as const;
+          const sourceColors: Record<string, { bg: string; text: string; bar: string }> = {
+            bio: { bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-700 dark:text-emerald-300', bar: 'bg-emerald-500' },
+            story: { bg: 'bg-violet-50 dark:bg-violet-950/30', text: 'text-violet-700 dark:text-violet-300', bar: 'bg-violet-500' },
+            direct: { bg: 'bg-blue-50 dark:bg-blue-950/30', text: 'text-blue-700 dark:text-blue-300', bar: 'bg-blue-500' },
+            autre: { bg: 'bg-muted', text: 'text-muted-foreground', bar: 'bg-gray-500' },
+          };
+
+          const totalClicks = filteredClicks.length;
+          const totalConv = filteredConversions.length;
+          const convRate = totalClicks > 0 ? Math.round((totalConv / totalClicks) * 100) : 0;
+
+          if (linkClicks.length === 0 && linkConversions.length === 0) return null;
+
+          return (
+            <div className="bg-card border border-border rounded-2xl p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-foreground">Page de contact</span>
+                  <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Trace immuable</span>
+                </div>
+                <div className="flex gap-1 bg-muted rounded-lg p-0.5">
+                  {(['7j', '30j', '90j', 'all'] as const).map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setLinkPeriod(p)}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                        linkPeriod === p ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {p === 'all' ? 'Tout' : p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground mb-3">
+                Compte combien de personnes cliquent sur chacun de tes liens (Bio, Story, Direct) et combien deviennent un contact.
+                Si tu fais beaucoup de contenu, ces stats te montrent quel canal convertit le mieux.
+              </p>
+
+              {/* KPIs globaux */}
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="rounded-xl bg-muted/50 p-2.5">
+                  <p className="text-[9px] text-muted-foreground uppercase font-bold">Clics</p>
+                  <p className="text-lg font-bold text-foreground">{totalClicks}</p>
+                </div>
+                <div className="rounded-xl bg-muted/50 p-2.5">
+                  <p className="text-[9px] text-muted-foreground uppercase font-bold">Conversions</p>
+                  <p className="text-lg font-bold text-foreground">{totalConv}</p>
+                </div>
+                <div className="rounded-xl bg-muted/50 p-2.5">
+                  <p className="text-[9px] text-muted-foreground uppercase font-bold">Taux conv.</p>
+                  <p className="text-lg font-bold text-foreground">{convRate}%</p>
+                </div>
+              </div>
+
+              {/* Détail par source */}
+              <div className="space-y-2">
+                {sources.map(s => {
+                  const clicks = filteredClicks.filter(c => c.source === s).length;
+                  const convs = filteredConversions.filter(c => c.link_source === s).length;
+                  if (clicks === 0 && convs === 0) return null;
+                  const cR = clicks > 0 ? Math.round((convs / clicks) * 100) : 0;
+                  const widthPct = totalClicks > 0 ? Math.max(2, Math.round((clicks / totalClicks) * 100)) : 0;
+                  const colors = sourceColors[s];
+                  return (
+                    <div key={s} className={`rounded-xl ${colors.bg} p-3`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className={`text-xs font-bold uppercase tracking-wider ${colors.text}`}>
+                          {s === 'bio' ? '🔗 Bio (permanent)' : s === 'story' ? '📸 Story (tracking)' : s === 'direct' ? '✉️ Direct' : '🌐 Autre'}
+                        </p>
+                        <span className={`text-[10px] font-semibold ${colors.text}`}>
+                          {clicks} clic{clicks > 1 ? 's' : ''} · {convs} conv. · {cR}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-card/50 dark:bg-card/30 overflow-hidden">
+                        <div className={`h-full ${colors.bar} transition-all`} style={{ width: `${widthPct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="text-[10px] text-muted-foreground mt-3 italic">
+                💡 Astuce : compare les périodes. Si tu fais plus de contenu sur une semaine, regarde ici l'impact réel sur tes clics et conversions.
+              </p>
+            </div>
+          );
+        })()}
 
       </div>
     </AppLayout>

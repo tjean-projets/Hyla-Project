@@ -386,14 +386,17 @@ export default function SocialPage() {
   const convertLead = useMutation({
     mutationFn: async (lead: PublicLead) => {
       if (!effectiveId) throw new Error();
-      const { error } = await supabase.from('contacts').insert({
+      // link_source est immuable côté contact (trace permanente d'origine)
+      const linkSource = (['bio', 'story', 'direct'] as const).includes(lead.source as any) ? lead.source : 'autre';
+      const { error } = await (supabase as any).from('contacts').insert({
         user_id: effectiveId,
         first_name: lead.first_name,
         last_name: lead.last_name,
         phone: lead.phone,
         email: lead.email || null,
         notes: lead.message || null,
-        source: `Lien bio (${lead.intent})`,
+        source: `Lien ${lead.source || 'bio'} (${lead.intent})`,
+        link_source: linkSource,
         status: lead.intent === 'devenir_conseiller' ? 'recrue' : 'prospect',
       });
       if (error) throw error;

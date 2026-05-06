@@ -36,6 +36,16 @@ export default function PublicProfilePage() {
     loadProfile();
   }, [inviteCode]);
 
+  // Track le clic dès que le profil est chargé (immutable, fire-and-forget)
+  useEffect(() => {
+    if (!profileData) return;
+    (supabase as any).from('contact_link_clicks').insert({
+      profile_owner_id: profileData.id,
+      source,
+      user_agent: navigator.userAgent.slice(0, 200),
+    }).then(() => {});
+  }, [profileData, source]);
+
   async function loadProfile() {
     const { data } = await supabase
       .from('profiles')
