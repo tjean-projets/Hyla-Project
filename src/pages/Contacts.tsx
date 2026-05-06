@@ -151,6 +151,8 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, isInTeam, onAdd
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['notif-overdue'] });
+      queryClient.invalidateQueries({ queryKey: ['notif-today'] });
       toast({ title: 'Tâche créée', description: `Tâche liée à ${initialData?.first_name}` });
       setShowTaskForm(false);
       setTaskForm({ title: '', type: 'relance', due_date: '', notes: '' });

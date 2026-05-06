@@ -151,11 +151,14 @@ export default function CalendarPage() {
 
   const completeTask = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('tasks').update({ status: 'terminee' }).eq('id', id);
+      const { error } = await supabase.from('tasks').update({ status: 'terminee', completed_at: new Date().toISOString() }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['calendar-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['notif-overdue'] });
+      queryClient.invalidateQueries({ queryKey: ['notif-today'] });
       toast({ title: 'Tâche terminée !' });
     },
   });

@@ -91,6 +91,8 @@ function TaskForm({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['notif-overdue'] });
+      queryClient.invalidateQueries({ queryKey: ['notif-today'] });
       toast({ title: isEdit ? 'Tâche modifiée' : 'Tâche créée' });
       onSuccess();
     },
@@ -105,6 +107,8 @@ function TaskForm({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['notif-overdue'] });
+      queryClient.invalidateQueries({ queryKey: ['notif-today'] });
       toast({ title: 'Tâche supprimée' });
       onDelete?.();
     },
@@ -255,7 +259,11 @@ export default function Tasks() {
         await supabase.from('contacts').update({ last_contacted_at: new Date().toISOString() }).eq('id', task.contact_id);
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['notif-overdue'] });
+      queryClient.invalidateQueries({ queryKey: ['notif-today'] });
+    },
   });
 
   const filtered = useMemo(() => tasks.filter((t: any) => {
@@ -490,6 +498,8 @@ export default function Tasks() {
                         toast({ title: 'Erreur', description: 'Impossible de déplacer la tâche. Réessaie.', variant: 'destructive' });
                       }
                       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+                      queryClient.invalidateQueries({ queryKey: ['notif-overdue'] });
+                      queryClient.invalidateQueries({ queryKey: ['notif-today'] });
                     }
                   }}
                 >
@@ -602,6 +612,8 @@ export default function Tasks() {
                   const { error } = await supabase.from('tasks').update(updates).eq('id', draggingTask.id);
                   if (error) toast({ title: 'Erreur', description: 'Impossible de déplacer la tâche.', variant: 'destructive' });
                   queryClient.invalidateQueries({ queryKey: ['tasks'] });
+                  queryClient.invalidateQueries({ queryKey: ['notif-overdue'] });
+                  queryClient.invalidateQueries({ queryKey: ['notif-today'] });
                   setDraggingTask(null);
                 }}
                 className="flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold border-2 active:scale-[0.97]"
