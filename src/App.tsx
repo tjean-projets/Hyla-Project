@@ -56,10 +56,12 @@ const PartnerWallet = lazy(() => import("./pages/partner/Wallet"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 2 * 60 * 1000,      // 2 min par défaut : évite les refetch inutiles
-      refetchOnWindowFocus: false,    // Ne pas refetch à chaque focus de fenêtre
-      retry: 1,                       // 1 seul retry en cas d'erreur (pas 3)
-      refetchOnMount: true,           // OK de refetch au montage si stale
+      staleTime: 5 * 60 * 1000,       // 5 min par défaut (avant 2 min)
+      gcTime: 30 * 60 * 1000,         // 30 min de cache après unmount (avant 5 min default)
+      refetchOnWindowFocus: false,
+      retry: 1,
+      refetchOnMount: false,          // ⚡ ne refetch PAS si déjà en cache (perf navigation)
+      refetchOnReconnect: false,      // pas de refetch automatique sur reconnect réseau
     },
   },
 });

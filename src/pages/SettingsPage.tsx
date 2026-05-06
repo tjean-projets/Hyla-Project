@@ -994,19 +994,19 @@ export default function SettingsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Niveau Hyla */}
+        {/* Rang Hyla */}
         {!isImpersonating && (
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-              <h3 className="text-base font-semibold text-foreground">Mon niveau Hyla</h3>
+              <h3 className="text-base font-semibold text-foreground">Mon rang Hyla</h3>
               <span className="ml-auto text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Attribué par Hyla</span>
             </div>
             <p className="text-xs text-muted-foreground mb-4">
-              Ton niveau est attribué par Hyla lorsque les conditions sont remplies sur 3 mois consécutifs. Il calibre tous les calculs de commissions dans l'outil.
+              Ton rang est attribué par Hyla lorsque les conditions sont remplies sur 3 mois consécutifs. Il calibre tous les calculs de commissions dans l'outil.
             </p>
 
-            {/* Niveau actuel — mis en avant */}
+            {/* Rang actuel — mis en avant */}
             {(() => {
               const current = HYLA_LEVELS.find(l => l.value === hylaLevel);
               const currentIdx = HYLA_LEVELS.findIndex(l => l.value === hylaLevel);
@@ -1026,7 +1026,7 @@ export default function SettingsPage() {
                     <Check className="h-4 w-4 text-violet-600 flex-shrink-0 dark:text-violet-400" />
                   </div>
 
-                  {/* Niveaux suivants — grisés */}
+                  {/* Rangs suivants — grisés */}
                   {HYLA_LEVELS.filter((_, i) => i > currentIdx).map((lvl) => (
                     <div key={lvl.value} className="flex items-center gap-3 p-3 rounded-xl border border-border opacity-50">
                       <div className={`h-2.5 w-2.5 rounded-full bg-gradient-to-br ${lvl.color} flex-shrink-0`} />
@@ -1041,10 +1041,10 @@ export default function SettingsPage() {
                     </div>
                   ))}
 
-                  {/* Message prochain niveau */}
+                  {/* Message prochain rang */}
                   {next && (
                     <p className="text-[11px] text-muted-foreground text-center pt-1">
-                      Prochain niveau : <span className="font-semibold text-violet-600 dark:text-violet-400">{next.label}</span> — vois ta progression sur le Dashboard
+                      Prochain rang : <span className="font-semibold text-violet-600 dark:text-violet-400">{next.label}</span> — vois ta progression sur le Dashboard
                     </p>
                   )}
 
@@ -1052,7 +1052,7 @@ export default function SettingsPage() {
                   {savingLevel && <p className="text-xs text-muted-foreground animate-pulse text-center">Enregistrement...</p>}
                   <details className="mt-2">
                     <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-                      ⚙ Forcer le niveau manuellement (admin)
+                      ⚙ Forcer le rang manuellement (admin)
                     </summary>
                     <div className="mt-2 grid grid-cols-1 gap-1.5 pt-2 border-t border-border">
                       {HYLA_LEVELS.map((lvl) => (

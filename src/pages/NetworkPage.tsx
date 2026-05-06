@@ -523,19 +523,31 @@ function AssistantPanel({ member }: { member: TeamMember }) {
   );
 }
 
-/* ── Objectifs View (with notes) ── */
+/* ── Objectifs View — TOUT directement éditable, pas de "Modifier" séparé ── */
 function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onSendEmail, onEdit }: {
   objective: any; member: TeamMember; formUrl: string; hasContent: boolean;
-  onCopyLink: () => void; onSendEmail: () => void; onEdit: () => void;
+  onCopyLink: () => void; onSendEmail: () => void; onEdit?: () => void;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [notes, setNotes] = useState<Record<string, string>>({
+
+  // State unifié : tous les champs éditables
+  const [form, setForm] = useState({
+    objectif_mois: objective.objectif_mois || '',
+    objectif_3mois: objective.objectif_3mois || '',
+    objectif_1an: objective.objectif_1an || '',
+    actions: objective.actions || '',
     notes_mois: objective.notes_mois || '',
     notes_3mois: objective.notes_3mois || '',
     notes_1an: objective.notes_1an || '',
+    ventes_objectif_mois: objective.ventes_objectif_mois || 0,
+    ventes_objectif_3mois: objective.ventes_objectif_3mois || 0,
+    ventes_objectif_1an: objective.ventes_objectif_1an || 0,
+    recrues_objectif_mois: objective.recrues_objectif_mois || 0,
+    recrues_objectif_3mois: objective.recrues_objectif_3mois || 0,
+    recrues_objectif_1an: objective.recrues_objectif_1an || 0,
   });
-  const [savingNotes, setSavingNotes] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Load custom questions
   const { data: formConfig } = useQuery({
@@ -553,16 +565,42 @@ function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onS
   const customQuestions = (formConfig?.questions || []) as { id: string; label: string }[];
   const customAnswers = (objective.custom_answers || {}) as Record<string, string>;
 
-  const saveNotes = async () => {
-    setSavingNotes(true);
-    await supabase.from('member_objectives').update(notes).eq('id', objective.id);
+  const saveAll = async () => {
+    setSaving(true);
+    await supabase.from('member_objectives').update(form).eq('id', objective.id);
     queryClient.invalidateQueries({ queryKey: ['member-objective', member.id] });
-    toast({ title: 'Notes sauvegardées' });
-    setSavingNotes(false);
+    toast({ title: 'Objectifs enregistrés' });
+    setSaving(false);
   };
 
+  // Mapping explicite (les classes dynamiques bg-${color}-50 ne sont PAS compilées par Tailwind)
+  type Tone = 'blue' | 'amber' | 'emerald';
+  const TONE_STYLES: Record<Tone, { bg: string; border: string; text: string }> = {
+    blue: {
+      bg: 'bg-blue-50 dark:bg-blue-950/30',
+      border: 'border-blue-200 dark:border-blue-800',
+      text: 'text-blue-700 dark:text-blue-300',
+    },
+    amber: {
+      bg: 'bg-amber-50 dark:bg-amber-950/30',
+      border: 'border-amber-200 dark:border-amber-800',
+      text: 'text-amber-700 dark:text-amber-300',
+    },
+    emerald: {
+      bg: 'bg-emerald-50 dark:bg-emerald-950/30',
+      border: 'border-emerald-200 dark:border-emerald-800',
+      text: 'text-emerald-700 dark:text-emerald-300',
+    },
+  };
+
+  const blocks: { key: 'mois' | '3mois' | '1an'; label: string; tone: Tone }[] = [
+    { key: 'mois',  label: 'Ce mois-ci',  tone: 'blue' },
+    { key: '3mois', label: 'Dans 3 mois', tone: 'amber' },
+    { key: '1an',   label: 'Dans 1 an',   tone: 'emerald' },
+  ];
+
   return (
-    <div className="space-y-3 max-h-[65vh] overflow-y-auto">
+    <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
       {/* Status */}
       {objective.filled_by_member && objective.filled_at && (
         <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-xl text-xs text-green-700 dark:bg-green-950/30 dark:text-green-300">
@@ -577,43 +615,67 @@ function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onS
         </div>
       )}
 
-      {/* Objectifs cards with notes */}
-      {[
-        { key: 'mois', noteKey: 'notes_mois', label: 'Ce mois-ci', color: 'blue', text: objective.objectif_mois, v: objective.ventes_objectif_mois, r: objective.recrues_objectif_mois },
-        { key: '3mois', noteKey: 'notes_3mois', label: 'Dans 3 mois', color: 'amber', text: objective.objectif_3mois, v: objective.ventes_objectif_3mois, r: objective.recrues_objectif_3mois },
-        { key: '1an', noteKey: 'notes_1an', label: 'Dans 1 an', color: 'emerald', text: objective.objectif_1an, v: objective.ventes_objectif_1an, r: objective.recrues_objectif_1an },
-      ].map(({ key, noteKey, label, color, text, v, r }) => (
-        <div key={key} className="border rounded-xl overflow-hidden">
-          <div className={`p-3 bg-${color}-50/50 border-b border-${color}-100`}>
-            <p className={`text-[10px] font-bold text-${color}-600 uppercase mb-1`}>{label}</p>
-            <p className="text-sm text-foreground">{text || <span className="text-muted-foreground italic">Non renseigné</span>}</p>
-            {(v > 0 || r > 0) && (
-              <div className="flex gap-4 mt-1.5">
-                {v > 0 && <span className="text-[10px] text-muted-foreground">{v} ventes</span>}
-                {r > 0 && <span className="text-[10px] text-muted-foreground">{r} recrues</span>}
+      {/* Objectifs blocks — tout éditable directement */}
+      {blocks.map(({ key, label, tone }) => {
+        const styles = TONE_STYLES[tone];
+        return (
+          <div key={key} className={`border rounded-xl overflow-hidden ${styles.border}`}>
+            <div className={`p-3 ${styles.bg} border-b ${styles.border} space-y-2`}>
+              <p className={`text-[10px] font-bold ${styles.text} uppercase tracking-wider`}>{label}</p>
+              <textarea
+                value={form[`objectif_${key}` as keyof typeof form] as string}
+                onChange={(e) => setForm({ ...form, [`objectif_${key}`]: e.target.value })}
+                placeholder="Quel est l'objectif ?"
+                rows={2}
+                className="w-full text-sm text-foreground bg-card/70 dark:bg-card/40 rounded-lg px-2.5 py-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400 border border-border"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[9px] text-muted-foreground mb-0.5">Ventes</p>
+                  <input
+                    type="number" min="0"
+                    value={form[`ventes_objectif_${key}` as keyof typeof form] as number}
+                    onChange={(e) => setForm({ ...form, [`ventes_objectif_${key}`]: parseInt(e.target.value) || 0 })}
+                    className="w-full text-xs text-foreground bg-card/70 dark:bg-card/40 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400 border border-border"
+                  />
+                </div>
+                <div>
+                  <p className="text-[9px] text-muted-foreground mb-0.5">Recrues</p>
+                  <input
+                    type="number" min="0"
+                    value={form[`recrues_objectif_${key}` as keyof typeof form] as number}
+                    onChange={(e) => setForm({ ...form, [`recrues_objectif_${key}`]: parseInt(e.target.value) || 0 })}
+                    className="w-full text-xs text-foreground bg-card/70 dark:bg-card/40 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400 border border-border"
+                  />
+                </div>
               </div>
-            )}
+            </div>
+            <div className="p-2 bg-card">
+              <textarea
+                value={form[`notes_${key}` as keyof typeof form] as string}
+                onChange={(e) => setForm({ ...form, [`notes_${key}`]: e.target.value })}
+                placeholder={`Notes de suivi ${label.toLowerCase()}...`}
+                rows={2}
+                className="w-full text-xs text-foreground border-0 bg-muted rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+            </div>
           </div>
-          <div className="p-2 bg-card">
-            <textarea
-              value={notes[noteKey]}
-              onChange={(e) => setNotes({ ...notes, [noteKey]: e.target.value })}
-              placeholder={`Notes de suivi ${label.toLowerCase()}...`}
-              rows={2}
-              className="w-full text-xs text-muted-foreground border-0 bg-muted rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
-            />
-          </div>
-        </div>
-      ))}
+        );
+      })}
 
-      {objective.actions && (
-        <div className="border rounded-xl p-3 border-violet-200 bg-violet-50/50 dark:border-violet-800">
-          <p className="text-[10px] font-bold text-violet-600 uppercase mb-1 dark:text-violet-400">Actions</p>
-          <p className="text-sm text-foreground whitespace-pre-line">{objective.actions}</p>
-        </div>
-      )}
+      {/* Actions — éditable */}
+      <div className="border rounded-xl p-3 border-violet-200 bg-violet-50 dark:bg-violet-950/30 dark:border-violet-800">
+        <p className="text-[10px] font-bold text-violet-700 dark:text-violet-300 uppercase tracking-wider mb-1.5">Actions</p>
+        <textarea
+          value={form.actions}
+          onChange={(e) => setForm({ ...form, actions: e.target.value })}
+          placeholder="Plan d'action concret..."
+          rows={3}
+          className="w-full text-sm text-foreground bg-card/70 dark:bg-card/40 rounded-lg px-2.5 py-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-violet-400 border border-border"
+        />
+      </div>
 
-      {/* Custom answers */}
+      {/* Custom answers (read-only) */}
       {customQuestions.length > 0 && Object.keys(customAnswers).length > 0 && (
         <div className="border rounded-xl p-3 border-border bg-muted/30">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Réponses complémentaires</p>
@@ -628,13 +690,13 @@ function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onS
         </div>
       )}
 
-      {/* Save notes button */}
-      <button onClick={saveNotes} disabled={savingNotes}
-        className="w-full flex items-center justify-center gap-1.5 py-2 bg-muted text-foreground font-medium rounded-xl text-xs disabled:opacity-50">
-        {savingNotes ? 'Sauvegarde...' : 'Sauvegarder les notes'}
+      {/* Save unique button */}
+      <button onClick={saveAll} disabled={saving}
+        className="w-full flex items-center justify-center gap-1.5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm disabled:opacity-50 transition-colors">
+        {saving ? 'Sauvegarde...' : 'Enregistrer'}
       </button>
 
-      {/* Action buttons */}
+      {/* Action buttons : copier lien / envoyer email */}
       <div className="flex gap-2">
         <button onClick={onCopyLink} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-muted text-foreground font-medium rounded-xl text-xs active:scale-[0.98]">
           <Copy className="h-3.5 w-3.5" /> Copier le lien
@@ -643,9 +705,6 @@ function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onS
           <Mail className="h-3.5 w-3.5" /> Envoyer par email
         </button>
       </div>
-      <button onClick={onEdit} className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 text-white font-semibold rounded-xl text-xs">
-        <Edit3 className="h-3.5 w-3.5" /> Modifier les objectifs
-      </button>
     </div>
   );
 }
