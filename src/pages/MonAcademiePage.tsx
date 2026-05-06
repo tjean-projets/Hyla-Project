@@ -595,7 +595,7 @@ export default function MonAcademiePage() {
                                         {(lessonHandle) => (
                                           <div className="px-4 py-2.5 flex items-center gap-2.5">
                                             {lessonHandle}
-                                            <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0"><Icon className="h-4 w-4" /></div>
+                                            <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0 dark:text-blue-400"><Icon className="h-4 w-4" /></div>
                                             <div className="flex-1 min-w-0">
                                               <p className="text-sm font-medium truncate">{f.title}</p>
                                               <p className="text-[10px] text-muted-foreground uppercase">{f.file_type}{f.file_size_mb ? ` · ${f.file_size_mb} MB` : ''}{f.description ? ' · 📝' : ''}</p>
@@ -672,7 +672,7 @@ export default function MonAcademiePage() {
                     const Icon = FILE_TYPE_ICONS[f.file_type];
                     return (
                       <div key={f.id} className="px-4 py-2.5 flex items-center gap-2.5">
-                        <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0"><Icon className="h-4 w-4" /></div>
+                        <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0 dark:text-blue-400"><Icon className="h-4 w-4" /></div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{f.title}</p>
                           <p className="text-[10px] text-muted-foreground uppercase">{f.file_type}</p>
@@ -718,7 +718,7 @@ export default function MonAcademiePage() {
               {accessList.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Aucun accès accordé pour l'instant</p>}
               {accessList.map((a: any) => (
                 <div key={a.user_id} className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-0">
-                  <div className="h-9 w-9 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center text-xs font-bold">{a.profile?.full_name?.split(' ').map((s: string) => s[0]).slice(0, 2).join('') || '?'}</div>
+                  <div className="h-9 w-9 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center text-xs font-bold dark:text-blue-400">{a.profile?.full_name?.split(' ').map((s: string) => s[0]).slice(0, 2).join('') || '?'}</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{a.profile?.full_name || 'Utilisateur'}</p>
                     <p className="text-[10px] text-muted-foreground truncate">{a.profile?.email || a.user_id}</p>
@@ -783,7 +783,7 @@ export default function MonAcademiePage() {
                       return (
                         <div key={a.user_id} className="px-4 py-3 border-b border-border last:border-0">
                           <div className="flex items-center gap-3 mb-1.5">
-                            <div className="h-8 w-8 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                            <div className="h-8 w-8 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0 dark:text-blue-400">
                               {a.profile?.full_name?.split(' ').map((s: string) => s[0]).slice(0, 2).join('') || '?'}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -813,7 +813,7 @@ export default function MonAcademiePage() {
                       return (
                         <div key={f.id} className="px-4 py-2.5 border-b border-border last:border-0">
                           <div className="flex items-center gap-2.5">
-                            <div className="h-7 w-7 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0">
+                            <div className="h-7 w-7 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0 dark:text-blue-400">
                               <Icon className="h-3.5 w-3.5" />
                             </div>
                             <p className="text-sm font-medium flex-1 truncate">{f.title}</p>

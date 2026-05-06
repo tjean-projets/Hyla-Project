@@ -278,7 +278,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
               <Bell className="h-5 w-5" />
               Notifications
               {totalCount > 0 && (
-                <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">{totalCount}</span>
+                <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold dark:text-red-400">{totalCount}</span>
               )}
             </DialogTitle>
           </DialogHeader>
@@ -292,7 +292,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
             <div className="space-y-1">
               {newLeads.length > 0 && (
                 <>
-                  <p className="text-[10px] font-bold text-green-600 uppercase mt-2 mb-1 px-1">Nouveaux leads ({newLeads.length})</p>
+                  <p className="text-[10px] font-bold text-green-600 uppercase mt-2 mb-1 px-1 dark:text-green-400">Nouveaux leads ({newLeads.length})</p>
                   {notifications.filter(n => n.type === 'lead').map(n => (
                     <NotifItem key={n.id} {...n} isDark={isDark} />
                   ))}
@@ -300,7 +300,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
               )}
               {overdueTasks.length > 0 && (
                 <>
-                  <p className="text-[10px] font-bold text-red-600 uppercase mt-3 mb-1 px-1">En retard ({overdueTasks.length})</p>
+                  <p className="text-[10px] font-bold text-red-600 uppercase mt-3 mb-1 px-1 dark:text-red-400">En retard ({overdueTasks.length})</p>
                   {notifications.filter(n => n.type === 'overdue').map(n => (
                     <NotifItem key={n.id} {...n} isDark={isDark} />
                   ))}
@@ -308,7 +308,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
               )}
               {todayTasks.length > 0 && (
                 <>
-                  <p className="text-[10px] font-bold text-orange-600 uppercase mt-3 mb-1 px-1">Aujourd&apos;hui ({todayTasks.length})</p>
+                  <p className="text-[10px] font-bold text-orange-600 uppercase mt-3 mb-1 px-1 dark:text-orange-400">Aujourd&apos;hui ({todayTasks.length})</p>
                   {notifications.filter(n => n.type === 'today').map(n => (
                     <NotifItem key={n.id} {...n} isDark={isDark} />
                   ))}
@@ -316,7 +316,7 @@ function NotificationCenter({ user, profile, isDark }: { user: any; profile: any
               )}
               {upcomingApts.length > 0 && (
                 <>
-                  <p className="text-[10px] font-bold text-blue-600 uppercase mt-3 mb-1 px-1">RDV à venir ({upcomingApts.length})</p>
+                  <p className="text-[10px] font-bold text-blue-600 uppercase mt-3 mb-1 px-1 dark:text-blue-400">RDV à venir ({upcomingApts.length})</p>
                   {notifications.filter(n => n.type === 'apt').map(n => (
                     <NotifItem key={n.id} {...n} isDark={isDark} />
                   ))}
@@ -444,7 +444,7 @@ function GlobalSearch({ isDark }: { isDark: boolean }) {
                     {(contacts as any[]).map((c: any) => (
                       <button key={c.id} onClick={() => { navigate('/contacts'); setOpen(false); setQuery(''); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors text-left">
-                        <div className="h-7 w-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                        <div className="h-7 w-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0 dark:text-blue-400">
                           {c.first_name[0]}{c.last_name[0]}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -461,7 +461,7 @@ function GlobalSearch({ isDark }: { isDark: boolean }) {
                     {(deals as any[]).map((d: any) => (
                       <button key={d.id} onClick={() => { navigate('/deals'); setOpen(false); setQuery(''); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors text-left">
-                        <div className="h-7 w-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                        <div className="h-7 w-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0 dark:text-emerald-400">
                           <ShoppingBag className="h-3.5 w-3.5" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -478,7 +478,7 @@ function GlobalSearch({ isDark }: { isDark: boolean }) {
                     {(tasks as any[]).map((t: any) => (
                       <button key={t.id} onClick={() => { navigate('/tasks'); setOpen(false); setQuery(''); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors text-left">
-                        <div className="h-7 w-7 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center flex-shrink-0">
+                        <div className="h-7 w-7 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center flex-shrink-0 dark:text-violet-400">
                           <CheckSquare className="h-3.5 w-3.5" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -495,7 +495,7 @@ function GlobalSearch({ isDark }: { isDark: boolean }) {
                     {(members as any[]).map((m: any) => (
                       <button key={m.id} onClick={() => { navigate('/network'); setOpen(false); setQuery(''); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors text-left">
-                        <div className="h-7 w-7 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                        <div className="h-7 w-7 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0 dark:text-amber-400">
                           <Network className="h-3.5 w-3.5" />
                         </div>
                         <div className="flex-1 min-w-0">

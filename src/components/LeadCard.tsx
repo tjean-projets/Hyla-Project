@@ -58,7 +58,7 @@ export function LeadCard({ lead, showPartner, partnerName }: LeadCardProps) {
           
           {lead.commission_estimated && (
             <div className="text-right shrink-0">
-              <p className="text-sm font-semibold text-emerald-600 flex items-center gap-0.5">
+              <p className="text-sm font-semibold text-emerald-600 flex items-center gap-0.5 dark:text-emerald-400">
                 {role === 'partner'
                   ? ((lead.commission_final || lead.commission_estimated) * partnerRate / 100).toFixed(0)
                   : lead.commission_estimated.toFixed(0)}

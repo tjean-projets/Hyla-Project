@@ -225,7 +225,7 @@ export default function JoinPage() {
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-xl text-xs text-red-600">
+            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-xl text-xs text-red-600 dark:bg-red-950/30 dark:text-red-400">
               <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
               {error}
             </div>
@@ -241,7 +241,7 @@ export default function JoinPage() {
 
           <p className="text-center text-xs text-gray-400">
             Déjà un compte ?{' '}
-            <button type="button" onClick={() => navigate('/login')} className="text-blue-600 font-medium">
+            <button type="button" onClick={() => navigate('/login')} className="text-blue-600 font-medium dark:text-blue-400">
               Se connecter
             </button>
           </p>

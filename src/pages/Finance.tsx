@@ -1302,7 +1302,7 @@ ${networkRows.length > 0 ? `
                         <div key={i} className="text-xs text-muted-foreground mb-0.5">
                           <span className="font-medium">{[row[flow.mapping.firstname_col], row[flow.mapping.name_col]].filter(Boolean).join(' ') || '—'}</span>
                           {' → '}
-                          <span className="text-green-700">{row[flow.mapping.amount_col] || '0'} €</span>
+                          <span className="text-green-700 dark:text-green-300">{row[flow.mapping.amount_col] || '0'} €</span>
                         </div>
                       ))}
                     </div>
@@ -1352,15 +1352,15 @@ ${networkRows.length > 0 ? `
                     })()}
 
                     <div className="grid grid-cols-3 gap-1.5">
-                      <div className="bg-green-50 rounded-xl p-2 text-center">
-                        <CheckCircle className="h-3.5 w-3.5 text-green-600 mx-auto mb-0.5" />
-                        <p className="text-sm font-bold text-green-700">{autoMatched}</p>
-                        <p className="text-[10px] text-green-600">Auto</p>
+                      <div className="bg-green-50 rounded-xl p-2 text-center dark:bg-green-950/30">
+                        <CheckCircle className="h-3.5 w-3.5 text-green-600 mx-auto mb-0.5 dark:text-green-400" />
+                        <p className="text-sm font-bold text-green-700 dark:text-green-300">{autoMatched}</p>
+                        <p className="text-[10px] text-green-600 dark:text-green-400">Auto</p>
                       </div>
-                      <div className="bg-amber-50 rounded-xl p-2 text-center">
-                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mx-auto mb-0.5" />
-                        <p className="text-sm font-bold text-amber-700">{manualNeeded}</p>
-                        <p className="text-[10px] text-amber-600">Manuel</p>
+                      <div className="bg-amber-50 rounded-xl p-2 text-center dark:bg-amber-950/30">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mx-auto mb-0.5 dark:text-amber-400" />
+                        <p className="text-sm font-bold text-amber-700 dark:text-amber-300">{manualNeeded}</p>
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400">Manuel</p>
                       </div>
                       <div className="bg-gray-50 rounded-xl p-2 text-center">
                         <XCircle className="h-3.5 w-3.5 text-gray-400 mx-auto mb-0.5" />
@@ -1397,7 +1397,7 @@ ${networkRows.length > 0 ? `
                             <div className="flex items-center justify-between">
                               <div className="min-w-0 flex-1">
                                 <span className="font-medium text-foreground truncate block">{r.row_name}</span>
-                                {r.is_owner_row && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Moi</span>}
+                                {r.is_owner_row && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded dark:text-blue-300">Moi</span>}
                                 {r.matched_member && !r.is_owner_row && (
                                   <span className="text-[10px] text-muted-foreground">→ {r.matched_member.first_name} {r.matched_member.last_name} {r.matched_member.internal_id ? `(${r.matched_member.internal_id})` : ''}</span>
                                 )}
@@ -1556,17 +1556,17 @@ ${networkRows.length > 0 ? `
 
                   {selectedImport?.stats && (
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-green-50 rounded-xl p-2.5 text-center">
-                        <p className="text-sm font-bold text-green-700">{(selectedImport.stats as any).matched_rows || 0}</p>
-                        <p className="text-[10px] text-green-600">Matchés</p>
+                      <div className="bg-green-50 rounded-xl p-2.5 text-center dark:bg-green-950/30">
+                        <p className="text-sm font-bold text-green-700 dark:text-green-300">{(selectedImport.stats as any).matched_rows || 0}</p>
+                        <p className="text-[10px] text-green-600 dark:text-green-400">Matchés</p>
                       </div>
-                      <div className="bg-red-50 rounded-xl p-2.5 text-center">
-                        <p className="text-sm font-bold text-red-600">{(selectedImport.stats as any).unmatched_rows || 0}</p>
+                      <div className="bg-red-50 rounded-xl p-2.5 text-center dark:bg-red-950/30">
+                        <p className="text-sm font-bold text-red-600 dark:text-red-400">{(selectedImport.stats as any).unmatched_rows || 0}</p>
                         <p className="text-[10px] text-red-500">Non matchés</p>
                       </div>
-                      <div className="bg-blue-50 rounded-xl p-2.5 text-center">
-                        <p className="text-sm font-bold text-blue-700">{((selectedImport.stats as any).total_amount || 0).toLocaleString('fr-FR')}€</p>
-                        <p className="text-[10px] text-blue-600">Total</p>
+                      <div className="bg-blue-50 rounded-xl p-2.5 text-center dark:bg-blue-950/30">
+                        <p className="text-sm font-bold text-blue-700 dark:text-blue-300">{((selectedImport.stats as any).total_amount || 0).toLocaleString('fr-FR')}€</p>
+                        <p className="text-[10px] text-blue-600 dark:text-blue-400">Total</p>
                       </div>
                     </div>
                   )}
@@ -1601,7 +1601,7 @@ ${networkRows.length > 0 ? `
                             <div className="flex items-center justify-between">
                               <div className="min-w-0 flex-1">
                                 <span className="font-medium text-foreground block">{row.details || 'Sans nom'}</span>
-                                {row.is_owner_row && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Moi</span>}
+                                {row.is_owner_row && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded dark:text-blue-300">Moi</span>}
                               </div>
                               <span className="font-semibold text-foreground ml-2">{(row.amount || 0).toLocaleString('fr-FR')} €</span>
                             </div>
@@ -1610,12 +1610,12 @@ ${networkRows.length > 0 ? `
 
                         {/* Non-matchés groupés par nom */}
                         {Object.values(unmatchedGroups).map((group: any) => (
-                          <div key={group.name} className="p-2.5 rounded-lg text-xs bg-red-50 border border-red-100">
+                          <div key={group.name} className="p-2.5 rounded-lg text-xs bg-red-50 border border-red-100 dark:bg-red-950/30 dark:border-red-900">
                             <div className="flex items-center justify-between mb-1.5">
                               <span className="font-semibold text-foreground">{group.name}</span>
                               <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
                                 {group.rows.length > 1 && (
-                                  <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">
+                                  <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium dark:text-red-400">
                                     {group.rows.length} ventes
                                   </span>
                                 )}
@@ -1623,7 +1623,7 @@ ${networkRows.length > 0 ? `
                               </div>
                             </div>
                             <select
-                              className="w-full text-[11px] border border-red-200 rounded-lg px-2 py-1.5 bg-card"
+                              className="w-full text-[11px] border border-red-200 rounded-lg px-2 py-1.5 bg-card dark:border-red-800"
                               value=""
                               onChange={async (e) => {
                                 const val = e.target.value;
@@ -2072,7 +2072,7 @@ ${networkRows.length > 0 ? `
                       setSelectedImport(null);
                       setImportRows([]);
                     }}
-                    className="w-full py-2.5 bg-red-50 text-red-600 text-sm font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-red-100 transition-colors"
+                    className="w-full py-2.5 bg-red-50 text-red-600 text-sm font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-red-100 transition-colors dark:bg-red-950/30 dark:text-red-400"
                   >
                     <Trash2 className="h-4 w-4" /> Supprimer cet import
                   </button>

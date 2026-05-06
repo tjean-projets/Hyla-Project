@@ -873,7 +873,7 @@ export default function Imports() {
                     <div key={i} className="text-xs text-foreground mb-1 flex items-center gap-2">
                       <span className="font-medium">{row[flow.mapping.name_col] || '—'}</span>
                       <span className="text-muted-foreground">→</span>
-                      <span className="text-emerald-600 font-semibold">{row[flow.mapping.amount_col] || '0'} €</span>
+                      <span className="text-emerald-600 font-semibold dark:text-emerald-400">{row[flow.mapping.amount_col] || '0'} €</span>
                       {flow.isMultiPeriod && flow.mapping.period_col && (
                         <span className="text-[#3b82f6] text-[10px] bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 rounded">
                           {parsePeriodCell(String(row[flow.mapping.period_col] || '')) || row[flow.mapping.period_col] || '?'}
@@ -899,12 +899,12 @@ export default function Imports() {
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-2">
                   <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-2.5 text-center">
-                    <CheckCircle className="h-4 w-4 text-green-600 mx-auto mb-1" />
+                    <CheckCircle className="h-4 w-4 text-green-600 mx-auto mb-1 dark:text-green-400" />
                     <p className="text-base font-bold text-green-700 dark:text-green-400">{autoMatched}</p>
                     <p className="text-[10px] text-green-600 dark:text-green-500">Auto-matchées</p>
                   </div>
                   <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-2.5 text-center">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 mx-auto mb-1" />
+                    <AlertTriangle className="h-4 w-4 text-amber-600 mx-auto mb-1 dark:text-amber-400" />
                     <p className="text-base font-bold text-amber-700 dark:text-amber-400">{manualNeeded}</p>
                     <p className="text-[10px] text-amber-600 dark:text-amber-500">À confirmer</p>
                   </div>

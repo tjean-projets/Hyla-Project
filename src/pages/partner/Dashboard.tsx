@@ -203,7 +203,7 @@ export default function PartnerDashboard() {
         {/* Install PWA banner */}
         {showInstallBanner && !isImpersonating && (
           <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20 p-3">
-            <Smartphone className="h-5 w-5 text-blue-600 shrink-0" />
+            <Smartphone className="h-5 w-5 text-blue-600 shrink-0 dark:text-blue-400" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Accès rapide</p>
               <p className="text-xs text-blue-600 dark:text-blue-400">

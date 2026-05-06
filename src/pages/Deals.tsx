@@ -377,9 +377,9 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
         </div>
       )}
       {form.status === 'signee' && parseFloat(form.amount) > 0 && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2">
-          <span className="text-emerald-600 text-xs font-medium">Commission auto :</span>
-          <span className="text-emerald-700 text-sm font-bold">{parseFloat(form.amount).toLocaleString('fr-FR')} €</span>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2 dark:bg-emerald-950/30 dark:border-emerald-800">
+          <span className="text-emerald-600 text-xs font-medium dark:text-emerald-400">Commission auto :</span>
+          <span className="text-emerald-700 text-sm font-bold dark:text-emerald-300">{parseFloat(form.amount).toLocaleString('fr-FR')} €</span>
           <span className="text-emerald-500 text-[10px]">sera créée à la validation</span>
         </div>
       )}
@@ -629,17 +629,17 @@ export default function Deals() {
           </div>
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
             <p className="text-[10px] text-muted-foreground uppercase font-semibold">En cours</p>
-            <p className="text-lg font-bold text-amber-600 mt-1">{pendingDeals.length}</p>
+            <p className="text-lg font-bold text-amber-600 mt-1 dark:text-amber-400">{pendingDeals.length}</p>
           </div>
         </div>
 
         {/* Estimation commissions réseau en cours */}
         {pendingWithSeller.length > 0 && (
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4">
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 dark:border-amber-800">
             <div className="flex items-center gap-2 mb-3">
-              <Clock className="h-4 w-4 text-amber-600" />
+              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               <p className="text-sm font-semibold text-amber-800">Commissions réseau en attente</p>
-              <span className="ml-auto text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">estimation</span>
+              <span className="ml-auto text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium dark:text-amber-300">estimation</span>
             </div>
             <div className="space-y-2">
               {pendingWithSeller.map((d: any) => {
@@ -655,17 +655,17 @@ export default function Deals() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-amber-700">+30 €</p>
+                      <p className="text-sm font-bold text-amber-700 dark:text-amber-300">+30 €</p>
                       <p className="text-[10px] text-muted-foreground">réseau</p>
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div className="mt-3 pt-3 border-t border-amber-200 flex items-center justify-between">
+            <div className="mt-3 pt-3 border-t border-amber-200 flex items-center justify-between dark:border-amber-800">
               <div className="flex items-center gap-1.5">
-                <TrendingUp className="h-3.5 w-3.5 text-amber-600" />
-                <span className="text-xs font-medium text-amber-700">{pendingWithSeller.length} vente(s) en cours</span>
+                <TrendingUp className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-300">{pendingWithSeller.length} vente(s) en cours</span>
               </div>
               <span className={`text-sm font-bold text-amber-800 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>~{amountsVisible ? pendingReseauEstim : '•••'} € estimés</span>
             </div>

@@ -131,7 +131,7 @@ export default function PublicProfilePage() {
             {initials}
           </div>
           <h1 className="text-2xl font-bold text-gray-900">{profileData.full_name}</h1>
-          <p className="text-sm text-blue-600 font-medium">{roleLabel}</p>
+          <p className="text-sm text-blue-600 font-medium dark:text-blue-400">{roleLabel}</p>
           <p className="text-xs text-gray-400 mt-1">Je vous accompagne dans votre découverte de Hyla</p>
         </div>
 
@@ -162,7 +162,7 @@ export default function PublicProfilePage() {
 
             <button
               onClick={() => setIntent('en_savoir_plus')}
-              className="w-full flex items-center gap-3 p-4 bg-white border-2 border-blue-200 text-blue-700 rounded-2xl font-semibold text-sm active:scale-[0.98] transition-transform"
+              className="w-full flex items-center gap-3 p-4 bg-white border-2 border-blue-200 text-blue-700 rounded-2xl font-semibold text-sm active:scale-[0.98] transition-transform dark:border-blue-800 dark:text-blue-300"
             >
               <Info className="h-6 w-6" />
               <div className="text-left">
@@ -185,7 +185,7 @@ export default function PublicProfilePage() {
               <button
                 type="button"
                 onClick={() => setIntent(null)}
-                className="text-xs text-blue-600 font-medium"
+                className="text-xs text-blue-600 font-medium dark:text-blue-400"
               >
                 ← Retour
               </button>

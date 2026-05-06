@@ -118,7 +118,7 @@ export default function Join() {
 
             <div className="rounded-lg bg-muted p-4 space-y-2">
               <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-emerald-600" />
+                <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <p className="text-sm font-medium">Avantages</p>
               </div>
               <ul className="text-xs text-muted-foreground space-y-1.5 ml-6">

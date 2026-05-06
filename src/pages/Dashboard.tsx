@@ -580,7 +580,7 @@ export default function Dashboard() {
         {myRecruitObjective && (
           <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-violet-50 dark:from-blue-950/30 dark:to-violet-950/30 border border-blue-200 dark:border-blue-800 p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-blue-600" />
+              <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               <h3 className="text-sm font-bold text-foreground">Mes objectifs avec {myRecruitObjective.managerName}</h3>
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -681,15 +681,15 @@ export default function Dashboard() {
             {showChallenge === 'countdown' && (
               <>
                 <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2 text-amber-600">
+                  <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                     <Timer className="h-5 w-5" />
                     Compte à Rebours Online
                   </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
-                  <div className="bg-amber-50 rounded-xl p-4">
+                  <div className="bg-amber-50 rounded-xl p-4 dark:bg-amber-950/30">
                     <p className="text-sm font-bold text-amber-800 mb-2">Comment ça marche ?</p>
-                    <p className="text-xs text-amber-700 leading-relaxed">
+                    <p className="text-xs text-amber-700 leading-relaxed dark:text-amber-300">
                       C'est un challenge de <span className="font-bold">{HYLA_CHALLENGES.countdown.months} mois</span> pour passer à l'action dès ton démarrage.
                       L'objectif est de réaliser <span className="font-bold">{HYLA_CHALLENGES.countdown.target} ventes</span> pendant cette période.
                       La <span className="font-bold">{HYLA_CHALLENGES.countdown.target}ème vente est sur-commissionnée à {HYLA_CHALLENGES.countdown.bonus}€</span> au lieu de la commission normale !
@@ -699,7 +699,7 @@ export default function Dashboard() {
                     <p className="text-xs font-semibold text-muted-foreground uppercase">Ta progression</p>
                     <div className="flex items-center justify-between">
                       <span className="text-2xl font-black text-foreground">{countdownSales}/{HYLA_CHALLENGES.countdown.target} ventes</span>
-                      <span className="text-sm font-bold text-amber-600">{countdownDaysLeft} jours restants</span>
+                      <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{countdownDaysLeft} jours restants</span>
                     </div>
                     <div className="h-3 rounded-full bg-amber-100 overflow-hidden">
                       <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all" style={{ width: `${countdownPct}%` }} />
@@ -710,8 +710,8 @@ export default function Dashboard() {
                     </div>
                   </div>
                   {countdownSales >= HYLA_CHALLENGES.countdown.target ? (
-                    <div className="bg-green-50 rounded-xl p-3 text-center">
-                      <p className="text-sm font-bold text-green-700">Challenge réussi ! +{HYLA_CHALLENGES.countdown.bonus}€ débloqué</p>
+                    <div className="bg-green-50 rounded-xl p-3 text-center dark:bg-green-950/30">
+                      <p className="text-sm font-bold text-green-700 dark:text-green-300">Challenge réussi ! +{HYLA_CHALLENGES.countdown.bonus}€ débloqué</p>
                     </div>
                   ) : (
                     <div className="bg-muted rounded-xl p-3">
@@ -727,15 +727,15 @@ export default function Dashboard() {
             {showChallenge === 'rookie' && (
               <>
                 <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2 text-violet-600">
+                  <DialogTitle className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
                     <Trophy className="h-5 w-5" />
                     Rookie Online
                   </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
-                  <div className="bg-violet-50 rounded-xl p-4">
+                  <div className="bg-violet-50 rounded-xl p-4 dark:bg-violet-950/30">
                     <p className="text-sm font-bold text-violet-800 mb-2">Comment ça marche ?</p>
-                    <p className="text-xs text-violet-700 leading-relaxed">
+                    <p className="text-xs text-violet-700 leading-relaxed dark:text-violet-300">
                       Chaque recrue dispose de <span className="font-bold">{HYLA_CHALLENGES.rookie.months} mois</span> pour réaliser
                       <span className="font-bold"> {HYLA_CHALLENGES.rookie.target - 1} ventes</span> à partir de sa date de signature de contrat.
                       La <span className="font-bold">{HYLA_CHALLENGES.rookie.target}ème vente déclenche une super-commission de {HYLA_CHALLENGES.rookie.bonus}€</span>.
@@ -745,7 +745,7 @@ export default function Dashboard() {
                     <p className="text-xs font-semibold text-muted-foreground uppercase">Ta progression</p>
                     <div className="flex items-center justify-between">
                       <span className="text-2xl font-black text-foreground">{rookieSales}/{HYLA_CHALLENGES.rookie.target} ventes</span>
-                      <span className="text-sm font-bold text-violet-600">{rookieDaysLeft} jours restants</span>
+                      <span className="text-sm font-bold text-violet-600 dark:text-violet-400">{rookieDaysLeft} jours restants</span>
                     </div>
                     <div className="h-3 rounded-full bg-violet-100 overflow-hidden">
                       <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all" style={{ width: `${rookiePct}%` }} />
@@ -827,7 +827,7 @@ export default function Dashboard() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-3 border border-amber-200 dark:border-amber-800">
-                <p className="text-[9px] font-semibold text-amber-600 uppercase mb-1">Attendue</p>
+                <p className="text-[9px] font-semibold text-amber-600 uppercase mb-1 dark:text-amber-400">Attendue</p>
                 <p className={`text-lg font-bold text-amber-700 dark:text-amber-400 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>
                   {fmtAmt(comAttendue)} <span className="text-xs font-normal">€</span>
                 </p>
@@ -899,14 +899,14 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-xl bg-violet-100 flex items-center justify-center">
-                  <GraduationCap className="h-4 w-4 text-violet-600" />
+                  <GraduationCap className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-foreground">Formation</p>
                   <p className="text-xs text-muted-foreground">{completedLessons ?? 0} / {totalLessons ?? 0} leçons</p>
                 </div>
               </div>
-              <span className="text-lg font-bold text-violet-600">
+              <span className="text-lg font-bold text-violet-600 dark:text-violet-400">
                 {totalLessons ? Math.round(((completedLessons ?? 0) / totalLessons) * 100) : 0}%
               </span>
             </div>
@@ -982,10 +982,10 @@ export default function Dashboard() {
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase text-muted-foreground">Progression niveau</p>
                 <p className="text-sm font-bold text-foreground mt-0.5 break-words">
-                  {HYLA_LEVELS[myLevelIdx]?.label} → <span className="text-violet-600">{nextLevel.label}</span>
+                  {HYLA_LEVELS[myLevelIdx]?.label} → <span className="text-violet-600 dark:text-violet-400">{nextLevel.label}</span>
                 </p>
               </div>
-              <span className="text-sm font-bold text-violet-600 flex-shrink-0">{conditionsMet}/{conditionsTotal}</span>
+              <span className="text-sm font-bold text-violet-600 flex-shrink-0 dark:text-violet-400">{conditionsMet}/{conditionsTotal}</span>
             </div>
 
             {/* Barre de progression globale */}

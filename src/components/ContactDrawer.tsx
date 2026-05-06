@@ -399,7 +399,7 @@ export function ContactDrawer({ contact, onClose, onEdit }: ContactDrawerProps) 
                 </div>
                 <button
                   onClick={() => { setEditingTemplate(null); setTplForm({ name: '', body: '' }); setShowTemplateForm(true); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/30 text-blue-600 font-semibold text-xs rounded-lg hover:bg-blue-100 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/30 text-blue-600 font-semibold text-xs rounded-lg hover:bg-blue-100 transition-colors dark:text-blue-400"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Nouveau

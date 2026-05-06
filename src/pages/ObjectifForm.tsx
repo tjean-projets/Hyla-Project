@@ -164,7 +164,7 @@ export default function ObjectifForm() {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Ce mois-ci */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <h2 className="text-sm font-bold text-blue-600 uppercase tracking-wider mb-3">Ce mois-ci</h2>
+            <h2 className="text-sm font-bold text-blue-600 uppercase tracking-wider mb-3 dark:text-blue-400">Ce mois-ci</h2>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-gray-500 block mb-1">Mon objectif principal</label>
@@ -190,7 +190,7 @@ export default function ObjectifForm() {
 
           {/* Dans 3 mois */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <h2 className="text-sm font-bold text-amber-600 uppercase tracking-wider mb-3">Dans 3 mois</h2>
+            <h2 className="text-sm font-bold text-amber-600 uppercase tracking-wider mb-3 dark:text-amber-400">Dans 3 mois</h2>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-gray-500 block mb-1">Où je veux en être</label>
@@ -216,7 +216,7 @@ export default function ObjectifForm() {
 
           {/* Dans 1 an */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <h2 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-3">Dans 1 an</h2>
+            <h2 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-3 dark:text-emerald-400">Dans 1 an</h2>
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-gray-500 block mb-1">Ma vision</label>
@@ -242,7 +242,7 @@ export default function ObjectifForm() {
 
           {/* Actions */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <h2 className="text-sm font-bold text-violet-600 uppercase tracking-wider mb-3">Mes actions</h2>
+            <h2 className="text-sm font-bold text-violet-600 uppercase tracking-wider mb-3 dark:text-violet-400">Mes actions</h2>
             <textarea value={form.actions} onChange={(e) => setForm({ ...form, actions: e.target.value })}
               placeholder="Ex: Je poste 3x/semaine sur Instagram, je fais 2 démos/semaine, je contacte 5 prospects/jour..."
               rows={3} className={inputClass} />

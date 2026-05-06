@@ -251,7 +251,7 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, isInTeam, onAdd
       {!isEdit && duplicates.length > 0 && (
         <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
           <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">Contact similaire détecté</span>
           </div>
           {duplicates.map(dup => (
@@ -417,7 +417,7 @@ function ContactForm({ onSuccess, stages, initialData, onDelete, isInTeam, onAdd
         </button>
       )}
       {isEdit && isInTeam && (
-        <div className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-50 text-emerald-700 font-medium rounded-xl border border-emerald-200">
+        <div className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-50 text-emerald-700 font-medium rounded-xl border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800">
           <CheckCircle2 className="h-4 w-4" />
           Déjà dans ton équipe
         </div>
@@ -935,7 +935,7 @@ export default function Contacts() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`font-medium text-foreground transition-all ${!amountsVisible ? 'blur-sm select-none pointer-events-none' : ''}`}>{contact.first_name} {contact.last_name}</span>
                         {needsRelance(contact) && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:text-orange-300">
                             <AlertTriangle className="h-2.5 w-2.5" />À relancer
                           </span>
                         )}
@@ -1030,7 +1030,7 @@ export default function Contacts() {
                             {CONTACT_STATUS_LABELS[contact.status]}
                           </span>
                           {needsRelance(contact) && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 dark:text-orange-300">
                               <AlertTriangle className="h-2.5 w-2.5" />À relancer
                             </span>
                           )}

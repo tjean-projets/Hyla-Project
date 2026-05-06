@@ -293,7 +293,7 @@ export default function Finances() {
           </div>
           <div className="rounded-lg border bg-card p-4">
             <p className="text-xs text-muted-foreground mb-1">Marge Nette</p>
-            <p className="text-lg font-bold text-emerald-600">{(totalUnpaidCourtage + totalUnpaidGross - totalUnpaidPartner).toLocaleString('fr-FR')} €</p>
+            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{(totalUnpaidCourtage + totalUnpaidGross - totalUnpaidPartner).toLocaleString('fr-FR')} €</p>
           </div>
         </div>
 
@@ -400,7 +400,7 @@ export default function Finances() {
                         <TableCell className="text-sm font-medium tabular-nums">{gross.toLocaleString('fr-FR')} €</TableCell>
                         <TableCell className="text-sm">{rate}%</TableCell>
                         <TableCell className="text-sm tabular-nums">{partnerComm.toLocaleString('fr-FR')} €</TableCell>
-                        <TableCell className="text-sm font-semibold text-emerald-600 tabular-nums">{margin.toLocaleString('fr-FR')} €</TableCell>
+                        <TableCell className="text-sm font-semibold text-emerald-600 tabular-nums dark:text-emerald-400">{margin.toLocaleString('fr-FR')} €</TableCell>
                         {tab === 'unpaid' && (
                           <TableCell>
                             <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleMarkPaid(lead.id)}>

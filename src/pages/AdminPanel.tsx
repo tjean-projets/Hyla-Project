@@ -300,21 +300,21 @@ export default function AdminPanel() {
 
         {/* Stats cards */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="bg-blue-50 rounded-xl p-3 text-center">
+          <div className="bg-blue-50 rounded-xl p-3 text-center dark:bg-blue-950/30">
             <Users className="h-4 w-4 text-blue-500 mx-auto mb-1" />
-            <p className="text-lg font-black text-blue-700">{profiles.length}</p>
+            <p className="text-lg font-black text-blue-700 dark:text-blue-300">{profiles.length}</p>
             <p className="text-[10px] text-blue-500">Utilisateurs</p>
           </div>
-          <div className="bg-green-50 rounded-xl p-3 text-center">
+          <div className="bg-green-50 rounded-xl p-3 text-center dark:bg-green-950/30">
             <Network className="h-4 w-4 text-green-500 mx-auto mb-1" />
-            <p className="text-lg font-black text-green-700">
+            <p className="text-lg font-black text-green-700 dark:text-green-300">
               {profiles.filter(p => p.sponsor_user_id).length}
             </p>
             <p className="text-[10px] text-green-500">Parrainés</p>
           </div>
-          <div className="bg-purple-50 rounded-xl p-3 text-center">
+          <div className="bg-purple-50 rounded-xl p-3 text-center dark:bg-purple-950/30">
             <TrendingUp className="h-4 w-4 text-purple-500 mx-auto mb-1" />
-            <p className="text-lg font-black text-purple-700">
+            <p className="text-lg font-black text-purple-700 dark:text-purple-300">
               {new Set(profiles.map(p => p.sponsor_user_id).filter(Boolean)).size}
             </p>
             <p className="text-[10px] text-purple-500">Parrains actifs</p>
@@ -355,7 +355,7 @@ export default function AdminPanel() {
                 {profile.id !== user?.id && (
                   <button
                     onClick={(e) => { e.stopPropagation(); viewAsUser(profile); }}
-                    className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 hover:bg-blue-100 active:scale-95 transition-all flex-shrink-0"
+                    className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 hover:bg-blue-100 active:scale-95 transition-all flex-shrink-0 dark:bg-blue-950/30"
                     title={`Voir le compte de ${profile.full_name}`}
                   >
                     <Eye className="h-4 w-4" />
@@ -441,24 +441,24 @@ export default function AdminPanel() {
                     </div>
                   ) : userStats && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      <div className="bg-blue-50 rounded-lg p-2.5 text-center">
+                      <div className="bg-blue-50 rounded-lg p-2.5 text-center dark:bg-blue-950/30">
                         <ShoppingBag className="h-3.5 w-3.5 text-blue-500 mx-auto mb-0.5" />
-                        <p className="text-sm font-black text-blue-700">{userStats.deals}</p>
+                        <p className="text-sm font-black text-blue-700 dark:text-blue-300">{userStats.deals}</p>
                         <p className="text-[9px] text-blue-500">Ventes</p>
                       </div>
-                      <div className="bg-green-50 rounded-lg p-2.5 text-center">
+                      <div className="bg-green-50 rounded-lg p-2.5 text-center dark:bg-green-950/30">
                         <TrendingUp className="h-3.5 w-3.5 text-green-500 mx-auto mb-0.5" />
-                        <p className="text-sm font-black text-green-700">{userStats.ca.toLocaleString()}€</p>
+                        <p className="text-sm font-black text-green-700 dark:text-green-300">{userStats.ca.toLocaleString()}€</p>
                         <p className="text-[9px] text-green-500">CA Total</p>
                       </div>
-                      <div className="bg-purple-50 rounded-lg p-2.5 text-center">
+                      <div className="bg-purple-50 rounded-lg p-2.5 text-center dark:bg-purple-950/30">
                         <DollarSign className="h-3.5 w-3.5 text-purple-500 mx-auto mb-0.5" />
-                        <p className="text-sm font-black text-purple-700">{userStats.commissions.toLocaleString()}€</p>
+                        <p className="text-sm font-black text-purple-700 dark:text-purple-300">{userStats.commissions.toLocaleString()}€</p>
                         <p className="text-[9px] text-purple-500">Commissions</p>
                       </div>
-                      <div className="bg-amber-50 rounded-lg p-2.5 text-center">
+                      <div className="bg-amber-50 rounded-lg p-2.5 text-center dark:bg-amber-950/30">
                         <Users className="h-3.5 w-3.5 text-amber-500 mx-auto mb-0.5" />
-                        <p className="text-sm font-black text-amber-700">{userStats.team}</p>
+                        <p className="text-sm font-black text-amber-700 dark:text-amber-300">{userStats.team}</p>
                         <p className="text-[9px] text-amber-500">Équipe</p>
                       </div>
                       <div className="bg-gray-50 rounded-lg p-2.5 text-center col-span-2">
@@ -474,7 +474,7 @@ export default function AdminPanel() {
                     {selectedUser.id !== user?.id && (
                       <button
                         onClick={() => { setSelectedUser(null); viewAsUser(selectedUser); }}
-                        className="w-full py-2.5 bg-blue-50 text-blue-600 font-semibold text-sm rounded-xl flex items-center justify-center gap-2 active:scale-[0.98]"
+                        className="w-full py-2.5 bg-blue-50 text-blue-600 font-semibold text-sm rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] dark:bg-blue-950/30 dark:text-blue-400"
                       >
                         <Eye className="h-4 w-4" />
                         Voir son compte
@@ -486,7 +486,7 @@ export default function AdminPanel() {
                         setDeleteTarget(selectedUser);
                         setDeleteStep(1);
                       }}
-                      className="w-full py-2.5 bg-red-50 text-red-600 font-semibold text-sm rounded-xl flex items-center justify-center gap-2 active:scale-[0.98]"
+                      className="w-full py-2.5 bg-red-50 text-red-600 font-semibold text-sm rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] dark:bg-red-950/30 dark:text-red-400"
                     >
                       <UserMinus className="h-4 w-4" />
                       Désactiver ce compte
@@ -502,7 +502,7 @@ export default function AdminPanel() {
         <Dialog open={deleteStep === 1} onOpenChange={(open) => { if (!open) { setDeleteStep(0); setDeleteTarget(null); } }}>
           <DialogContent className="max-w-sm mx-4">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-red-600">
+              <DialogTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
                 <AlertTriangle className="h-5 w-5" />
                 Désactiver le compte
               </DialogTitle>
@@ -532,7 +532,7 @@ export default function AdminPanel() {
         <Dialog open={deleteStep === 2} onOpenChange={(open) => { if (!open) { setDeleteStep(0); setDeleteTarget(null); setConfirmName(''); } }}>
           <DialogContent className="max-w-sm mx-4">
             <DialogHeader>
-              <DialogTitle className="text-red-600">Confirmation finale</DialogTitle>
+              <DialogTitle className="text-red-600 dark:text-red-400">Confirmation finale</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-gray-600">
               Tapez le nom complet <span className="font-bold">{deleteTarget?.full_name}</span> pour confirmer :

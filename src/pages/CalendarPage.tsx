@@ -382,7 +382,7 @@ export default function CalendarPage() {
           {googleConnected ? (
             <button
               onClick={disconnectGoogle}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors dark:text-blue-400 dark:bg-blue-950/30 dark:border-blue-800"
               title="Déconnecter Google Agenda"
             >
               <img src="https://www.google.com/favicon.ico" className="h-3 w-3" alt="" />
@@ -650,19 +650,19 @@ export default function CalendarPage() {
                           <div className="flex items-center gap-2 mt-2 flex-wrap">
                             {apt.status !== 'realise' && (
                               <button onClick={() => updateAptStatus.mutate({ id: apt.id, status: 'realise' })}
-                                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors dark:bg-blue-950/30 dark:text-blue-400">
                                 ✓ Réalisé
                               </button>
                             )}
                             {apt.status !== 'annule' && (
                               <button onClick={() => updateAptStatus.mutate({ id: apt.id, status: 'annule' })}
-                                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+                                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors dark:bg-red-950/30 dark:text-red-400">
                                 ✕ Annulé
                               </button>
                             )}
                             {apt.status !== 'reporte' && (
                               <button onClick={() => updateAptStatus.mutate({ id: apt.id, status: 'reporte' })}
-                                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors">
+                                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors dark:bg-amber-950/30 dark:text-amber-400">
                                 ↩ Reporté
                               </button>
                             )}

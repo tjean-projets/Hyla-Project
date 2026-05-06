@@ -57,21 +57,21 @@ function InviteLinkSection({ inviteCode, fullName }: { inviteCode?: string | nul
   if (!inviteCode) return null;
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-4 sm:p-5">
+    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-4 sm:p-5 dark:border-blue-900">
       <div className="flex items-center gap-2 mb-1">
-        <Link2 className="h-4 w-4 text-blue-600" />
+        <Link2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
         <h3 className="text-base font-semibold text-foreground">Lien d'invitation</h3>
       </div>
       <p className="text-xs text-muted-foreground mb-4">
         Partagez ce lien pour inviter un autre manager ou conseiller à créer son espace Triibu. Aucun lien de subordination n'est créé — la personne aura son propre espace indépendant.
       </p>
-      <div className="bg-card rounded-xl border border-blue-200 p-3 flex items-center gap-2">
-        <code className="flex-1 text-xs text-blue-700 truncate font-mono">{inviteLink}</code>
+      <div className="bg-card rounded-xl border border-blue-200 p-3 flex items-center gap-2 dark:border-blue-800">
+        <code className="flex-1 text-xs text-blue-700 truncate font-mono dark:text-blue-300">{inviteLink}</code>
       </div>
       <div className="flex gap-2 mt-3">
         <button
           onClick={copyLink}
-          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-card border border-blue-200 text-blue-700 font-semibold text-sm rounded-xl active:scale-[0.98] transition-transform"
+          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-card border border-blue-200 text-blue-700 font-semibold text-sm rounded-xl active:scale-[0.98] transition-transform dark:border-blue-800 dark:text-blue-300"
         >
           {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
           {copied ? 'Copié !' : 'Copier le lien'}
@@ -134,9 +134,9 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
   if (!inviteCode) return null;
 
   return (
-    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100 p-4 sm:p-5">
+    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100 p-4 sm:p-5 dark:border-green-900">
       <div className="flex items-center gap-2 mb-1">
-        <Users className="h-4 w-4 text-green-600" />
+        <Users className="h-4 w-4 text-green-600 dark:text-green-400" />
         <h3 className="text-base font-semibold text-foreground">Page de contact</h3>
       </div>
       <p className="text-xs text-muted-foreground mb-4">
@@ -148,13 +148,13 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs font-semibold text-foreground">Lien Bio (permanent)</span>
           {leadCounts && leadCounts.bio > 0 && (
-            <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full dark:text-green-400">
               {leadCounts.bio} lead{leadCounts.bio > 1 ? 's' : ''}
             </span>
           )}
         </div>
         <div className="flex gap-2">
-          <code className="flex-1 bg-card rounded-lg border border-green-200 px-3 py-2 text-[11px] text-green-700 truncate font-mono">
+          <code className="flex-1 bg-card rounded-lg border border-green-200 px-3 py-2 text-[11px] text-green-700 truncate font-mono dark:border-green-800 dark:text-green-300">
             {bioLink}
           </code>
           <button
@@ -177,7 +177,7 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
           )}
         </div>
         <div className="flex gap-2">
-          <code className="flex-1 bg-card rounded-lg border border-purple-200 px-3 py-2 text-[11px] text-purple-700 truncate font-mono">
+          <code className="flex-1 bg-card rounded-lg border border-purple-200 px-3 py-2 text-[11px] text-purple-700 truncate font-mono dark:text-purple-300">
             {storyLink}
           </code>
           <button
@@ -194,13 +194,13 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs font-semibold text-foreground">Lien Direct (message privé)</span>
           {leadCounts && leadCounts.direct > 0 && (
-            <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full dark:text-blue-400">
               {leadCounts.direct} lead{leadCounts.direct > 1 ? 's' : ''}
             </span>
           )}
         </div>
         <div className="flex gap-2">
-          <code className="flex-1 bg-card rounded-lg border border-blue-200 px-3 py-2 text-[11px] text-blue-700 truncate font-mono">
+          <code className="flex-1 bg-card rounded-lg border border-blue-200 px-3 py-2 text-[11px] text-blue-700 truncate font-mono dark:border-blue-800 dark:text-blue-300">
             {directLink}
           </code>
           <button
@@ -615,8 +615,8 @@ export default function SettingsPage() {
 
         {/* Impersonation banner */}
         {isImpersonating && (
-          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-            <Eye className="h-4 w-4 text-amber-600 flex-shrink-0" />
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 dark:bg-amber-950/30 dark:border-amber-800">
+            <Eye className="h-4 w-4 text-amber-600 flex-shrink-0 dark:text-amber-400" />
             <p className="text-sm text-amber-800 font-medium break-words">
               Vue en lecture — profil de <strong>{profile?.full_name || 'ce partenaire'}</strong>. Les modifications ne sont pas disponibles en mode impersonation.
             </p>
@@ -633,16 +633,16 @@ export default function SettingsPage() {
                 <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">Accès partenaire</span>
               )}
               {isTrial && (
-                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">Essai gratuit</span>
+                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:text-amber-300">Essai gratuit</span>
               )}
               {plan === 'conseillere' && !isTrial && (
-                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">Conseillère — 9,99€/mois</span>
+                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 dark:text-blue-300">Conseillère — 9,99€/mois</span>
               )}
               {plan === 'manager' && !isTrial && (
-                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-violet-100 text-violet-700">PRO — 29,99€/mois</span>
+                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-violet-100 text-violet-700 dark:text-violet-300">PRO — 29,99€/mois</span>
               )}
               {(plan === 'expired' || (!isTrial && planStatus === 'expired')) && plan !== 'legacy' && plan !== 'conseillere' && plan !== 'manager' && (
-                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-600">Expiré</span>
+                <span className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-600 dark:text-red-400">Expiré</span>
               )}
             </div>
 
@@ -650,7 +650,7 @@ export default function SettingsPage() {
             {isTrial && (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Il te reste <strong className="text-amber-600">{trialDaysLeft} jour{trialDaysLeft > 1 ? 's' : ''}</strong> d'essai gratuit
+                  Il te reste <strong className="text-amber-600 dark:text-amber-400">{trialDaysLeft} jour{trialDaysLeft > 1 ? 's' : ''}</strong> d'essai gratuit
                   {trialEndsAt && (
                     <> (jusqu'au {trialEndsAt.toLocaleDateString('fr-FR')})</>
                   )}.
@@ -696,7 +696,7 @@ export default function SettingsPage() {
             {/* Expiré */}
             {plan === 'expired' && (
               <div className="space-y-3">
-                <p className="text-sm text-red-600 font-medium">Ton accès a expiré. Souscris à un plan pour réactiver l'application.</p>
+                <p className="text-sm text-red-600 font-medium dark:text-red-400">Ton accès a expiré. Souscris à un plan pour réactiver l'application.</p>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={() => goToCheckout('conseillere')}
@@ -722,11 +722,11 @@ export default function SettingsPage() {
           <div className="space-y-4">
             {/* ID Triibu */}
             {profile?.invite_code && (
-              <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-3">
-                <Fingerprint className="h-5 w-5 text-blue-600 flex-shrink-0" />
+              <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-3 dark:border-blue-900">
+                <Fingerprint className="h-5 w-5 text-blue-600 flex-shrink-0 dark:text-blue-400" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase">Mon ID Triibu</p>
-                  <p className="text-sm font-bold text-blue-700 font-mono">{profile.invite_code.toUpperCase()}</p>
+                  <p className="text-sm font-bold text-blue-700 font-mono dark:text-blue-300">{profile.invite_code.toUpperCase()}</p>
                 </div>
                 <button
                   onClick={() => {
@@ -890,7 +890,7 @@ export default function SettingsPage() {
                           <span className="text-muted-foreground">
                             {new Date(pc.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} → {new Date(pc.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                           </span>
-                          {pc.reward && <span className="text-amber-600">🏆 {pc.reward}</span>}
+                          {pc.reward && <span className="text-amber-600 dark:text-amber-400">🏆 {pc.reward}</span>}
                           {!isActive && <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-semibold">{pc.status}</span>}
                         </div>
                       </div>
@@ -998,7 +998,7 @@ export default function SettingsPage() {
         {!isImpersonating && (
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-1">
-              <Target className="h-4 w-4 text-blue-600" />
+              <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               <h3 className="text-base font-semibold text-foreground">Mes objectifs personnels</h3>
             </div>
             <p className="text-xs text-muted-foreground mb-4">
@@ -1043,7 +1043,7 @@ export default function SettingsPage() {
         {!isImpersonating && (
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-4 w-4 text-violet-600" />
+              <TrendingUp className="h-4 w-4 text-violet-600 dark:text-violet-400" />
               <h3 className="text-base font-semibold text-foreground">Mon niveau Hyla</h3>
               <span className="ml-auto text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Attribué par Hyla</span>
             </div>
@@ -1065,10 +1065,10 @@ export default function SettingsPage() {
                       <p className="text-[11px] text-violet-500">{current?.conditions}</p>
                     </div>
                     <div className="flex-shrink-0 text-right">
-                      <p className="text-base font-bold text-violet-600">{current?.recruteCommission}€</p>
+                      <p className="text-base font-bold text-violet-600 dark:text-violet-400">{current?.recruteCommission}€</p>
                       <p className="text-[9px] text-violet-400">/ recrue</p>
                     </div>
-                    <Check className="h-4 w-4 text-violet-600 flex-shrink-0" />
+                    <Check className="h-4 w-4 text-violet-600 flex-shrink-0 dark:text-violet-400" />
                   </div>
 
                   {/* Niveaux suivants — grisés */}
@@ -1089,7 +1089,7 @@ export default function SettingsPage() {
                   {/* Message prochain niveau */}
                   {next && (
                     <p className="text-[11px] text-muted-foreground text-center pt-1">
-                      Prochain niveau : <span className="font-semibold text-violet-600">{next.label}</span> — vois ta progression sur le Dashboard
+                      Prochain niveau : <span className="font-semibold text-violet-600 dark:text-violet-400">{next.label}</span> — vois ta progression sur le Dashboard
                     </p>
                   )}
 
@@ -1113,7 +1113,7 @@ export default function SettingsPage() {
                         >
                           <div className={`h-2 w-2 rounded-full bg-gradient-to-br ${lvl.color} flex-shrink-0`} />
                           {lvl.label}
-                          {hylaLevel === lvl.value && <Check className="h-3 w-3 ml-auto text-violet-600" />}
+                          {hylaLevel === lvl.value && <Check className="h-3 w-3 ml-auto text-violet-600 dark:text-violet-400" />}
                         </button>
                       ))}
                     </div>
@@ -1132,7 +1132,7 @@ export default function SettingsPage() {
         {/* Form Builder */}
         <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-1">
-            <FileText className="h-4 w-4 text-blue-600" />
+            <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <h3 className="text-base font-semibold text-foreground">Formulaire objectifs</h3>
           </div>
           <p className="text-xs text-muted-foreground mb-4">
@@ -1219,11 +1219,11 @@ export default function SettingsPage() {
         <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
-              <Smartphone className="h-4 w-4 text-blue-600" />
+              <Smartphone className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               <h3 className="text-base font-semibold text-foreground">Barre de navigation</h3>
             </div>
             {selectedTabs.length >= 2 && (
-              <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">Appliqué ✓</span>
+              <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full dark:text-emerald-400">Appliqué ✓</span>
             )}
           </div>
           <p className="text-xs text-muted-foreground mb-4">
@@ -1332,7 +1332,7 @@ export default function SettingsPage() {
                   <span className={`text-[10px] font-bold w-4 flex-shrink-0 ${isInBar ? 'text-blue-500' : 'text-muted-foreground'}`}>
                     {index + 1}
                   </span>
-                  <Icon className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                  <Icon className="h-4 w-4 text-blue-600 flex-shrink-0 dark:text-blue-400" />
                   <span className="text-sm font-medium text-blue-900 dark:text-blue-100 flex-1">{tab.label}</span>
                   {!isInBar && (
                     <span className="text-[9px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">Plus</span>
@@ -1383,14 +1383,14 @@ export default function SettingsPage() {
           </div>
 
           {selectedTabs.length < 2 && (
-            <p className="text-[11px] text-amber-600 text-center mt-3 font-medium">Active au moins 2 onglets</p>
+            <p className="text-[11px] text-amber-600 text-center mt-3 font-medium dark:text-amber-400">Active au moins 2 onglets</p>
           )}
         </div>
         {/* Purge Data — hidden when impersonating */}
-        {!isImpersonating && <div className="bg-card rounded-2xl shadow-sm border border-red-100 p-4 sm:p-5">
+        {!isImpersonating && <div className="bg-card rounded-2xl shadow-sm border border-red-100 p-4 sm:p-5 dark:border-red-900">
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle className="h-4 w-4 text-red-500" />
-            <h3 className="text-base font-semibold text-red-600">Zone dangereuse</h3>
+            <h3 className="text-base font-semibold text-red-600 dark:text-red-400">Zone dangereuse</h3>
           </div>
           <p className="text-xs text-muted-foreground mb-4">
             Supprimez toutes vos données (contacts, ventes, tâches, commissions, réseau, leads). Votre compte sera conservé.
@@ -1398,15 +1398,15 @@ export default function SettingsPage() {
           {!showPurge ? (
             <button
               onClick={() => setShowPurge(true)}
-              className="w-full py-3 border-2 border-red-200 text-red-600 font-semibold rounded-xl text-sm hover:bg-red-50 transition-colors"
+              className="w-full py-3 border-2 border-red-200 text-red-600 font-semibold rounded-xl text-sm hover:bg-red-50 transition-colors dark:border-red-800 dark:text-red-400"
             >
               Supprimer toutes mes données
             </button>
           ) : (
             <div className="space-y-3">
-              <div className="bg-red-50 rounded-xl p-3">
-                <p className="text-xs text-red-700 font-medium mb-1">⚠️ Cette action est irréversible !</p>
-                <p className="text-[11px] text-red-600">
+              <div className="bg-red-50 rounded-xl p-3 dark:bg-red-950/30">
+                <p className="text-xs text-red-700 font-medium mb-1 dark:text-red-300">⚠️ Cette action est irréversible !</p>
+                <p className="text-[11px] text-red-600 dark:text-red-400">
                   Tapez <strong>SUPPRIMER</strong> pour confirmer la suppression de toutes vos données.
                 </p>
               </div>
@@ -1414,7 +1414,7 @@ export default function SettingsPage() {
                 value={purgeConfirm}
                 onChange={(e) => setPurgeConfirm(e.target.value)}
                 placeholder="Tapez SUPPRIMER"
-                className="h-11 border-red-200 focus:ring-red-500/30"
+                className="h-11 border-red-200 focus:ring-red-500/30 dark:border-red-800"
               />
               <div className="flex gap-2">
                 <button

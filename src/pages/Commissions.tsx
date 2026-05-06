@@ -367,7 +367,7 @@ export default function Commissions() {
                   <div key={m.id} className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
                     <div className="flex items-center gap-3 p-4 cursor-pointer hover:bg-muted transition-colors" onClick={() => setExpandedMemberId(isExpanded ? null : m.id)}>
                       <div className="h-10 w-10 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-violet-700 font-bold text-xs">{m.first_name.charAt(0)}{m.last_name.charAt(0)}</span>
+                        <span className="text-violet-700 font-bold text-xs dark:text-violet-300">{m.first_name.charAt(0)}{m.last_name.charAt(0)}</span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
@@ -486,13 +486,13 @@ export default function Commissions() {
                 </div>
                 <p className="text-lg font-bold text-muted-foreground">0 €</p>
               </div>
-              <div className="rounded-xl p-3 border border-orange-200 bg-orange-50">
+              <div className="rounded-xl p-3 border border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30">
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-xs text-orange-700 font-semibold">Case 2 — Prestations de services (BIC)</span>
-                  <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-semibold">Commissions MLM</span>
+                  <span className="text-xs text-orange-700 font-semibold dark:text-orange-300">Case 2 — Prestations de services (BIC)</span>
+                  <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-semibold dark:text-orange-300">Commissions MLM</span>
                 </div>
                 <p className={`text-lg font-bold text-orange-800 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(total)} €</p>
-                <div className="flex gap-4 mt-1 text-[10px] text-orange-600">
+                <div className="flex gap-4 mt-1 text-[10px] text-orange-600 dark:text-orange-400">
                   <span className={`transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>Directes : {fmtAmt(totalDirecte)} €</span>
                   <span className={`transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>Réseau : {fmtAmt(totalReseau)} €</span>
                 </div>
@@ -512,7 +512,7 @@ export default function Commissions() {
               <button onClick={exportComptableCSV} className="flex-1 py-2 flex items-center justify-center gap-1.5 text-xs font-semibold border border-border rounded-xl text-muted-foreground hover:bg-muted transition-colors">
                 <Download className="h-3.5 w-3.5" /> CSV
               </button>
-              <button onClick={exportPersonalXLSX} className="flex-1 py-2 flex items-center justify-center gap-1.5 text-xs font-semibold border border-emerald-200 rounded-xl text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors">
+              <button onClick={exportPersonalXLSX} className="flex-1 py-2 flex items-center justify-center gap-1.5 text-xs font-semibold border border-emerald-200 rounded-xl text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors dark:border-emerald-800 dark:text-emerald-400">
                 <Download className="h-3.5 w-3.5" /> Excel (.xlsx)
               </button>
             </div>
@@ -557,12 +557,12 @@ export default function Commissions() {
         {pending.length > 0 && (
           <div className="bg-amber-50/50 dark:bg-amber-950/10 rounded-2xl border border-amber-200 dark:border-amber-800 overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-amber-200 dark:border-amber-800">
-              <Clock className="h-4 w-4 text-amber-600" />
+              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               <h3 className="text-sm font-semibold text-foreground">Com attendues</h3>
               <span className="ml-1 inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 text-[10px] font-bold">
                 {pending.length}
               </span>
-              <span className="ml-auto text-[10px] text-amber-600 font-medium">Depuis vos saisies · en attente import TRV</span>
+              <span className="ml-auto text-[10px] text-amber-600 font-medium dark:text-amber-400">Depuis vos saisies · en attente import TRV</span>
             </div>
             <div className="divide-y divide-amber-200 dark:divide-amber-800">
               {(() => {
@@ -584,7 +584,7 @@ export default function Commissions() {
                           {p.status === 'en_cours' ? 'En cours' : 'En attente'}
                         </span>
                         {p.seller_first_name && (
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-100 text-violet-700">
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-100 text-violet-700 dark:text-violet-300">
                             Via {p.seller_first_name}
                           </span>
                         )}
@@ -611,7 +611,7 @@ export default function Commissions() {
         {myLevel !== 'vendeur' && (
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Users className="h-4 w-4 text-emerald-600" />
+              <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               <h3 className="text-sm font-semibold text-foreground">Prime de gestion de groupe</h3>
               <span className="ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300">
                 {HYLA_LEVELS.find(l => l.value === myLevel)?.label}
@@ -629,7 +629,7 @@ export default function Commissions() {
                 return (
                   <div key={threshold} className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border">
                     <span className="text-xs text-foreground">{label}</span>
-                    <span className="text-sm font-bold text-emerald-600">+{prime} €<span className="text-[10px] font-normal text-muted-foreground ml-1">/ machine</span></span>
+                    <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">+{prime} €<span className="text-[10px] font-normal text-muted-foreground ml-1">/ machine</span></span>
                   </div>
                 );
               })}
@@ -640,9 +640,9 @@ export default function Commissions() {
         {/* ── Tableau détail — commissions confirmées (import TRV) ── */}
         <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
-            <Check className="h-3.5 w-3.5 text-emerald-600" />
+            <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             <span className="text-xs font-semibold text-foreground">Commissions confirmées</span>
-            <span className="text-[10px] text-emerald-600 font-medium ml-1">Source : Import TRV Hyla</span>
+            <span className="text-[10px] text-emerald-600 font-medium ml-1 dark:text-emerald-400">Source : Import TRV Hyla</span>
           </div>
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="bg-muted border-b border-border">

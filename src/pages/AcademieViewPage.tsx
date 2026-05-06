@@ -510,7 +510,7 @@ function LessonComments({ fileId, academyOwnerId }: { fileId: string; academyOwn
           const dateStr = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
           return (
             <div key={c.id} className="flex gap-2.5">
-              <div className="h-8 w-8 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+              <div className="h-8 w-8 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0 dark:text-blue-400">
                 {initials}
               </div>
               <div className="flex-1 min-w-0">

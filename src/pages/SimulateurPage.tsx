@@ -302,7 +302,7 @@ export function CommissionCalculator() {
                 <div>
                   <p className={`text-xs font-semibold ${primeParMachine > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>Prime de groupe</p>
                   {primeParMachine > 0
-                    ? <p className="text-[9px] text-emerald-600">{primeParMachine}€ × {teamSalesTotal} machines</p>
+                    ? <p className="text-[9px] text-emerald-600 dark:text-emerald-400">{primeParMachine}€ × {teamSalesTotal} machines</p>
                     : <p className="text-[9px] text-muted-foreground">
                         {levelData.quotaMois > 0 ? `Requiert ${levelData.quotaMois} ventes équipe (${teamSalesTotal} actuel.)` : 'Dès niveau Manager'}
                       </p>
@@ -325,12 +325,12 @@ export function CommissionCalculator() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-0.5 min-w-0">
                     <p className="text-xs text-foreground">
-                      Recrues : <span className="font-bold text-violet-600">{nextLevel.recruteCommission}€</span>
+                      Recrues : <span className="font-bold text-violet-600 dark:text-violet-400">{nextLevel.recruteCommission}€</span>
                       <span className="text-muted-foreground"> (vs {levelData.recruteCommission}€)</span>
                     </p>
                     {nextPrimeParMachine > primeParMachine && (
                       <p className="text-xs text-foreground">
-                        Prime : <span className="font-bold text-emerald-600">{nextPrimeParMachine}€</span>/machine
+                        Prime : <span className="font-bold text-emerald-600 dark:text-emerald-400">{nextPrimeParMachine}€</span>/machine
                         <span className="text-muted-foreground"> (vs {primeParMachine}€)</span>
                       </p>
                     )}

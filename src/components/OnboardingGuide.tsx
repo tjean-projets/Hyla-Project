@@ -144,7 +144,7 @@ export default function OnboardingGuide() {
               className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all text-left active:scale-[0.98]"
             >
               <div className="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                <Users className="h-6 w-6 text-blue-600" />
+                <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <p className="text-sm font-bold text-foreground">Je débute</p>
@@ -158,7 +158,7 @@ export default function OnboardingGuide() {
               className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-all text-left active:scale-[0.98]"
             >
               <div className="h-12 w-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                <Star className="h-6 w-6 text-amber-600" />
+                <Star className="h-6 w-6 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
                 <p className="text-sm font-bold text-foreground">J'ai de l'historique</p>

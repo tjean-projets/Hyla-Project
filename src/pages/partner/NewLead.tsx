@@ -173,8 +173,8 @@ export default function NewLead() {
         <AppHeader title={isPrivate ? 'Parrainer un proche' : 'Nouveau lead'} />
         <main className="container py-8">
           <div className="max-w-md mx-auto rounded-lg border bg-card p-6 text-center">
-            <div className="mx-auto h-14 w-14 rounded-full bg-emerald-50 flex items-center justify-center mb-4">
-              <CheckCircle className="h-7 w-7 text-emerald-600" />
+            <div className="mx-auto h-14 w-14 rounded-full bg-emerald-50 flex items-center justify-center mb-4 dark:bg-emerald-950/30">
+              <CheckCircle className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
             </div>
             <h2 className="text-lg font-semibold mb-1">Lead envoyé avec succès !</h2>
             <p className="text-sm text-muted-foreground mb-5">

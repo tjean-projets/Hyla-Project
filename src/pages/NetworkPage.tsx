@@ -263,8 +263,8 @@ function MemberForm({
     }} className="space-y-4">
       {/* Search by Hyla ID */}
       {!isEdit && (
-        <div className="bg-blue-50 rounded-xl p-3 space-y-2">
-          <Label className="text-xs text-blue-700 font-semibold">🔗 Lier un compte Triibu (optionnel)</Label>
+        <div className="bg-blue-50 rounded-xl p-3 space-y-2 dark:bg-blue-950/30">
+          <Label className="text-xs text-blue-700 font-semibold dark:text-blue-300">🔗 Lier un compte Triibu (optionnel)</Label>
           <div className="flex gap-2">
             <Input
               className="h-10 flex-1 bg-card text-sm font-mono uppercase"
@@ -278,9 +278,9 @@ function MemberForm({
             </button>
           </div>
           {linkedProfile && (
-            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-2">
+            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-2 dark:bg-green-950/30 dark:border-green-800">
               <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-              <span className="text-xs text-green-700 font-medium">{linkedProfile.full_name} — compte lié</span>
+              <span className="text-xs text-green-700 font-medium dark:text-green-300">{linkedProfile.full_name} — compte lié</span>
             </div>
           )}
           <p className="text-[10px] text-blue-500">L'ID se trouve dans Paramètres du membre. Permet d'éviter les homonymes.</p>
@@ -565,13 +565,13 @@ function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onS
     <div className="space-y-3 max-h-[65vh] overflow-y-auto">
       {/* Status */}
       {objective.filled_by_member && objective.filled_at && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-xl text-xs text-green-700">
+        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-xl text-xs text-green-700 dark:bg-green-950/30 dark:text-green-300">
           <CheckCircle className="h-3.5 w-3.5" />
           Rempli par {member.first_name} le {new Date(objective.filled_at).toLocaleDateString('fr-FR')}
         </div>
       )}
       {!hasContent && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-xl text-xs text-amber-700">
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-xl text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
           <Clock className="h-3.5 w-3.5" />
           En attente — envoie le formulaire à {member.first_name}
         </div>
@@ -607,8 +607,8 @@ function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onS
       ))}
 
       {objective.actions && (
-        <div className="border rounded-xl p-3 border-violet-200 bg-violet-50/50">
-          <p className="text-[10px] font-bold text-violet-600 uppercase mb-1">Actions</p>
+        <div className="border rounded-xl p-3 border-violet-200 bg-violet-50/50 dark:border-violet-800">
+          <p className="text-[10px] font-bold text-violet-600 uppercase mb-1 dark:text-violet-400">Actions</p>
           <p className="text-sm text-foreground whitespace-pre-line">{objective.actions}</p>
         </div>
       )}
@@ -803,7 +803,7 @@ function ObjectifsPanel({ member, userId }: { member: TeamMember; userId: string
           </div>
         ))}
         <div>
-          <p className="text-xs font-bold text-violet-600 uppercase mb-1">Actions</p>
+          <p className="text-xs font-bold text-violet-600 uppercase mb-1 dark:text-violet-400">Actions</p>
           <textarea
             value={editForm.actions}
             onChange={(e) => setEditForm({ ...editForm, actions: e.target.value })}
@@ -874,7 +874,7 @@ function InviteLinkDialog({ open, onOpenChange, inviteCode }: { open: boolean; o
       <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="h-4 w-4 text-blue-600" />
+            <UserPlus className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             Inviter un partenaire
           </DialogTitle>
         </DialogHeader>
@@ -942,7 +942,7 @@ function ManagerStatsPanel({ userId, memberName, open, onOpenChange }: { userId:
       <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Eye className="h-4 w-4 text-blue-600" />
+            <Eye className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             Stats — {memberName}
           </DialogTitle>
         </DialogHeader>
@@ -952,22 +952,22 @@ function ManagerStatsPanel({ userId, memberName, open, onOpenChange }: { userId:
           </div>
         ) : stats ? (
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-blue-50 rounded-xl p-4 text-center">
+            <div className="bg-blue-50 rounded-xl p-4 text-center dark:bg-blue-950/30">
               <ShoppingCart className="h-5 w-5 text-blue-500 mx-auto mb-1" />
               <p className="text-2xl font-bold text-foreground">{stats.totalVentes}</p>
               <p className="text-xs text-muted-foreground">Ventes</p>
             </div>
-            <div className="bg-green-50 rounded-xl p-4 text-center">
+            <div className="bg-green-50 rounded-xl p-4 text-center dark:bg-green-950/30">
               <DollarSign className="h-5 w-5 text-green-500 mx-auto mb-1" />
               <p className="text-2xl font-bold text-foreground">{stats.totalCA.toLocaleString('fr-FR')} &euro;</p>
               <p className="text-xs text-muted-foreground">CA total</p>
             </div>
-            <div className="bg-amber-50 rounded-xl p-4 text-center">
+            <div className="bg-amber-50 rounded-xl p-4 text-center dark:bg-amber-950/30">
               <DollarSign className="h-5 w-5 text-amber-500 mx-auto mb-1" />
               <p className="text-2xl font-bold text-foreground">{stats.totalCommissions.toLocaleString('fr-FR')} &euro;</p>
               <p className="text-xs text-muted-foreground">Commissions</p>
             </div>
-            <div className="bg-violet-50 rounded-xl p-4 text-center">
+            <div className="bg-violet-50 rounded-xl p-4 text-center dark:bg-violet-950/30">
               <Users className="h-5 w-5 text-violet-500 mx-auto mb-1" />
               <p className="text-2xl font-bold text-foreground">{stats.teamSize}</p>
               <p className="text-xs text-muted-foreground">Equipe</p>
@@ -997,7 +997,7 @@ function DeleteAccountDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+          <AlertDialogTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
             <AlertTriangle className="h-5 w-5" />
             {step === 1 ? 'Supprimer le compte' : 'Confirmation finale'}
           </AlertDialogTitle>
@@ -2128,7 +2128,7 @@ export default function NetworkPage() {
         <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-blue-600" />
+              <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               Objectifs — {objectifsMember?.first_name} {objectifsMember?.last_name}
             </DialogTitle>
           </DialogHeader>
@@ -2156,7 +2156,7 @@ export default function NetworkPage() {
         <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-violet-600" />
+              <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
               Triibu — {assistantMember?.first_name} {assistantMember?.last_name}
             </DialogTitle>
           </DialogHeader>
@@ -2226,7 +2226,7 @@ export default function NetworkPage() {
             </div>
             <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
               <p className="text-[10px] font-semibold uppercase text-muted-foreground">Ventes réseau / mois</p>
-              <p className="text-2xl font-bold text-emerald-600 mt-1">{reseauDeals.length}</p>
+              <p className="text-2xl font-bold text-emerald-600 mt-1 dark:text-emerald-400">{reseauDeals.length}</p>
               <p className="text-[10px] text-muted-foreground">{new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</p>
             </div>
             <div className="bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl p-4 text-white">
@@ -2513,7 +2513,7 @@ export default function NetworkPage() {
                   <div className="flex flex-wrap gap-2 mt-3">
                     <button
                       onClick={(e) => { e.stopPropagation(); setObjectifsMember(member); }}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 active:scale-[0.97] transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 active:scale-[0.97] transition-colors dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900"
                     >
                       <Target className="h-3.5 w-3.5" />
                       Objectifs
@@ -2521,7 +2521,7 @@ export default function NetworkPage() {
                     {canGrantAcademie && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setAcademieMember(member); }}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 active:scale-[0.97] transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 active:scale-[0.97] transition-colors dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900"
                       >
                         <span className="text-xs">🎓</span>
                         Respire Académie
@@ -2534,7 +2534,7 @@ export default function NetworkPage() {
                           startImpersonation((member as any).linked_user_id, `${member.first_name} ${member.last_name}`, 'individual');
                           navigate('/');
                         }}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 active:scale-[0.97] transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 active:scale-[0.97] transition-colors dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900"
                       >
                         <Eye className="h-3.5 w-3.5" />
                         Voir son espace
@@ -2542,7 +2542,7 @@ export default function NetworkPage() {
                     ) : (
                       <button
                         onClick={(e) => { e.stopPropagation(); setAssistantMember(member); }}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-violet-50 text-violet-600 border border-violet-100 hover:bg-violet-100 active:scale-[0.97] transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-semibold bg-violet-50 text-violet-600 border border-violet-100 hover:bg-violet-100 active:scale-[0.97] transition-colors dark:bg-violet-950/30 dark:text-violet-400 dark:border-violet-900"
                       >
                       <Sparkles className="h-3.5 w-3.5" />
                       Triibu
@@ -2554,14 +2554,14 @@ export default function NetworkPage() {
                   {(member as any).linked_user_id && (member as any).role !== 'manager' && (member as any).role !== 'admin' && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setPromoteMember(member); }}
-                      className="w-full flex items-center justify-center gap-1.5 py-2 mt-2 rounded-xl text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 transition-colors active:scale-[0.98]"
+                      className="w-full flex items-center justify-center gap-1.5 py-2 mt-2 rounded-xl text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 transition-colors active:scale-[0.98] dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900"
                     >
                       <Crown className="h-3.5 w-3.5" />
                       Passer Manager
                     </button>
                   )}
                   {(member as any).linked_user_id && ((member as any).role === 'manager' || (member as any).role === 'admin') && (
-                    <span className="w-full flex items-center justify-center gap-1.5 py-1.5 mt-2 text-[10px] font-semibold text-amber-600">
+                    <span className="w-full flex items-center justify-center gap-1.5 py-1.5 mt-2 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
                       <Crown className="h-3 w-3" /> Manager
                     </span>
                   )}
@@ -2610,7 +2610,7 @@ export default function NetworkPage() {
                               style={{ marginLeft: `${(d.depth - 2) * 12}px` }}
                               className="bg-muted/40 rounded-lg border border-border px-2.5 py-1.5 flex items-center gap-2"
                             >
-                              <div className="h-7 w-7 rounded-md bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0">
+                              <div className="h-7 w-7 rounded-md bg-blue-500/10 text-blue-600 flex items-center justify-center flex-shrink-0 dark:text-blue-400">
                                 <span className="text-[10px] font-bold">{d.first_name[0]}{d.last_name[0]}</span>
                               </div>
                               <div className="flex-1 min-w-0">
@@ -2621,7 +2621,7 @@ export default function NetworkPage() {
                                   <span className={`text-[8px] font-semibold px-1 py-0.5 rounded ${d.status === 'actif' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
                                     {d.status === 'actif' ? 'Actif' : 'Inactif'}
                                   </span>
-                                  {d.linked_user_id && <span className="text-[8px] font-semibold px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-600">●</span>}
+                                  {d.linked_user_id && <span className="text-[8px] font-semibold px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">●</span>}
                                 </div>
                               </div>
                             </div>
@@ -2886,7 +2886,7 @@ export default function NetworkPage() {
                 )}
               </div>
               {activeChallenge && (
-                <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 p-3 text-xs text-amber-700">
+                <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 p-3 text-xs text-amber-700 dark:border-amber-800 dark:text-amber-300">
                   ⚠ Un challenge actif sera automatiquement terminé à la création du nouveau.
                 </div>
               )}

@@ -171,7 +171,7 @@ export default function SetupWizard() {
               <ShoppingBag className="h-10 w-10 text-purple-400 mx-auto mb-2" />
               <p className="text-xs text-muted-foreground">Dans l'onglet <strong className="text-foreground">Ventes</strong>, clique sur <strong className="text-foreground">+ Nouvelle vente</strong> pour créer ta première.</p>
               {levelDef && (
-                <p className="text-xs text-blue-600 font-semibold mt-2">
+                <p className="text-xs text-blue-600 font-semibold mt-2 dark:text-blue-400">
                   Ta 1ère vente = 300€ de commission
                 </p>
               )}

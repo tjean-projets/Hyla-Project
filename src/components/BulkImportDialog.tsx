@@ -683,7 +683,7 @@ export function BulkImportDialog({
                 </div>
 
                 {files.some(f => !f.periodAuto) && (
-                  <p className="text-[10px] text-amber-600 flex items-center gap-1">
+                  <p className="text-[10px] text-amber-600 flex items-center gap-1 dark:text-amber-400">
                     <AlertTriangle className="h-3 w-3" />
                     Période non détectée pour certains fichiers — vérifiez les dates.
                   </p>
@@ -729,8 +729,8 @@ export function BulkImportDialog({
                 }`}
               >
                 <div className="flex-shrink-0">
-                  {f.status === 'done' && <CheckCircle className="h-4 w-4 text-green-600" />}
-                  {f.status === 'processing' && <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />}
+                  {f.status === 'done' && <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />}
+                  {f.status === 'processing' && <Loader2 className="h-4 w-4 text-blue-600 animate-spin dark:text-blue-400" />}
                   {f.status === 'error' && <XCircle className="h-4 w-4 text-red-500" />}
                   {f.status === 'skipped' && <AlertTriangle className="h-4 w-4 text-amber-500" />}
                   {f.status === 'pending' && (
@@ -743,12 +743,12 @@ export function BulkImportDialog({
                   </p>
                   <p className="text-[10px] text-muted-foreground truncate">{f.file.name}</p>
                   {f.status === 'done' && (
-                    <p className="text-[10px] text-green-600 font-medium">
+                    <p className="text-[10px] text-green-600 font-medium dark:text-green-400">
                       {f.matchedCount}/{f.totalCount} commissions matchées
                     </p>
                   )}
                   {(f.status === 'skipped' || f.status === 'error') && f.error && (
-                    <p className="text-[10px] text-amber-600">{f.error}</p>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400">{f.error}</p>
                   )}
                 </div>
               </div>
@@ -761,7 +761,7 @@ export function BulkImportDialog({
           <div className="space-y-4">
             <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-3.5">
               <div className="flex items-start gap-2">
-                <Users className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                <Users className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5 dark:text-blue-400" />
                 <div>
                   <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">
                     {newMembers.length} personne{newMembers.length > 1 ? 's' : ''} non reconnue{newMembers.length > 1 ? 's' : ''}
@@ -859,7 +859,7 @@ export function BulkImportDialog({
           <div className="space-y-4">
             <div className="bg-green-50 dark:bg-green-950/30 rounded-xl p-3.5">
               <div className="flex items-start gap-2">
-                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5 dark:text-green-400" />
                 <p className="text-xs text-green-800 dark:text-green-200">
                   <strong>{teamEdits.filter(m => m.isNew).length} membres créés.</strong>{' '}
                   Définissez leur niveau Hyla et leur responsable direct.
@@ -956,7 +956,7 @@ export function BulkImportDialog({
         {step === 'done' && (
           <div className="text-center py-6 space-y-4">
             <div className="w-16 h-16 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle className="h-8 w-8 text-green-600" />
+              <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
             <div>
               <p className="font-bold text-base text-foreground">Import terminé !</p>
@@ -965,7 +965,7 @@ export function BulkImportDialog({
                 {summary.commissions > 0 && ` · ${summary.commissions} commissions`}
               </p>
               {sortedFiles.filter(f => f.status === 'skipped').length > 0 && (
-                <p className="text-xs text-amber-600 mt-1">
+                <p className="text-xs text-amber-600 mt-1 dark:text-amber-400">
                   {sortedFiles.filter(f => f.status === 'skipped').length} fichier(s) ignoré(s) — import déjà existant
                 </p>
               )}

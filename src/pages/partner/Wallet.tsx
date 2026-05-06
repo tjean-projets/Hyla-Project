@@ -156,7 +156,7 @@ export default function PartnerWallet() {
               </div>
               <div>
                 <p className="text-muted-foreground text-xs">Retiré</p>
-                <p className="font-semibold text-emerald-600">{totalWithdrawn.toLocaleString('fr-FR')} €</p>
+                <p className="font-semibold text-emerald-600 dark:text-emerald-400">{totalWithdrawn.toLocaleString('fr-FR')} €</p>
               </div>
             </div>
           </div>
@@ -165,7 +165,7 @@ export default function PartnerWallet() {
         {/* KYC Warning */}
         {!isLoading && !kycValid && (
           <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/20">
-            <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+            <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0 dark:text-amber-400" />
             <div>
               <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Documents manquants</p>
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">

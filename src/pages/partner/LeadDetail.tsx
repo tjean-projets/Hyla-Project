@@ -131,7 +131,7 @@ export default function LeadDetail() {
             {lead.commission_estimated && (
               <div className="text-right">
                 <p className="text-[10px] text-muted-foreground uppercase">Votre commission</p>
-                <p className="text-lg font-semibold text-emerald-600 flex items-center gap-0.5">
+                <p className="text-lg font-semibold text-emerald-600 flex items-center gap-0.5 dark:text-emerald-400">
                   <Euro className="h-3.5 w-3.5" />
                   {((lead.commission_final || lead.commission_estimated) * partnerRate / 100).toFixed(0)}
                 </p>
@@ -201,12 +201,12 @@ export default function LeadDetail() {
         </div>
 
         {lead.consent_confirmed && lead.consent_timestamp && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950/30">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+              <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               <div>
                 <p className="text-xs font-medium text-emerald-800">Consentement obtenu</p>
-                <p className="text-[10px] text-emerald-600">
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
                   {format(new Date(lead.consent_timestamp), "d MMM yyyy 'à' HH:mm", { locale: fr })}
                 </p>
               </div>

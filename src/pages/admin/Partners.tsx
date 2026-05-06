@@ -279,7 +279,7 @@ Hyla`
                         </div>
                       )}
                       {partnerSavings[partner.id] > 0 && (
-                        <div className="mt-1.5 flex items-center gap-1 text-xs text-teal-700">
+                        <div className="mt-1.5 flex items-center gap-1 text-xs text-teal-700 dark:text-teal-300">
                           <PiggyBank className="h-3 w-3" />
                           <span className="font-medium">{partnerSavings[partner.id].toLocaleString('fr-FR')} €/an</span>
                           <span className="text-muted-foreground">économisés pour ses clients</span>

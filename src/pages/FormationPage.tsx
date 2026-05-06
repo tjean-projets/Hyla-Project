@@ -529,7 +529,7 @@ function LessonContent({ lesson }: { lesson: FormationLesson }) {
           href={lesson.content_url ?? '#'}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-sm text-violet-600 hover:text-violet-700 hover:underline"
+          className="inline-flex items-center gap-2 text-sm text-violet-600 hover:text-violet-700 hover:underline dark:text-violet-400"
         >
           <FileText className="h-4 w-4" />
           Ouvrir le PDF dans un nouvel onglet
@@ -1346,7 +1346,7 @@ export default function FormationPage() {
                   })}
                   {adminMode && selectedModuleId && (
                     <button
-                      className="w-full text-xs text-violet-600 hover:text-violet-700 flex items-center justify-center gap-1 py-2"
+                      className="w-full text-xs text-violet-600 hover:text-violet-700 flex items-center justify-center gap-1 py-2 dark:text-violet-400"
                       onClick={() => openNewLesson(selectedModuleId)}
                     >
                       <Plus className="h-3 w-3" />

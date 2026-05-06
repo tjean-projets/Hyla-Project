@@ -448,7 +448,7 @@ export default function SocialPage() {
         {activeTab === 'bio' && (
           <div className="space-y-4">
             {/* Tip banner */}
-            <div className="flex items-start gap-3 bg-gradient-to-r from-pink-50 to-violet-50 border border-pink-100 rounded-xl p-3.5">
+            <div className="flex items-start gap-3 bg-gradient-to-r from-pink-50 to-violet-50 border border-pink-100 rounded-xl p-3.5 dark:border-pink-900">
               <Sparkles className="h-4 w-4 text-pink-500 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-gray-700">
                 <span className="font-semibold">Mets ton lien dans ta bio Instagram</span> pour capter des leads 24h/24. Chaque visiteur qui clique peut te laisser ses coordonnées directement.
@@ -562,7 +562,7 @@ export default function SocialPage() {
         {activeTab === 'surveys' && (
           <div className="space-y-4">
             {/* Info banner */}
-            <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-3.5">
+            <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-3.5 dark:bg-blue-950/30 dark:border-blue-900">
               <MessageSquare className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-blue-800">
                 <span className="font-semibold">Sondages personnalisés</span> — crée un sondage, partage le lien en story ou en bio, et récupère les réponses ici avec les coordonnées des participants. Les sondages natifs Instagram ne peuvent pas être connectés à des apps tierces.
@@ -608,7 +608,7 @@ export default function SocialPage() {
                         <div className="flex items-center gap-2 mt-2.5">
                           <button
                             onClick={() => copyLink(surveyUrl, survey.id)}
-                            className="flex items-center gap-1 text-[11px] font-medium text-blue-500 hover:text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                            className="flex items-center gap-1 text-[11px] font-medium text-blue-500 hover:text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors dark:bg-blue-950/30"
                           >
                             {copiedBio === survey.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
                             {copiedBio === survey.id ? 'Copié !' : 'Copier lien'}
@@ -623,7 +623,7 @@ export default function SocialPage() {
                           {(survey.response_count || 0) > 0 && (
                             <button
                               onClick={() => setExpandedSurvey(isExpanded ? null : survey.id)}
-                              className="flex items-center gap-1 text-[11px] font-medium text-violet-600 bg-violet-50 px-2.5 py-1.5 rounded-lg hover:bg-violet-100 transition-colors ml-auto"
+                              className="flex items-center gap-1 text-[11px] font-medium text-violet-600 bg-violet-50 px-2.5 py-1.5 rounded-lg hover:bg-violet-100 transition-colors ml-auto dark:text-violet-400 dark:bg-violet-950/30"
                             >
                               <BarChart2 className="h-3 w-3" />
                               Résultats
@@ -670,20 +670,20 @@ export default function SocialPage() {
                   ))}
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-center">
-                    <ShoppingBag className="h-4 w-4 text-emerald-600 mx-auto mb-0.5" />
-                    <p className="text-lg font-bold text-emerald-700">{leadsByIntent.acheter}</p>
-                    <p className="text-[10px] text-emerald-600">Achat</p>
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-center dark:bg-emerald-950/30 dark:border-emerald-900">
+                    <ShoppingBag className="h-4 w-4 text-emerald-600 mx-auto mb-0.5 dark:text-emerald-400" />
+                    <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{leadsByIntent.acheter}</p>
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Achat</p>
                   </div>
-                  <div className="bg-violet-50 border border-violet-100 rounded-2xl p-3 text-center">
-                    <Users className="h-4 w-4 text-violet-600 mx-auto mb-0.5" />
-                    <p className="text-lg font-bold text-violet-700">{leadsByIntent.devenir_conseiller}</p>
-                    <p className="text-[10px] text-violet-600">Recrut.</p>
+                  <div className="bg-violet-50 border border-violet-100 rounded-2xl p-3 text-center dark:bg-violet-950/30 dark:border-violet-900">
+                    <Users className="h-4 w-4 text-violet-600 mx-auto mb-0.5 dark:text-violet-400" />
+                    <p className="text-lg font-bold text-violet-700 dark:text-violet-300">{leadsByIntent.devenir_conseiller}</p>
+                    <p className="text-[10px] text-violet-600 dark:text-violet-400">Recrut.</p>
                   </div>
-                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-center">
-                    <Info className="h-4 w-4 text-blue-600 mx-auto mb-0.5" />
-                    <p className="text-lg font-bold text-blue-700">{leadsByIntent.en_savoir_plus}</p>
-                    <p className="text-[10px] text-blue-600">Info</p>
+                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-center dark:bg-blue-950/30 dark:border-blue-900">
+                    <Info className="h-4 w-4 text-blue-600 mx-auto mb-0.5 dark:text-blue-400" />
+                    <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{leadsByIntent.en_savoir_plus}</p>
+                    <p className="text-[10px] text-blue-600 dark:text-blue-400">Info</p>
                   </div>
                 </div>
               </>
@@ -713,7 +713,7 @@ export default function SocialPage() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="text-sm font-semibold text-foreground">{lead.first_name} {lead.last_name}</p>
-                              {lead.status === 'converti' && <span className="text-[10px] text-green-600 font-medium">✓ Converti</span>}
+                              {lead.status === 'converti' && <span className="text-[10px] text-green-600 font-medium dark:text-green-400">✓ Converti</span>}
                             </div>
                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                               <Phone className="h-3 w-3 text-muted-foreground" />
@@ -739,7 +739,7 @@ export default function SocialPage() {
                           <button
                             onClick={() => convertLead.mutate(lead)}
                             disabled={convertLead.isPending}
-                            className="mt-2 flex items-center gap-1 text-[11px] font-medium text-blue-500 hover:text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                            className="mt-2 flex items-center gap-1 text-[11px] font-medium text-blue-500 hover:text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50 dark:bg-blue-950/30"
                           >
                             <UserPlus className="h-3 w-3" />
                             Créer contact
