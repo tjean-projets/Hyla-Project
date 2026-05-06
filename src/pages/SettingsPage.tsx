@@ -57,7 +57,7 @@ function InviteLinkSection({ inviteCode, fullName }: { inviteCode?: string | nul
   if (!inviteCode) return null;
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-4 sm:p-5 dark:border-blue-900">
+    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-4 sm:p-5 dark:border-blue-900 dark:from-blue-950/30 dark:to-indigo-950/30">
       <div className="flex items-center gap-2 mb-1">
         <Link2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
         <h3 className="text-base font-semibold text-foreground">Lien d'invitation</h3>
@@ -134,7 +134,7 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
   if (!inviteCode) return null;
 
   return (
-    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100 p-4 sm:p-5 dark:border-green-900">
+    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100 p-4 sm:p-5 dark:border-green-900 dark:from-green-950/30 dark:to-emerald-950/30">
       <div className="flex items-center gap-2 mb-1">
         <Users className="h-4 w-4 text-green-600 dark:text-green-400" />
         <h3 className="text-base font-semibold text-foreground">Page de contact</h3>
@@ -722,7 +722,7 @@ export default function SettingsPage() {
           <div className="space-y-4">
             {/* ID Triibu */}
             {profile?.invite_code && (
-              <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-3 dark:border-blue-900">
+              <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-3 dark:border-blue-900 dark:from-blue-950/30 dark:to-indigo-950/30">
                 <Fingerprint className="h-5 w-5 text-blue-600 flex-shrink-0 dark:text-blue-400" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase">Mon ID Triibu</p>

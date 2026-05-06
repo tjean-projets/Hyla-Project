@@ -635,7 +635,7 @@ export default function Deals() {
 
         {/* Estimation commissions réseau en cours */}
         {pendingWithSeller.length > 0 && (
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 dark:border-amber-800">
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 dark:border-amber-800 dark:from-amber-950/30 dark:to-orange-950/30">
             <div className="flex items-center gap-2 mb-3">
               <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               <p className="text-sm font-semibold text-amber-800">Commissions réseau en attente</p>

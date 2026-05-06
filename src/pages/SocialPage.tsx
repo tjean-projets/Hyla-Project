@@ -448,7 +448,7 @@ export default function SocialPage() {
         {activeTab === 'bio' && (
           <div className="space-y-4">
             {/* Tip banner */}
-            <div className="flex items-start gap-3 bg-gradient-to-r from-pink-50 to-violet-50 border border-pink-100 rounded-xl p-3.5 dark:border-pink-900">
+            <div className="flex items-start gap-3 bg-gradient-to-r from-pink-50 to-violet-50 border border-pink-100 rounded-xl p-3.5 dark:border-pink-900 dark:from-pink-950/30 dark:to-violet-950/30">
               <Sparkles className="h-4 w-4 text-pink-500 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-gray-700">
                 <span className="font-semibold">Mets ton lien dans ta bio Instagram</span> pour capter des leads 24h/24. Chaque visiteur qui clique peut te laisser ses coordonnées directement.

@@ -80,7 +80,7 @@ export default function PublicProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center dark:from-blue-950/30">
         <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
       </div>
     );
@@ -88,7 +88,7 @@ export default function PublicProfilePage() {
 
   if (!profileData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 dark:from-blue-950/30">
         <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-sm">
           <p className="text-gray-500">Page introuvable</p>
         </div>
@@ -98,7 +98,7 @@ export default function PublicProfilePage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 dark:from-blue-950/30">
         <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-sm w-full">
           <CheckCircle className="h-14 w-14 text-green-500 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-gray-900 mb-2">Merci {form.firstName} !</h1>
@@ -119,7 +119,7 @@ export default function PublicProfilePage() {
     .toUpperCase();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 dark:from-blue-950/30">
       <div className="max-w-md mx-auto">
         {/* Header */}
         <div className="text-center mb-6">

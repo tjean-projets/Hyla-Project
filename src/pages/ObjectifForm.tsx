@@ -118,7 +118,7 @@ export default function ObjectifForm() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center dark:from-blue-950/30 dark:to-indigo-950/30">
         <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
       </div>
     );
@@ -126,7 +126,7 @@ export default function ObjectifForm() {
 
   if (error && !form.objectif_mois && !saving) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4 dark:from-blue-950/30 dark:to-indigo-950/30">
         <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-sm w-full">
           <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
           <h1 className="text-lg font-bold text-gray-900 mb-2">Lien invalide</h1>
@@ -138,7 +138,7 @@ export default function ObjectifForm() {
 
   if (saved) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4 dark:from-blue-950/30 dark:to-indigo-950/30">
         <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-sm w-full">
           <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
           <h1 className="text-lg font-bold text-gray-900 mb-2">Objectifs enregistrés !</h1>
@@ -149,7 +149,7 @@ export default function ObjectifForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4 dark:from-blue-950/30 dark:to-indigo-950/30">
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="text-center mb-6">

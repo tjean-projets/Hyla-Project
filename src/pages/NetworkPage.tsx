@@ -481,7 +481,7 @@ function AssistantPanel({ member }: { member: TeamMember }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-gradient-to-br from-violet-50 to-indigo-50 rounded-xl p-4 text-center">
+      <div className="bg-gradient-to-br from-violet-50 to-indigo-50 rounded-xl p-4 text-center dark:from-violet-950/30 dark:to-indigo-950/30">
         <Sparkles className="h-8 w-8 text-violet-500 mx-auto mb-2" />
         <p className="text-sm font-semibold text-foreground">
           Invite {member.first_name} à créer son espace
