@@ -11,7 +11,7 @@ const STEPS = [
   { key: 'deal', label: 'Créer une vente', icon: ShoppingBag, color: 'text-violet-500', link: '/deals' },
   { key: 'task', label: 'Planifier une tâche', icon: CheckSquare, color: 'text-emerald-500', link: '/tasks' },
   { key: 'appointment', label: 'Créer un rendez-vous', icon: Calendar, color: 'text-[#3b82f6]', link: '/calendar' },
-  { key: 'objective', label: 'Définir ses objectifs', icon: Target, color: 'text-amber-500', link: '/settings' },
+  { key: 'objective', label: 'Créer un défi personnel', icon: Target, color: 'text-amber-500', link: '/settings' },
   { key: 'team', label: 'Importer votre équipe (Finance → Multi)', icon: Network, color: 'text-pink-500', link: '/finance' },
 ] as const;
 
@@ -45,14 +45,14 @@ export default function GettingStartedWidget() {
         { count: deals },
         { count: tasks },
         { count: appointments },
-        { data: settings },
+        { count: challenges },
         { count: teamMembers },
       ] = await Promise.all([
         supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('user_id', effectiveId),
         supabase.from('deals').select('id', { count: 'exact', head: true }).eq('user_id', effectiveId),
         supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('user_id', effectiveId),
         supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('user_id', effectiveId),
-        supabase.from('user_settings').select('monthly_sales_target').eq('user_id', effectiveId).maybeSingle(),
+        supabase.from('personal_challenges').select('id', { count: 'exact', head: true }).eq('user_id', effectiveId),
         supabase.from('team_members').select('id', { count: 'exact', head: true }).eq('user_id', effectiveId),
       ]);
       return {
@@ -60,7 +60,7 @@ export default function GettingStartedWidget() {
         deal: (deals || 0) > 0,
         task: (tasks || 0) > 0,
         appointment: (appointments || 0) > 0,
-        objective: ((settings as any)?.monthly_sales_target || 0) > 0,
+        objective: (challenges || 0) > 0,
         team: (teamMembers || 0) > 0,
       };
     },

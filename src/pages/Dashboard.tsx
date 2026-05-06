@@ -847,52 +847,6 @@ export default function Dashboard() {
         </div>
         )}
 
-        {/* ── Objectifs du mois ── */}
-        {hasObjectives && (
-          <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-foreground">Mes objectifs du mois</p>
-              <Target className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
-            <div className="space-y-3">
-              {salesTarget > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] text-muted-foreground">Ventes</span>
-                    <span className={`text-[11px] font-bold ${objectifTextColor(salesPct)}`}>
-                      {currentMonthSales}/{salesTarget}
-                      {salesPct >= 100 && ' ✓'}
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ${objectifBarColor(salesPct)}`}
-                      style={{ width: `${salesPct}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-              {caTarget > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] text-muted-foreground">CA</span>
-                    <span className={`text-[11px] font-bold ${objectifTextColor(caPct)}`}>
-                      {currentMonthCA.toLocaleString('fr-FR')} / {caTarget.toLocaleString('fr-FR')} €
-                      {caPct >= 100 && ' ✓'}
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ${objectifBarColor(caPct)}`}
-                      style={{ width: `${caPct}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Formation progress */}
         {(totalLessons ?? 0) > 0 && (
           <a href="/formation" className="block bg-card rounded-2xl border shadow-sm p-4 hover:shadow-md transition-shadow">

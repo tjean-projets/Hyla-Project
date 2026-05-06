@@ -994,51 +994,6 @@ export default function SettingsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Mes objectifs personnels */}
-        {!isImpersonating && (
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
-            <div className="flex items-center gap-2 mb-1">
-              <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <h3 className="text-base font-semibold text-foreground">Mes objectifs personnels</h3>
-            </div>
-            <p className="text-xs text-muted-foreground mb-4">
-              Définis tes objectifs mensuels. Ils apparaîtront sur ton Dashboard comme barre de progression.
-            </p>
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs">Objectif ventes / mois</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={monthlySalesTarget}
-                  onChange={(e) => setMonthlySalesTarget(e.target.value)}
-                  placeholder="Ex : 4"
-                  className="h-11"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Objectif CA / mois (€)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={monthlyCaTarget}
-                  onChange={(e) => setMonthlyCaTarget(e.target.value)}
-                  placeholder="Ex : 3000"
-                  className="h-11"
-                />
-              </div>
-              <button
-                onClick={saveObjectives}
-                disabled={savingObjectives}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-[#3b82f6] text-white font-semibold rounded-xl disabled:opacity-50"
-              >
-                <Save className="h-4 w-4" />
-                {savingObjectives ? 'Enregistrement...' : 'Sauvegarder'}
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Niveau Hyla */}
         {!isImpersonating && (
           <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
