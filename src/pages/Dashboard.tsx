@@ -791,8 +791,8 @@ export default function Dashboard() {
         ) : (
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 stagger-children">
-            {/* CA du mois */}
-            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border hover-lift animate-stagger-in">
+            {/* CA du mois → /deals */}
+            <a href="/deals" className="bg-card rounded-2xl p-4 shadow-sm border border-border hover-lift animate-stagger-in cursor-pointer hover:border-emerald-300 transition-colors block">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-[10px] font-semibold uppercase text-muted-foreground">CA du mois</p>
                 <TrendingUp className="h-4 w-4 text-emerald-500" />
@@ -801,26 +801,26 @@ export default function Dashboard() {
               {(k.commissions_annee || 0) > 0 && (
                 <p className={`text-[9px] text-muted-foreground mt-1 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(k.commissions_annee || 0)}€ cette année</p>
               )}
-            </div>
-            {/* Ventes */}
-            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border hover-lift animate-stagger-in">
+            </a>
+            {/* Ventes → /deals */}
+            <a href="/deals" className="bg-card rounded-2xl p-4 shadow-sm border border-border hover-lift animate-stagger-in cursor-pointer hover:border-violet-300 transition-colors block">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-[10px] font-semibold uppercase text-muted-foreground">Ventes</p>
                 <ShoppingBag className="h-4 w-4 text-violet-500" />
               </div>
               <p className="text-xl font-bold text-foreground">{nbSignees}</p>
-            </div>
-            {/* Équipe */}
-            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border sm:col-span-2 hover-lift animate-stagger-in">
+            </a>
+            {/* Équipe → /network */}
+            <a href="/network" className="bg-card rounded-2xl p-4 shadow-sm border border-border sm:col-span-2 hover-lift animate-stagger-in cursor-pointer hover:border-blue-300 transition-colors block">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-[10px] font-semibold uppercase text-muted-foreground">Équipe</p>
                 <Users className="h-4 w-4 text-blue-500" />
               </div>
               <p className="text-xl font-bold text-foreground">{k.equipe_active || 0}</p>
-            </div>
+            </a>
           </div>
-          {/* Commissions — pleine largeur */}
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+          {/* Commissions — pleine largeur → /commissions */}
+          <a href="/commissions" className="bg-card rounded-2xl shadow-sm border border-border p-4 cursor-pointer hover:border-blue-300 transition-colors block">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[10px] font-semibold uppercase text-muted-foreground">Commissions du mois</p>
               <Zap className="h-4 w-4 text-[#3b82f6]" />
@@ -843,7 +843,7 @@ export default function Dashboard() {
                 </p>
               </div>
             </div>
-          </div>
+          </a>
         </div>
         )}
 
@@ -929,12 +929,12 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ── Prochain niveau Hyla ── */}
+        {/* ── Mon rang Hyla → /settings#mon-rang ── */}
         {nextLevel && (
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+          <a href="/settings#mon-rang" className="bg-card rounded-2xl shadow-sm border border-border p-4 block cursor-pointer hover:border-violet-300 transition-colors">
             <div className="flex items-start justify-between gap-2 mb-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase text-muted-foreground">Progression niveau</p>
+                <p className="text-[10px] font-semibold uppercase text-muted-foreground">Mon rang</p>
                 <p className="text-sm font-bold text-foreground mt-0.5 break-words">
                   {HYLA_LEVELS[myLevelIdx]?.label} → <span className="text-violet-600 dark:text-violet-400">{nextLevel.label}</span>
                 </p>
@@ -984,12 +984,9 @@ export default function Dashboard() {
                 <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 mb-2">
                   🎉 Vous remplissez toutes les conditions pour passer {nextLevel.label} !
                 </p>
-                <a
-                  href="/parametres"
-                  className="inline-block w-full text-center text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-3 py-2 transition-colors"
-                >
+                <span className="inline-block w-full text-center text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-3 py-2 transition-colors">
                   Passer au niveau supérieur →
-                </a>
+                </span>
               </div>
             ) : (
               <div className="mt-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl p-3">
@@ -999,7 +996,7 @@ export default function Dashboard() {
                 </p>
               </div>
             )}
-          </div>
+          </a>
         )}
 
         {/* ── Guide de démarrage ── */}
@@ -1040,7 +1037,7 @@ export default function Dashboard() {
           </div>
           <div className="divide-y divide-border">
             {upcomingTasks && upcomingTasks.length > 0 ? upcomingTasks.slice(0, 4).map((task: any) => (
-              <div key={task.id} className="px-4 py-3 flex items-center justify-between">
+              <a key={task.id} href={`/tasks?taskId=${task.id}`} className="px-4 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors cursor-pointer">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground truncate">{task.title}</p>
                   {task.contacts && (
@@ -1054,7 +1051,7 @@ export default function Dashboard() {
                     {new Date(task.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                   </span>
                 )}
-              </div>
+              </a>
             )) : (
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">Aucune tâche</div>
             )}

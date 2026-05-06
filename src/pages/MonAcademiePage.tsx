@@ -82,6 +82,7 @@ export default function MonAcademiePage() {
 
   const [tab, setTab] = useState<'contenu' | 'acces' | 'stats' | 'parametres'>('contenu');
   const [createForm, setCreateForm] = useState({ name: '', description: '' });
+  const [editAcademyForm, setEditAcademyForm] = useState<{ name: string; description: string } | null>(null);
   const [grantEmail, setGrantEmail] = useState('');
   const [editingSection, setEditingSection] = useState<AcademySection | null>(null);
   const [showSectionForm, setShowSectionForm] = useState(false);
@@ -211,18 +212,51 @@ export default function MonAcademiePage() {
   const createAcademy = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Non connecté');
-      const slug = createForm.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + user.id.slice(0, 6);
-      const { error } = await supabase.from('academies').insert({
+      if (!createForm.name.trim()) throw new Error('Le nom de l\'académie est requis');
+      const baseSlug = createForm.name.toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '') // strip accents
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+      const slug = (baseSlug || 'academie') + '-' + user.id.slice(0, 6);
+      const { data, error } = await supabase.from('academies').insert({
         owner_user_id: user.id,
-        name: createForm.name,
+        name: createForm.name.trim(),
         slug,
-        description: createForm.description || null,
-      });
+        description: createForm.description.trim() || null,
+      }).select('id, slug').single();
+      if (error) {
+        // Erreurs RLS / contrainte unique → message plus explicite
+        if (error.code === '23505') throw new Error('Une académie existe déjà avec ce nom — choisis un autre nom.');
+        if (error.code === '42501' || error.message.includes('row-level security')) {
+          throw new Error('Accès refusé par Supabase (RLS). Vérifie que tu es bien connecté.');
+        }
+        throw error;
+      }
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['my-academy'] });
+      queryClient.invalidateQueries({ queryKey: ['accessible-academies-nav'] });
+      toast({ title: 'Académie créée !', description: 'Elle apparaît dans le menu de gauche.' });
+      // Permet de naviguer vers la vue invité si voulu
+      if (data?.slug) {
+        // Stay on management page — but the sidebar tab is now visible
+      }
+    },
+    onError: (e: Error) => toast({ title: 'Erreur création', description: e.message, variant: 'destructive' }),
+  });
+
+  // Renommer / éditer l'académie (modifie aussi le nom de l'onglet sidebar)
+  const updateAcademy = useMutation({
+    mutationFn: async (patch: { name?: string; description?: string | null }) => {
+      if (!academy) throw new Error('Pas d\'académie');
+      const { error } = await supabase.from('academies').update(patch).eq('id', academy.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-academy'] });
-      toast({ title: 'Académie créée !' });
+      queryClient.invalidateQueries({ queryKey: ['accessible-academies-nav'] });
+      toast({ title: 'Académie mise à jour' });
     },
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
@@ -438,6 +472,7 @@ export default function MonAcademiePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academy-access'] });
+      queryClient.invalidateQueries({ queryKey: ['accessible-academies-nav'] });
       setGrantEmail('');
       toast({ title: 'Accès accordé', description: 'L\'utilisateur recevra une notification.' });
     },
@@ -452,6 +487,7 @@ export default function MonAcademiePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['academy-access'] });
+      queryClient.invalidateQueries({ queryKey: ['accessible-academies-nav'] });
       toast({ title: 'Accès révoqué' });
     },
   });
@@ -835,19 +871,77 @@ export default function MonAcademiePage() {
 
         {/* Tab : Paramètres */}
         {tab === 'parametres' && (
-          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-            <p className="text-sm text-muted-foreground">Paramètres avancés à venir.</p>
-            <div className="rounded-xl bg-muted p-3 space-y-1">
-              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Lien public</p>
-              <p className="text-xs font-mono text-foreground break-all">{window.location.origin}/academie/{academy.slug}</p>
+          <div className="space-y-3">
+            {/* Renommer / éditer */}
+            <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Edit2 className="h-4 w-4 text-blue-500" />
+                Nom & description
+              </h3>
+              <p className="text-[11px] text-muted-foreground">
+                Le nom de l'académie est affiché comme onglet dans le menu de gauche, autant pour toi que pour les invités.
+              </p>
+              {(() => {
+                const formState = editAcademyForm ?? { name: academy.name, description: academy.description || '' };
+                return (
+                  <>
+                    <div>
+                      <Label>Nom de l'académie</Label>
+                      <Input
+                        value={formState.name}
+                        onChange={(e) => setEditAcademyForm({ ...formState, name: e.target.value })}
+                        className="h-10"
+                      />
+                    </div>
+                    <div>
+                      <Label>Description</Label>
+                      <Textarea
+                        value={formState.description}
+                        onChange={(e) => setEditAcademyForm({ ...formState, description: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newName = formState.name.trim();
+                        const newDesc = formState.description.trim();
+                        if (!newName) { toast({ title: 'Le nom est requis', variant: 'destructive' }); return; }
+                        updateAcademy.mutate({ name: newName, description: newDesc || null });
+                      }}
+                      disabled={updateAcademy.isPending}
+                      className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-50 hover:bg-blue-700"
+                    >
+                      {updateAcademy.isPending ? 'Enregistrement…' : 'Enregistrer'}
+                    </button>
+                  </>
+                );
+              })()}
             </div>
-            <button onClick={() => navigate(`/academie/${academy.slug}`)} className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-blue-700">
-              <Eye className="h-4 w-4" />
-              Voir mon académie côté visiteur
-            </button>
-            <p className="text-[10px] text-muted-foreground">
-              Stockage : {academy.storage_used_mb} MB utilisés sur {academy.storage_quota_mb} MB. Pour augmenter, contacte contact@triibu.fr.
-            </p>
+
+            {/* Lien public + aperçu */}
+            <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <ExternalLink className="h-4 w-4 text-violet-500" />
+                Aperçu invité
+              </h3>
+              <div className="rounded-xl bg-muted p-3 space-y-1">
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground">Lien public</p>
+                <p className="text-xs font-mono text-foreground break-all">{window.location.origin}/academie/{academy.slug}</p>
+              </div>
+              <button onClick={() => navigate(`/academie/${academy.slug}`)} className="w-full py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-violet-700">
+                <Eye className="h-4 w-4" />
+                Voir mon académie côté visiteur
+              </button>
+              <p className="text-[11px] text-muted-foreground">
+                Les invités ont accès en <strong>lecture seule</strong> — ils peuvent suivre les leçons et commenter, mais pas modifier le contenu. Pour partager, accorde l'accès dans l'onglet "Accès".
+              </p>
+            </div>
+
+            <div className="bg-card border border-border rounded-2xl p-4">
+              <p className="text-[11px] text-muted-foreground">
+                Stockage : <span className="font-semibold text-foreground">{academy.storage_used_mb} MB</span> utilisés sur {academy.storage_quota_mb} MB. Pour augmenter, contacte <a href="mailto:contact@triibu.fr" className="text-blue-500 underline">contact@triibu.fr</a>.
+              </p>
+            </div>
           </div>
         )}
 

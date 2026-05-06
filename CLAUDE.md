@@ -45,6 +45,10 @@ Port par défaut : 5174
 - **Com confirmée** : issue de l'import TRV Hyla officiel. Affichée en vert.
 - L'import TRV crée les `commission_imports` et consolide via `consolidate_import_commissions` RPC.
 
+### Statuts deal (`deal_status` enum)
+`en_cours`, `en_attente`, `signee`, `en_financement`, `livree`, `annulee`.
+- `en_financement` (mig. `20260506_deal_status_financement.sql`) : deal signé bloqué en attente de validation bancaire. Compte dans le CA / barème comme `signee`. Le bouton **Reporter au mois prochain** (visible sur cette colonne du Kanban) décale `signed_at` + le `period` de la commission au mois suivant — utile quand le financement est validé un mois plus tard.
+
 ### Challenges
 - Countdown : 2 mois, 5 ventes, bonus 800€
 - Rookie : 6 mois, 15 ventes, bonus 1000€
@@ -74,6 +78,34 @@ Port par défaut : 5174
 
 ### Import Finance
 - Input natif caché pour contourner le focus trap Radix UI Dialog
+
+### Académies privées
+- Tables : `academies`, `academy_sections`, `academy_files`, `academy_access`, `academy_file_progress`, `academy_lesson_comments` (RLS owner-all + invitees-read).
+- `MonAcademiePage` (créateur) : édition complète, **renommer dans Paramètres → l'onglet sidebar reflète le nouveau nom**, Accès, Stats.
+- `AcademieViewPage` (`/academie/:slug`) : vue lecture seule pour les invités (suivi progression + commentaires).
+- Sidebar : section "Mes académies" (AppLayout) — liste les académies possédées + celles partagées via `academy_access`. Query `accessible-academies-nav` invalidée à chaque mutation (création / accès accordé / révoqué) pour refresh immédiat.
+
+### Dashboard — widgets cliquables
+Toutes les KPI cards sont des `<a href>` :
+- CA du mois / Ventes → `/deals`
+- Équipe → `/network`
+- Commissions du mois → `/commissions`
+- Mon rang (anciennement "Progression niveau") → `/settings#mon-rang` (ancre vers la section rang Hyla détaillée)
+- Prochaines tâches → `/tasks?taskId=<id>` ouvre directement le modal d'édition dans Tasks.tsx (lecture du query param via `useSearchParams`).
+
+### Tâches — vues
+Ordre du toggle : **Kanban (défaut) → Liste → Terminées**.
+- Kanban : drag-and-drop HTML5, surlignage par classes Tailwind theme-safe (`ring-2 ring-blue-500/40 bg-blue-500/5`).
+- Click sur la pastille d'une tâche terminée → re-passe en `a_faire` (mutation `uncompleteTask`) — effet inverse de `completeTask`.
+
+### Ventes — Kanban + Financement
+Vue Kanban par défaut. Drop sur une colonne appelle `applyStatusUpdate()` qui :
+- Met à jour `status` + `signed_at` (si passage à `signee` ou `en_financement` et pas encore signé).
+- Crée la commission via `ensureCommission()` si elle n'existe pas.
+- Invalide `deals`, `commissions`, `dashboard-kpis` → barème commissions, CA, etc. se rafraîchissent.
+
+### Support / SAV
+Section "Support & suggestions" en bas de `SettingsPage` — formulaire simple (type + message) qui ouvre un `mailto:contact@triibu.fr` pré-rempli avec contexte technique (URL, user-agent, profil). Pas de table dédiée, géré côté mail.
 
 ## Projets connexes (ne pas confondre)
 - `portfolio-navigator-6180a241-main` → CRM Courtage Thomas Jean (assurance) — projet SÉPARÉ

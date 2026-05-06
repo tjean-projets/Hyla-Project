@@ -708,7 +708,7 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
       return (data || []) as Array<{ id: string; name: string; slug: string; owner_user_id: string }>;
     },
     enabled: !!user,
-    staleTime: 60000,
+    staleTime: 0,
   });
 
   // Amounts visibility toggle

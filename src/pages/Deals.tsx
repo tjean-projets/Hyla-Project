@@ -5,7 +5,7 @@ import { supabase, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS, HYLA_PRODUCTS, HYLA_C
 import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUser';
 import { useAmounts } from '@/contexts/AmountsContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Clock, TrendingUp, Download, Users } from 'lucide-react';
+import { Plus, Search, Clock, TrendingUp, Download, Users, CalendarClock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -19,11 +19,12 @@ import { DealDrawer } from '@/components/DealDrawer';
 type Deal = Tables<'deals'>;
 
 const KANBAN_COLS = [
-  { status: 'en_cours',   label: 'En cours',   bg: 'bg-blue-50 dark:bg-blue-950/30',    text: 'text-blue-700 dark:text-blue-300' },
-  { status: 'en_attente', label: 'En attente', bg: 'bg-amber-50 dark:bg-amber-950/30',  text: 'text-amber-700 dark:text-amber-300' },
-  { status: 'signee',     label: 'Signée',      bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-700 dark:text-emerald-300' },
-  { status: 'livree',     label: 'Livrée',      bg: 'bg-teal-50 dark:bg-teal-950/30',   text: 'text-teal-700 dark:text-teal-300' },
-  { status: 'annulee',    label: 'Annulée',     bg: 'bg-red-50 dark:bg-red-950/30',     text: 'text-red-700 dark:text-red-300' },
+  { status: 'en_cours',       label: 'En cours',       bg: 'bg-blue-50 dark:bg-blue-950/30',       text: 'text-blue-700 dark:text-blue-300' },
+  { status: 'en_attente',     label: 'En attente',     bg: 'bg-amber-50 dark:bg-amber-950/30',     text: 'text-amber-700 dark:text-amber-300' },
+  { status: 'signee',         label: 'Signée',         bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-700 dark:text-emerald-300' },
+  { status: 'en_financement', label: 'En financement', bg: 'bg-indigo-50 dark:bg-indigo-950/30',   text: 'text-indigo-700 dark:text-indigo-300' },
+  { status: 'livree',         label: 'Livrée',         bg: 'bg-teal-50 dark:bg-teal-950/30',       text: 'text-teal-700 dark:text-teal-300' },
+  { status: 'annulee',        label: 'Annulée',        bg: 'bg-red-50 dark:bg-red-950/30',         text: 'text-red-700 dark:text-red-300' },
 ];
 
 function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
@@ -96,6 +97,8 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
         bank_fees_offered: form.payment_type === 'mensualites' ? form.bank_fees_offered : false,
       };
 
+      const isCommittedStatus = form.status === 'signee' || form.status === 'en_financement';
+
       if (isEdit) {
         const updateData: any = {
           contact_id: form.contact_id || null,
@@ -109,11 +112,11 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           loss_reason_category: form.status === 'annulee' ? (form.loss_reason_category || null) : null,
           ...paymentFields,
         };
-        if (form.status === 'signee' && !initialData.signed_at) {
+        if (isCommittedStatus && !initialData.signed_at) {
           updateData.signed_at = form.signed_at_date
             ? new Date(form.signed_at_date + 'T12:00:00').toISOString()
             : new Date().toISOString();
-        } else if (form.status === 'signee' && initialData.signed_at) {
+        } else if (isCommittedStatus && initialData.signed_at) {
           // Permettre de corriger la date même après création
           updateData.signed_at = form.signed_at_date
             ? new Date(form.signed_at_date + 'T12:00:00').toISOString()
@@ -131,7 +134,7 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           status: form.status,
           notes: form.notes || null,
           sold_by: form.sold_by || null,
-          signed_at: form.status === 'signee'
+          signed_at: isCommittedStatus
             ? (form.signed_at_date
                 ? new Date(form.signed_at_date + 'T12:00:00').toISOString()
                 : new Date().toISOString())
@@ -144,8 +147,8 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
         dealId = newDeal?.id;
       }
 
-      // Auto-create commission when deal becomes "signée"
-      if (form.status === 'signee' && !wasSignedBefore && dealId) {
+      // Auto-create commission when deal becomes "signée" ou "en_financement"
+      if (isCommittedStatus && !wasSignedBefore && dealId) {
         const amount = parseFloat(form.amount) || 0;
         const period = new Date().toISOString().slice(0, 7); // YYYY-MM
         // Check if commission already exists for this deal
@@ -169,10 +172,10 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['commissions'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
-      const wasJustSigned = form.status === 'signee' && !(isEdit && initialData?.signed_at);
+      const wasJustCommitted = (form.status === 'signee' || form.status === 'en_financement') && !(isEdit && initialData?.signed_at);
       toast({
         title: isEdit ? 'Vente modifiée' : 'Vente créée',
-        description: wasJustSigned ? `Commission de ${parseFloat(form.amount).toLocaleString('fr-FR')}€ créée automatiquement` : undefined,
+        description: wasJustCommitted ? `Commission de ${parseFloat(form.amount).toLocaleString('fr-FR')}€ créée automatiquement` : undefined,
       });
       onSuccess();
     },
@@ -335,8 +338,8 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
         )}
       </div>
 
-      {/* Date de signature — affichée uniquement si statut = Signée */}
-      {form.status === 'signee' && (
+      {/* Date de signature — affichée si statut = Signée ou En financement */}
+      {(form.status === 'signee' || form.status === 'en_financement') && (
         <div>
           <Label>Date de signature</Label>
           <input
@@ -376,7 +379,7 @@ function DealForm({ onSuccess, contacts, teamMembers, initialData, onDelete }: {
           />
         </div>
       )}
-      {form.status === 'signee' && parseFloat(form.amount) > 0 && (
+      {(form.status === 'signee' || form.status === 'en_financement') && parseFloat(form.amount) > 0 && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2 dark:bg-emerald-950/30 dark:border-emerald-800">
           <span className="text-emerald-600 text-xs font-medium dark:text-emerald-400">Commission auto :</span>
           <span className="text-emerald-700 text-sm font-bold dark:text-emerald-300">{parseFloat(form.amount).toLocaleString('fr-FR')} €</span>
@@ -428,7 +431,8 @@ export default function Deals() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingDeal, setEditingDeal] = useState<any | null>(null);
-  const [view, setView] = useState<'list' | 'kanban'>('list');
+  // Vue Kanban par défaut (au lieu de la liste) — la liste reste accessible via le toggle
+  const [view, setView] = useState<'list' | 'kanban'>('kanban');
 
   const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
   const [drawerDeal, setDrawerDeal] = useState<any | null>(null);
@@ -481,34 +485,81 @@ export default function Deals() {
     onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
   });
 
-  const handleStatusChange = async (dealId: string, status: string) => {
-    const updates: any = { status };
-    if (status === 'signee') updates.signed_at = new Date().toISOString();
-    await supabase.from('deals').update(updates).eq('id', dealId);
+  // Crée la commission si passage à "signée" ou "en financement" (statut considéré "engagé")
+  const ensureCommission = async (dealId: string) => {
+    if (!effectiveId) return;
+    const deal = deals.find((d: any) => d.id === dealId);
+    if (!deal) return;
+    const { data: existing } = await supabase
+      .from('commissions').select('id').eq('deal_id', dealId).maybeSingle();
+    if (!existing) {
+      await supabase.from('commissions').insert({
+        user_id: effectiveId,
+        period: new Date().toISOString().slice(0, 7),
+        type: 'directe',
+        amount: deal.amount,
+        source: 'vente',
+        deal_id: dealId,
+        status: 'validee',
+        notes: deal.product ? `Vente ${deal.product}` : null,
+      });
+    }
+  };
 
-    // Créer la commission si passage à "signée" (vérif anti-doublon par deal_id)
-    if (status === 'signee' && effectiveId) {
-      const deal = deals.find((d: any) => d.id === dealId);
-      if (deal) {
-        const { data: existing } = await supabase
-          .from('commissions').select('id').eq('deal_id', dealId).maybeSingle();
-        if (!existing) {
-          await supabase.from('commissions').insert({
-            user_id: effectiveId,
-            period: new Date().toISOString().slice(0, 7),
-            type: 'directe',
-            amount: deal.amount,
-            source: 'vente',
-            deal_id: dealId,
-            status: 'validee',
-            notes: deal.product ? `Vente ${deal.product}` : null,
-          });
-        }
-      }
+  const applyStatusUpdate = async (dealId: string, status: string) => {
+    const updates: any = { status };
+    if ((status === 'signee' || status === 'en_financement') && !deals.find((d: any) => d.id === dealId)?.signed_at) {
+      updates.signed_at = new Date().toISOString();
+    }
+    const { error } = await supabase.from('deals').update(updates).eq('id', dealId);
+    if (error) throw error;
+    if (status === 'signee' || status === 'en_financement') {
+      await ensureCommission(dealId);
+    }
+  };
+
+  const handleStatusChange = async (dealId: string, status: string) => {
+    try {
+      await applyStatusUpdate(dealId, status);
+    } catch (err: any) {
+      toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
     }
     queryClient.invalidateQueries({ queryKey: ['deals'] });
+    queryClient.invalidateQueries({ queryKey: ['commissions'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
     setDrawerDeal(null);
   };
+
+  // ── "Reporter au mois prochain" : décale la commission (et signed_at) au 1er du mois suivant
+  // pour que le deal en financement compte dans les KPIs du mois où le financement est confirmé.
+  const reportNextMonth = useMutation({
+    mutationFn: async (dealId: string) => {
+      const deal = deals.find((d: any) => d.id === dealId);
+      if (!deal) throw new Error('Vente introuvable');
+      const ref = deal.signed_at ? new Date(deal.signed_at) : new Date();
+      const nextMonth = new Date(ref.getFullYear(), ref.getMonth() + 1, Math.min(ref.getDate(), 28), 12, 0, 0);
+      const newSignedAt = nextMonth.toISOString();
+      const newPeriod = nextMonth.toISOString().slice(0, 7); // YYYY-MM
+      const { error: dErr } = await supabase.from('deals').update({ signed_at: newSignedAt }).eq('id', dealId);
+      if (dErr) throw dErr;
+      const { data: existing } = await supabase
+        .from('commissions').select('id').eq('deal_id', dealId).maybeSingle();
+      if (existing) {
+        const { error: cErr } = await supabase.from('commissions').update({ period: newPeriod }).eq('deal_id', dealId);
+        if (cErr) throw cErr;
+      } else {
+        await ensureCommission(dealId);
+        await supabase.from('commissions').update({ period: newPeriod }).eq('deal_id', dealId);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['commissions'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
+      toast({ title: 'Reporté', description: 'La commission est désormais comptée le mois prochain.' });
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
 
   const selectedPeriod = `${selectedYear}-${selectedMonth}`;
 
@@ -522,9 +573,9 @@ export default function Deals() {
     return matchesSearch && matchesStatus && matchesPeriod;
   });
 
-  // 'signee' = estimé (manuel) + 'livree' = confirmé par TRV
+  // 'signee' = estimé (manuel) + 'en_financement' = signé en attente bancaire + 'livree' = confirmé TRV
   const signedInPeriod = deals.filter((d: any) => {
-    if (d.status !== 'signee' && d.status !== 'livree') return false;
+    if (d.status !== 'signee' && d.status !== 'en_financement' && d.status !== 'livree') return false;
     const dateStr = d.signed_at || d.created_at;
     return dateStr && dateStr.startsWith(selectedPeriod);
   });
@@ -807,22 +858,36 @@ export default function Deals() {
               const colDeals = filtered.filter((d: any) => d.status === col.status);
               return (
                 <div key={col.status}
-                  className="min-w-[220px] flex-shrink-0"
-                  onDragOver={(e) => e.preventDefault()}
+                  className="min-w-[220px] flex-shrink-0 rounded-xl transition-colors p-1"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add('ring-2', 'ring-blue-500/40', 'bg-blue-500/5');
+                  }}
+                  onDragLeave={(e) => {
+                    e.currentTarget.classList.remove('ring-2', 'ring-blue-500/40', 'bg-blue-500/5');
+                  }}
                   onDrop={async (e) => {
                     e.preventDefault();
+                    e.currentTarget.classList.remove('ring-2', 'ring-blue-500/40', 'bg-blue-500/5');
                     const dealId = e.dataTransfer.getData('dealId');
-                    if (dealId) {
-                      await supabase.from('deals').update({ status: col.status }).eq('id', dealId);
-                      queryClient.invalidateQueries({ queryKey: ['deals'] });
+                    if (!dealId) return;
+                    try {
+                      await applyStatusUpdate(dealId, col.status);
+                    } catch (err: any) {
+                      toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
+                      return;
                     }
+                    // Invalide tout : KPI ventes/CA, barème commissions (basé sur nbSignees), commissions
+                    queryClient.invalidateQueries({ queryKey: ['deals'] });
+                    queryClient.invalidateQueries({ queryKey: ['commissions'] });
+                    queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] });
                   }}
                 >
                   <div className={`flex items-center gap-2 mb-2 px-3 py-2 rounded-xl ${col.bg}`}>
                     <span className={`text-xs font-bold ${col.text}`}>{col.label}</span>
                     <span className={`ml-auto text-xs font-semibold ${col.text} opacity-70`}>{colDeals.length}</span>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 min-h-[80px]">
                     {colDeals.map((deal: any) => (
                       <div key={deal.id}
                         draggable
@@ -844,8 +909,24 @@ export default function Deals() {
                         )}
                         {deal.signed_at && (
                           <p className="text-[10px] text-muted-foreground mt-1">
-                            Signé le {new Date(deal.signed_at).toLocaleDateString('fr-FR')}
+                            Compte le {new Date(deal.signed_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </p>
+                        )}
+                        {/* Bouton "Reporter au mois prochain" — uniquement sur la colonne Financement */}
+                        {col.status === 'en_financement' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm('Reporter cette vente (commission + KPI) au mois prochain ?')) {
+                                reportNextMonth.mutate(deal.id);
+                              }
+                            }}
+                            disabled={reportNextMonth.isPending}
+                            className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-semibold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20 disabled:opacity-50 transition-colors"
+                          >
+                            <CalendarClock className="h-3 w-3" />
+                            Reporter au mois prochain
+                          </button>
                         )}
                       </div>
                     ))}

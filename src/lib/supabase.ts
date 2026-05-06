@@ -29,11 +29,12 @@ export const CONTACT_STATUS_COLORS: Record<ContactStatus, string> = {
 };
 
 // ── Deal statuses ──
-export type DealStatus = 'en_cours' | 'signee' | 'annulee' | 'en_attente' | 'livree';
+export type DealStatus = 'en_cours' | 'signee' | 'en_financement' | 'annulee' | 'en_attente' | 'livree';
 
 export const DEAL_STATUS_LABELS: Record<DealStatus, string> = {
   en_cours: 'En cours',
   signee: 'Signée',
+  en_financement: 'En financement',
   annulee: 'Annulée',
   en_attente: 'En attente',
   livree: 'Livrée',
@@ -42,6 +43,7 @@ export const DEAL_STATUS_LABELS: Record<DealStatus, string> = {
 export const DEAL_STATUS_COLORS: Record<DealStatus, string> = {
   en_cours: 'bg-blue-100 text-blue-800',
   signee: 'bg-green-100 text-green-800',
+  en_financement: 'bg-indigo-100 text-indigo-800',
   annulee: 'bg-red-100 text-red-800',
   en_attente: 'bg-amber-100 text-amber-800',
   livree: 'bg-teal-100 text-teal-800',
@@ -165,7 +167,8 @@ export const HYLA_LEVELS: {
   shortLabel: string;
   recruteCommission: number;   // €/vente de recrue directe
   quotaMois: number;           // ventes perso requises/mois pour la prime groupe
-  conditions: string;
+  conditions: string;          // résumé court (1 ligne, pour l'affichage compact)
+  detailedConditions: string[]; // critères détaillés ligne par ligne (Settings)
   color: string;
 }[] = [
   {
@@ -174,7 +177,12 @@ export const HYLA_LEVELS: {
     shortLabel: 'Vendeur',
     recruteCommission: 100,
     quotaMois: 0,
-    conditions: 'Aucune condition — niveau de départ',
+    conditions: 'Niveau de départ — aucune condition',
+    detailedConditions: [
+      'Niveau de démarrage attribué automatiquement à l\'inscription.',
+      'Commission : 100 € par vente de recrue directe.',
+      'Pas de quota de ventes ni de prime de gestion à ce stade.',
+    ],
     color: 'from-slate-400 to-slate-500',
   },
   {
@@ -183,7 +191,14 @@ export const HYLA_LEVELS: {
     shortLabel: 'Manager',
     recruteCommission: 120,
     quotaMois: 15,
-    conditions: '3 vendeurs directs actifs minimum',
+    conditions: '3 vendeurs directs actifs + >15 ventes équipe/mois × 3 mois',
+    detailedConditions: [
+      '3 vendeurs directs actifs minimum (statut "actif" — au moins 1 vente sur le mois).',
+      'Plus de 15 ventes équipe par mois (cumul vendeurs directs + indirects).',
+      'Volume tenu sur 3 mois consécutifs avant la promotion.',
+      'Présence aux réunions hebdomadaires et au meeting mensuel.',
+      'Commission : 120 € / vente de recrue directe + prime gestion 30 €/machine dès 15 ventes équipe/mois.',
+    ],
     color: 'from-pink-500 to-rose-400',
   },
   {
@@ -192,7 +207,14 @@ export const HYLA_LEVELS: {
     shortLabel: 'Chef groupe',
     recruteCommission: 140,
     quotaMois: 30,
-    conditions: '4 vendeurs directs + 1 indirect actifs min.',
+    conditions: '4 directs + 1 indirect actifs + >30 ventes/mois × 3 mois',
+    detailedConditions: [
+      '4 vendeurs directs actifs + au moins 1 vendeur indirect actif.',
+      'Plus de 30 ventes équipe par mois.',
+      'Volume tenu sur 3 mois consécutifs.',
+      'Présence aux réunions hebdomadaires et au meeting mensuel.',
+      'Commission : 140 € / recrue directe + prime gestion 30–50 €/machine selon volume.',
+    ],
     color: 'from-orange-500 to-amber-400',
   },
   {
@@ -201,7 +223,15 @@ export const HYLA_LEVELS: {
     shortLabel: "Chef d'agence",
     recruteCommission: 160,
     quotaMois: 60,
-    conditions: "4 vendeurs directs + 1 lignée (manager) min.",
+    conditions: "4 directs + 1 lignée Manager + >60 ventes/mois × 3 mois",
+    detailedConditions: [
+      '4 vendeurs directs actifs minimum.',
+      'Au moins 1 lignée descendante avec un Manager qualifié.',
+      'Plus de 60 ventes équipe par mois (toutes lignées confondues).',
+      'Volume tenu sur 3 mois consécutifs.',
+      'Présence aux réunions hebdomadaires et au meeting mensuel.',
+      'Commission : 160 € / recrue directe + prime gestion 30–70 €/machine selon volume.',
+    ],
     color: 'from-yellow-500 to-amber-400',
   },
   {
@@ -210,7 +240,14 @@ export const HYLA_LEVELS: {
     shortLabel: 'Distributeur',
     recruteCommission: 180,
     quotaMois: 90,
-    conditions: '2 lignées (managers) minimum',
+    conditions: '2 lignées Manager qualifiées + >90 ventes/mois × 3 mois',
+    detailedConditions: [
+      '2 lignées descendantes ayant chacune un Manager qualifié.',
+      'Plus de 90 ventes équipe par mois (cumul toutes lignées).',
+      'Volume tenu sur 3 mois consécutifs.',
+      'Présence aux réunions hebdomadaires et au meeting mensuel.',
+      'Commission : 180 € / recrue directe + prime gestion 30–85 €/machine selon volume.',
+    ],
     color: 'from-emerald-500 to-green-400',
   },
   {
@@ -219,7 +256,14 @@ export const HYLA_LEVELS: {
     shortLabel: 'Elite Bronze',
     recruteCommission: 200,
     quotaMois: 120,
-    conditions: '3 lignées (managers) minimum',
+    conditions: '3 lignées Manager + >120 ventes/mois × 3 mois',
+    detailedConditions: [
+      '3 lignées descendantes avec chacune un Manager qualifié.',
+      'Plus de 120 ventes équipe par mois.',
+      'Volume tenu sur 3 mois consécutifs.',
+      'Présence aux réunions hebdomadaires et au meeting mensuel.',
+      'Commission : 200 € / recrue directe + prime gestion 30–100 €/machine selon volume.',
+    ],
     color: 'from-amber-700 to-amber-600',
   },
   {
@@ -228,7 +272,13 @@ export const HYLA_LEVELS: {
     shortLabel: 'Elite Argent',
     recruteCommission: 225,
     quotaMois: 120,
-    conditions: '3 lignées min. • qualification Elite Bronze/Argent',
+    conditions: '3 lignées Manager + qualification Argent (Hyla)',
+    detailedConditions: [
+      'Mêmes conditions que Elite Bronze (3 lignées Manager + >120 ventes/mois × 3 mois).',
+      'Qualification Argent attribuée par Hyla après audit du volume et de la stabilité.',
+      'Présence aux réunions hebdomadaires et au meeting mensuel.',
+      'Commission : 225 € / recrue directe.',
+    ],
     color: 'from-slate-400 to-slate-300',
   },
   {
@@ -237,7 +287,13 @@ export const HYLA_LEVELS: {
     shortLabel: 'Elite Or',
     recruteCommission: 250,
     quotaMois: 120,
-    conditions: '3 lignées min. • qualification Elite Or',
+    conditions: '3 lignées Manager + qualification Or (Hyla)',
+    detailedConditions: [
+      'Mêmes conditions que Elite Argent.',
+      'Qualification Or attribuée par Hyla — niveau le plus élevé du barème.',
+      'Présence aux réunions hebdomadaires et au meeting mensuel.',
+      'Commission : 250 € / recrue directe.',
+    ],
     color: 'from-yellow-400 to-yellow-300',
   },
 ];

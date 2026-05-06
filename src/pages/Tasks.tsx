@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
@@ -206,8 +207,10 @@ export default function Tasks() {
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<any | null>(null);
   const [filter, setFilter] = useState<string>('active');
-  const [view, setView] = useState<'list' | 'kanban'>('list');
+  // Vue Kanban par défaut, Liste = filter 'active', Terminées = filter 'done'
+  const [view, setView] = useState<'list' | 'kanban'>('kanban');
   const [draggingTask, setDraggingTask] = useState<any>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // ── List touch-drag reorder — clé par filtre pour éviter collision ──
   const storageKey = effectiveId ? `tasks-order-${effectiveId}-${filter}` : null;
@@ -266,11 +269,44 @@ export default function Tasks() {
     },
   });
 
+  // Décocher une tâche terminée → la remet dans "À faire"
+  const uncompleteTask = useMutation({
+    mutationFn: async (taskId: string) => {
+      const { error } = await supabase.from('tasks').update({ status: 'a_faire', completed_at: null }).eq('id', taskId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['notif-overdue'] });
+      queryClient.invalidateQueries({ queryKey: ['notif-today'] });
+    },
+  });
+
+  const toggleTask = (task: any) => {
+    if (task.status === 'terminee') uncompleteTask.mutate(task.id);
+    else completeTask.mutate(task.id);
+  };
+
   const filtered = useMemo(() => tasks.filter((t: any) => {
     if (filter === 'active') return t.status === 'a_faire' || t.status === 'en_cours';
     if (filter === 'done') return t.status === 'terminee';
     return true;
   }), [tasks, filter]);
+
+  // Deep-link : ouvre l'édition d'une tâche via ?taskId=xxx (depuis le Dashboard)
+  useEffect(() => {
+    const id = searchParams.get('taskId');
+    if (id && tasks.length > 0) {
+      const task = tasks.find((t: any) => t.id === id);
+      if (task) {
+        setEditingTask(task);
+        setShowForm(true);
+        // Nettoie le paramètre de l'URL pour éviter de rouvrir au re-render
+        searchParams.delete('taskId');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+  }, [tasks, searchParams, setSearchParams]);
 
   // Sync listOrder when tasks/filter change and not dragging
   useEffect(() => {
@@ -393,10 +429,25 @@ export default function Tasks() {
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           <div className="flex gap-1 bg-muted rounded-lg p-1 w-fit">
-            {[['active', 'À faire'], ['done', 'Terminées'], ['all', 'Toutes']].map(([key, label]) => (
-              <button key={key} onClick={() => { setFilter(key); setView('list'); }} className={`px-3 py-1.5 text-sm font-medium rounded-md ${filter === key && view === 'list' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>{label}</button>
-            ))}
-            <button onClick={() => setView('kanban')} className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'kanban' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}>Kanban</button>
+            {/* Ordre : Kanban (défaut) → Liste → Terminées */}
+            <button
+              onClick={() => setView('kanban')}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'kanban' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+            >
+              Kanban
+            </button>
+            <button
+              onClick={() => { setView('list'); setFilter('active'); }}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'list' && filter === 'active' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+            >
+              Liste
+            </button>
+            <button
+              onClick={() => { setView('list'); setFilter('done'); }}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'list' && filter === 'done' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+            >
+              Terminées
+            </button>
           </div>
         </div>
 
@@ -436,10 +487,14 @@ export default function Tasks() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (task.status !== 'terminee' && activeDragIdx === null) completeTask.mutate(task.id);
+                  if (activeDragIdx !== null) return;
+                  toggleTask(task);
                 }}
+                title={task.status === 'terminee' ? 'Cliquer pour remettre la tâche à faire' : 'Cliquer pour terminer'}
                 className={`h-7 w-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                  task.status === 'terminee' ? 'bg-green-500 border-green-500' : 'border-gray-300 hover:border-green-400'
+                  task.status === 'terminee'
+                    ? 'bg-green-500 border-green-500 hover:bg-green-600 hover:border-green-600'
+                    : 'border-gray-300 hover:border-green-400'
                 }`}
               >
                 {task.status === 'terminee' && <Check className="h-3.5 w-3.5 text-white" />}
@@ -475,24 +530,31 @@ export default function Tasks() {
         {view === 'kanban' && (
           <div className="flex gap-3 overflow-x-auto pb-4" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain auto' }}>
             {[
-              { status: 'a_faire', label: 'À faire', color: '#3b82f6', bgColor: 'bg-blue-50' },
-              { status: 'en_cours', label: 'En cours', color: '#f59e0b', bgColor: 'bg-amber-50' },
-              { status: 'terminee', label: 'Terminée', color: '#22c55e', bgColor: 'bg-green-50' },
+              { status: 'a_faire', label: 'À faire', color: '#3b82f6' },
+              { status: 'en_cours', label: 'En cours', color: '#f59e0b' },
+              { status: 'terminee', label: 'Terminée', color: '#22c55e' },
             ].map((col) => {
               const colTasks = tasks.filter((t: any) => t.status === col.status);
               return (
                 <div
                   key={col.status}
-                  className="min-w-[220px] max-w-[280px] flex-shrink-0 flex-1"
-                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.backgroundColor = col.bgColor.includes('blue') ? '#eff6ff' : col.bgColor.includes('amber') ? '#fffbeb' : '#f0fdf4'; }}
-                  onDragLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}
+                  className="min-w-[220px] max-w-[280px] flex-shrink-0 flex-1 rounded-xl transition-colors p-1"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    // Met une bordure pointillée + halo violet (theme-safe : pas de fond blanc en dark mode)
+                    e.currentTarget.classList.add('ring-2', 'ring-blue-500/40', 'bg-blue-500/5');
+                  }}
+                  onDragLeave={(e) => {
+                    e.currentTarget.classList.remove('ring-2', 'ring-blue-500/40', 'bg-blue-500/5');
+                  }}
                   onDrop={async (e) => {
                     e.preventDefault();
-                    e.currentTarget.style.backgroundColor = '';
+                    e.currentTarget.classList.remove('ring-2', 'ring-blue-500/40', 'bg-blue-500/5');
                     const taskId = e.dataTransfer.getData('taskId');
                     if (taskId) {
                       const updates: any = { status: col.status };
                       if (col.status === 'terminee') updates.completed_at = new Date().toISOString();
+                      else updates.completed_at = null;
                       const { error } = await supabase.from('tasks').update(updates).eq('id', taskId);
                       if (error) {
                         toast({ title: 'Erreur', description: 'Impossible de déplacer la tâche. Réessaie.', variant: 'destructive' });
@@ -567,17 +629,17 @@ export default function Tasks() {
                               </p>
                             )}
                           </div>
-                          {task.status !== 'terminee' && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); completeTask.mutate(task.id); }}
-                              className="h-5 w-5 rounded-full border-2 border-gray-300 hover:border-green-400 flex items-center justify-center flex-shrink-0 transition-colors"
-                            />
-                          )}
-                          {task.status === 'terminee' && (
-                            <div className="h-5 w-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                              <Check className="h-3 w-3 text-white" />
-                            </div>
-                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleTask(task); }}
+                            title={task.status === 'terminee' ? 'Cliquer pour remettre la tâche à faire' : 'Cliquer pour terminer'}
+                            className={`h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                              task.status === 'terminee'
+                                ? 'bg-green-500 hover:bg-green-600'
+                                : 'border-2 border-gray-300 hover:border-green-400'
+                            }`}
+                          >
+                            {task.status === 'terminee' && <Check className="h-3 w-3 text-white" />}
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -609,6 +671,7 @@ export default function Tasks() {
                 onClick={async () => {
                   const updates: any = { status: col.status };
                   if (col.status === 'terminee') updates.completed_at = new Date().toISOString();
+                  else updates.completed_at = null;
                   const { error } = await supabase.from('tasks').update(updates).eq('id', draggingTask.id);
                   if (error) toast({ title: 'Erreur', description: 'Impossible de déplacer la tâche.', variant: 'destructive' });
                   queryClient.invalidateQueries({ queryKey: ['tasks'] });

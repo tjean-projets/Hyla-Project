@@ -3,7 +3,7 @@ import { AppLayout, ALL_MOBILE_TABS } from '@/components/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, HYLA_LEVELS, type HylaLevel } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, AlertTriangle, Fingerprint, Eye, Target, CreditCard, TrendingUp, MoreHorizontal, Trophy, X, Edit2 } from 'lucide-react';
+import { Save, Plus, Trash2, GripVertical, FileText, Smartphone, Link2, Copy, Share2, Check, Users, Fingerprint, Eye, Target, CreditCard, TrendingUp, MoreHorizontal, Trophy, X, Edit2 } from 'lucide-react';
 import { useRespireAcademie } from '@/hooks/useRespireAcademie';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -251,9 +251,6 @@ export default function SettingsPage() {
   const [savingChallengeDate, setSavingChallengeDate] = useState(false);
   const [emailSaving, setEmailSaving] = useState(false);
   const [questions, setQuestions] = useState<FormQuestion[]>([]);
-  const [showPurge, setShowPurge] = useState(false);
-  const [purgeConfirm, setPurgeConfirm] = useState('');
-  const [purging, setPurging] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const [monthlySalesTarget, setMonthlySalesTarget] = useState('');
   const [monthlyCaTarget, setMonthlyCaTarget] = useState('');
@@ -996,7 +993,7 @@ export default function SettingsPage() {
 
         {/* Rang Hyla */}
         {!isImpersonating && (
-          <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
+          <div id="mon-rang" className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5 scroll-mt-20">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="h-4 w-4 text-violet-600 dark:text-violet-400" />
               <h3 className="text-base font-semibold text-foreground">Mon rang Hyla</h3>
@@ -1006,40 +1003,68 @@ export default function SettingsPage() {
               Ton rang est attribué par Hyla lorsque les conditions sont remplies sur 3 mois consécutifs. Il calibre tous les calculs de commissions dans l'outil.
             </p>
 
-            {/* Rang actuel — mis en avant */}
+            {/* Rang actuel — mis en avant + détail */}
             {(() => {
               const current = HYLA_LEVELS.find(l => l.value === hylaLevel);
               const currentIdx = HYLA_LEVELS.findIndex(l => l.value === hylaLevel);
               const next = HYLA_LEVELS[currentIdx + 1] || null;
               return (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-violet-500 bg-violet-50 dark:bg-violet-950/30">
-                    <div className={`h-3 w-3 rounded-full bg-gradient-to-br ${current?.color} flex-shrink-0`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-violet-700 dark:text-violet-300">{current?.label}</p>
-                      <p className="text-[11px] text-violet-500">{current?.conditions}</p>
-                    </div>
-                    <div className="flex-shrink-0 text-right">
-                      <p className="text-base font-bold text-violet-600 dark:text-violet-400">{current?.recruteCommission}€</p>
-                      <p className="text-[9px] text-violet-400">/ recrue</p>
-                    </div>
-                    <Check className="h-4 w-4 text-violet-600 flex-shrink-0 dark:text-violet-400" />
-                  </div>
-
-                  {/* Rangs suivants — grisés */}
-                  {HYLA_LEVELS.filter((_, i) => i > currentIdx).map((lvl) => (
-                    <div key={lvl.value} className="flex items-center gap-3 p-3 rounded-xl border border-border opacity-50">
-                      <div className={`h-2.5 w-2.5 rounded-full bg-gradient-to-br ${lvl.color} flex-shrink-0`} />
+                  <div className="p-4 rounded-xl border-2 border-violet-500 bg-violet-50 dark:bg-violet-950/30 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-3 w-3 rounded-full bg-gradient-to-br ${current?.color} flex-shrink-0`} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground">{lvl.label}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">{lvl.conditions}</p>
+                        <p className="text-sm font-bold text-violet-700 dark:text-violet-300">{current?.label}</p>
+                        <p className="text-[11px] text-violet-500">{current?.conditions}</p>
                       </div>
                       <div className="flex-shrink-0 text-right">
-                        <p className="text-sm font-bold text-muted-foreground">{lvl.recruteCommission}€</p>
-                        <p className="text-[10px] text-muted-foreground">/ recrue</p>
+                        <p className="text-base font-bold text-violet-600 dark:text-violet-400">{current?.recruteCommission}€</p>
+                        <p className="text-[9px] text-violet-400">/ recrue</p>
                       </div>
+                      <Check className="h-4 w-4 text-violet-600 flex-shrink-0 dark:text-violet-400" />
                     </div>
+                    {current?.detailedConditions && (
+                      <ul className="space-y-1 pl-1">
+                        {current.detailedConditions.map((line, i) => (
+                          <li key={i} className="flex items-start gap-1.5 text-[11px] text-violet-700 dark:text-violet-200">
+                            <span className="mt-0.5 text-violet-500">•</span>
+                            <span>{line}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Rangs suivants — détaillés (collapse via details) */}
+                  {HYLA_LEVELS.filter((_, i) => i > currentIdx).map((lvl) => (
+                    <details key={lvl.value} className="group rounded-xl border border-border opacity-90 hover:opacity-100 transition-opacity">
+                      <summary className="flex items-center gap-3 p-3 cursor-pointer list-none">
+                        <div className={`h-2.5 w-2.5 rounded-full bg-gradient-to-br ${lvl.color} flex-shrink-0`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground">{lvl.label}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">{lvl.conditions}</p>
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <p className="text-sm font-bold text-muted-foreground">{lvl.recruteCommission}€</p>
+                          <p className="text-[10px] text-muted-foreground">/ recrue</p>
+                        </div>
+                        <span className="text-muted-foreground text-xs ml-1 group-open:rotate-180 transition-transform">▾</span>
+                      </summary>
+                      <ul className="space-y-1 px-4 pb-3 pt-1 border-t border-border bg-muted/30">
+                        {lvl.detailedConditions.map((line, i) => (
+                          <li key={i} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                            <span className="mt-0.5 text-muted-foreground/60">•</span>
+                            <span>{line}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
                   ))}
+
+                  {/* Note réunions universelle */}
+                  <p className="text-[10px] text-muted-foreground italic px-1">
+                    ⚠ Sur tous les rangs, la présence aux réunions hebdomadaires et au meeting mensuel est exigée par Hyla (non traçable automatiquement).
+                  </p>
 
                   {/* Message prochain rang */}
                   {next && (
@@ -1341,83 +1366,95 @@ export default function SettingsPage() {
             <p className="text-[11px] text-amber-600 text-center mt-3 font-medium dark:text-amber-400">Active au moins 2 onglets</p>
           )}
         </div>
-        {/* Purge Data — hidden when impersonating */}
-        {!isImpersonating && <div className="bg-card rounded-2xl shadow-sm border border-red-100 p-4 sm:p-5 dark:border-red-900">
-          <div className="flex items-center gap-2 mb-1">
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-            <h3 className="text-base font-semibold text-red-600 dark:text-red-400">Zone dangereuse</h3>
-          </div>
-          <p className="text-xs text-muted-foreground mb-4">
-            Supprimez toutes vos données (contacts, ventes, tâches, commissions, réseau, leads). Votre compte sera conservé.
-          </p>
-          {!showPurge ? (
-            <button
-              onClick={() => setShowPurge(true)}
-              className="w-full py-3 border-2 border-red-200 text-red-600 font-semibold rounded-xl text-sm hover:bg-red-50 transition-colors dark:border-red-800 dark:text-red-400"
-            >
-              Supprimer toutes mes données
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <div className="bg-red-50 rounded-xl p-3 dark:bg-red-950/30">
-                <p className="text-xs text-red-700 font-medium mb-1 dark:text-red-300">⚠️ Cette action est irréversible !</p>
-                <p className="text-[11px] text-red-600 dark:text-red-400">
-                  Tapez <strong>SUPPRIMER</strong> pour confirmer la suppression de toutes vos données.
-                </p>
-              </div>
-              <Input
-                value={purgeConfirm}
-                onChange={(e) => setPurgeConfirm(e.target.value)}
-                placeholder="Tapez SUPPRIMER"
-                className="h-11 border-red-200 focus:ring-red-500/30 dark:border-red-800"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { setShowPurge(false); setPurgeConfirm(''); }}
-                  className="flex-1 py-2.5 bg-muted text-foreground font-semibold rounded-xl text-sm"
-                >
-                  Annuler
-                </button>
-                <button
-                  disabled={purgeConfirm !== 'SUPPRIMER' || purging}
-                  onClick={async () => {
-                    if (!user || !effectiveUserId) return;
-                    if (isImpersonating) {
-                      toast({ title: 'Action bloquée', description: 'Impossible de purger les données en mode impersonation.', variant: 'destructive' });
-                      return;
-                    }
-                    setPurging(true);
-                    try {
-                      // Delete in order (foreign keys)
-                      await supabase.from('commission_import_rows').delete().filter('import_id', 'in', `(select id from commission_imports where user_id='${effectiveUserId}')`);
-                      await supabase.from('commission_imports').delete().eq('user_id', effectiveUserId);
-                      await supabase.from('commissions').delete().eq('user_id', effectiveUserId);
-                      await supabase.from('deals').delete().eq('user_id', effectiveUserId);
-                      await supabase.from('tasks').delete().eq('user_id', effectiveUserId);
-                      await supabase.from('member_objectives').delete().filter('member_id', 'in', `(select id from team_members where user_id='${effectiveUserId}')`);
-                      await supabase.from('team_members').delete().eq('user_id', effectiveUserId);
-                      await supabase.from('contacts').delete().eq('user_id', effectiveUserId);
-                      await supabase.from('pipeline_stages').delete().eq('user_id', effectiveUserId);
-                      await supabase.from('public_leads').delete().eq('profile_id', effectiveUserId);
-                      await supabase.from('calendar_events').delete().eq('user_id', effectiveUserId);
-                      queryClient.invalidateQueries();
-                      toast({ title: 'Données supprimées', description: 'Toutes vos données ont été effacées.' });
-                      setShowPurge(false);
-                      setPurgeConfirm('');
-                    } catch (err: any) {
-                      toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
-                    }
-                    setPurging(false);
-                  }}
-                  className="flex-1 py-2.5 bg-red-600 text-white font-semibold rounded-xl text-sm disabled:opacity-30"
-                >
-                  {purging ? 'Suppression...' : 'Confirmer'}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>}
+        {/* Support / SAV */}
+        <SupportTicketSection
+          userEmail={profile?.email}
+          fullName={profile?.full_name}
+        />
       </div>
     </AppLayout>
+  );
+}
+
+/* ── Section Support / SAV (option A : mailto) ── */
+function SupportTicketSection({ userEmail, fullName }: { userEmail?: string | null; fullName?: string | null }) {
+  const [type, setType] = useState<'bug' | 'suggestion' | 'question'>('bug');
+  const [message, setMessage] = useState('');
+
+  const submit = () => {
+    if (!message.trim()) return;
+    const typeLabel = type === 'bug' ? '🐞 Bug' : type === 'suggestion' ? '💡 Suggestion' : '❓ Question';
+    const subject = `[Triibu — ${typeLabel}] ${fullName || 'Conseiller'}`;
+    const body = [
+      `Type : ${typeLabel}`,
+      `Utilisateur : ${fullName || '—'} (${userEmail || '—'})`,
+      `URL : ${window.location.href}`,
+      `User-Agent : ${navigator.userAgent}`,
+      '',
+      '— Message —',
+      message.trim(),
+    ].join('\n');
+    const mailto = `mailto:contact@triibu.fr?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
+  };
+
+  return (
+    <div className="bg-card rounded-2xl shadow-sm border border-border p-4 sm:p-5">
+      <div className="flex items-center gap-2 mb-1">
+        <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        <h3 className="text-base font-semibold text-foreground">Support & suggestions</h3>
+      </div>
+      <p className="text-xs text-muted-foreground mb-4">
+        Bug, idée d'amélioration ou question ? Envoie-nous un ticket — il s'ouvrira dans ton client mail vers <strong>contact@triibu.fr</strong> avec le contexte technique pré-rempli.
+      </p>
+      <div className="space-y-3">
+        <div>
+          <Label>Type de demande</Label>
+          <div className="grid grid-cols-3 gap-2 mt-1">
+            {([
+              { value: 'bug', label: '🐞 Bug' },
+              { value: 'suggestion', label: '💡 Suggestion' },
+              { value: 'question', label: '❓ Question' },
+            ] as const).map(t => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setType(t.value)}
+                className={`py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
+                  type === t.value
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-card text-muted-foreground border-border hover:border-blue-300'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <Label>Décris ta demande</Label>
+          <Textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={5}
+            placeholder={
+              type === 'bug'
+                ? 'Décris le bug : ce que tu faisais, ce qui s\'est passé, ce que tu attendais...'
+                : type === 'suggestion'
+                ? 'Décris ton idée — qu\'est-ce qui t\'aiderait dans ton quotidien Hyla ?'
+                : 'Pose ta question...'
+            }
+            className="mt-1"
+          />
+        </div>
+        <button
+          onClick={submit}
+          disabled={!message.trim()}
+          className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl disabled:opacity-50 hover:bg-blue-700 transition-colors"
+        >
+          Envoyer le ticket
+        </button>
+      </div>
+    </div>
   );
 }
