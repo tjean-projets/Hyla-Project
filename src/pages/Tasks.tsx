@@ -252,6 +252,71 @@ export default function Tasks() {
     enabled: !!effectiveId,
   });
 
+  // ── Colonnes Kanban personnalisables (table task_columns) ──
+  type TaskColumn = { id: string; name: string; position: number; color: string; base_status: string; is_default: boolean };
+  const { data: kanbanColumns = [] } = useQuery({
+    queryKey: ['task-columns', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase
+        .from('task_columns' as any)
+        .select('*')
+        .eq('user_id', effectiveId)
+        .order('position');
+      return (data || []) as TaskColumn[];
+    },
+    enabled: !!effectiveId,
+    staleTime: 30000,
+  });
+
+  const upsertColumn = useMutation({
+    mutationFn: async (col: Partial<TaskColumn> & { id?: string }) => {
+      if (!effectiveId) throw new Error('Non connecté');
+      if (col.id) {
+        const { error } = await supabase.from('task_columns' as any).update({
+          name: col.name, color: col.color, position: col.position, base_status: col.base_status,
+        }).eq('id', col.id);
+        if (error) throw error;
+      } else {
+        const nextPos = (kanbanColumns[kanbanColumns.length - 1]?.position ?? -1) + 1;
+        const { error } = await supabase.from('task_columns' as any).insert({
+          user_id: effectiveId,
+          name: col.name || 'Nouvelle colonne',
+          color: col.color || '#6366f1',
+          position: col.position ?? nextPos,
+          base_status: col.base_status || 'a_faire',
+          is_default: false,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['task-columns', effectiveId] }),
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  const deleteColumn = useMutation({
+    mutationFn: async (col: TaskColumn) => {
+      if (col.is_default) throw new Error('Impossible de supprimer une colonne par défaut. Renomme-la plutôt.');
+      // Réassigne les tâches de cette colonne vers la colonne par défaut du même base_status
+      const fallback = kanbanColumns.find(c => c.is_default && c.base_status === col.base_status);
+      if (fallback) {
+        await supabase.from('tasks').update({ column_id: fallback.id }).eq('column_id', col.id);
+      } else {
+        await supabase.from('tasks').update({ column_id: null }).eq('column_id', col.id);
+      }
+      const { error } = await supabase.from('task_columns' as any).delete().eq('id', col.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task-columns', effectiveId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', effectiveId] });
+      toast({ title: 'Colonne supprimée' });
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  const [editingColumn, setEditingColumn] = useState<TaskColumn | 'new' | null>(null);
+
   const completeTask = useMutation({
     mutationFn: async (taskId: string) => {
       const { error } = await supabase.from('tasks').update({ status: 'terminee', completed_at: new Date().toISOString() }).eq('id', taskId);
@@ -529,19 +594,23 @@ export default function Tasks() {
 
         {view === 'kanban' && (
           <div className="flex gap-3 overflow-x-auto pb-4" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain auto' }}>
-            {[
-              { status: 'a_faire', label: 'À faire', color: '#3b82f6' },
-              { status: 'en_cours', label: 'En cours', color: '#f59e0b' },
-              { status: 'terminee', label: 'Terminée', color: '#22c55e' },
-            ].map((col) => {
-              const colTasks = tasks.filter((t: any) => t.status === col.status);
+            {(kanbanColumns.length > 0 ? kanbanColumns : [
+              { id: '__a_faire__', name: 'À faire', color: '#3b82f6', base_status: 'a_faire', position: 0, is_default: true } as TaskColumn,
+              { id: '__en_cours__', name: 'En cours', color: '#f59e0b', base_status: 'en_cours', position: 1, is_default: true } as TaskColumn,
+              { id: '__terminee__', name: 'Terminée', color: '#22c55e', base_status: 'terminee', position: 2, is_default: true } as TaskColumn,
+            ]).map((col) => {
+              // Une tâche est dans la colonne si son column_id pointe dessus
+              // OU si elle a aucun column_id et que son status correspond au base_status d'une colonne par défaut.
+              const colTasks = tasks.filter((t: any) =>
+                t.column_id === col.id ||
+                (!t.column_id && col.is_default && t.status === col.base_status)
+              );
               return (
                 <div
-                  key={col.status}
+                  key={col.id}
                   className="min-w-[220px] max-w-[280px] flex-shrink-0 flex-1 rounded-xl transition-colors p-1"
                   onDragOver={(e) => {
                     e.preventDefault();
-                    // Met une bordure pointillée + halo violet (theme-safe : pas de fond blanc en dark mode)
                     e.currentTarget.classList.add('ring-2', 'ring-blue-500/40', 'bg-blue-500/5');
                   }}
                   onDragLeave={(e) => {
@@ -552,8 +621,8 @@ export default function Tasks() {
                     e.currentTarget.classList.remove('ring-2', 'ring-blue-500/40', 'bg-blue-500/5');
                     const taskId = e.dataTransfer.getData('taskId');
                     if (taskId) {
-                      const updates: any = { status: col.status };
-                      if (col.status === 'terminee') updates.completed_at = new Date().toISOString();
+                      const updates: any = { status: col.base_status, column_id: col.id.startsWith('__') ? null : col.id };
+                      if (col.base_status === 'terminee') updates.completed_at = new Date().toISOString();
                       else updates.completed_at = null;
                       const { error } = await supabase.from('tasks').update(updates).eq('id', taskId);
                       if (error) {
@@ -565,10 +634,19 @@ export default function Tasks() {
                     }
                   }}
                 >
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: col.color }} />
-                    <span className="text-sm font-semibold text-foreground">{col.label}</span>
+                  <div className="flex items-center gap-2 mb-3 group">
+                    <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: col.color }} />
+                    <span className="text-sm font-semibold text-foreground truncate">{col.name}</span>
                     <span className="text-xs text-muted-foreground ml-auto">{colTasks.length}</span>
+                    {!col.id.startsWith('__') && (
+                      <button
+                        onClick={() => setEditingColumn(col)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted text-muted-foreground transition-opacity"
+                        title="Modifier la colonne"
+                      >
+                        <GripVertical className="h-3 w-3 rotate-90" />
+                      </button>
+                    )}
                   </div>
                   <div className="space-y-2 min-h-[100px]">
                     {colTasks.map((task: any) => (
@@ -652,9 +730,34 @@ export default function Tasks() {
                 </div>
               );
             })}
+            {/* Bouton "+ Colonne" pour ajouter une colonne custom */}
+            <button
+              onClick={() => setEditingColumn('new')}
+              className="min-w-[180px] flex-shrink-0 rounded-xl border-2 border-dashed border-border hover:border-blue-400 hover:bg-blue-500/5 p-3 flex items-center justify-center gap-2 text-xs font-semibold text-muted-foreground hover:text-blue-600 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Ajouter une colonne
+            </button>
           </div>
         )}
       </div>
+
+      {/* Modale édition / création de colonne Kanban */}
+      {editingColumn && (
+        <ColumnEditor
+          column={editingColumn === 'new' ? null : editingColumn}
+          onSave={(patch) => {
+            upsertColumn.mutate(patch, { onSuccess: () => setEditingColumn(null) });
+          }}
+          onDelete={(col) => {
+            if (confirm(`Supprimer la colonne "${col.name}" ? Les tâches qu'elle contient seront déplacées vers la colonne par défaut correspondante.`)) {
+              deleteColumn.mutate(col, { onSuccess: () => setEditingColumn(null) });
+            }
+          }}
+          onClose={() => setEditingColumn(null)}
+          saving={upsertColumn.isPending || deleteColumn.isPending}
+        />
+      )}
 
       {/* Touch drag bar for mobile */}
       {draggingTask && (
@@ -669,7 +772,9 @@ export default function Tasks() {
               <button
                 key={col.status}
                 onClick={async () => {
-                  const updates: any = { status: col.status };
+                  // Trouve la colonne par défaut correspondant à ce statut pour aligner column_id
+                  const defaultCol = kanbanColumns.find(c => c.is_default && c.base_status === col.status);
+                  const updates: any = { status: col.status, column_id: defaultCol?.id ?? null };
                   if (col.status === 'terminee') updates.completed_at = new Date().toISOString();
                   else updates.completed_at = null;
                   const { error } = await supabase.from('tasks').update(updates).eq('id', draggingTask.id);
@@ -690,5 +795,87 @@ export default function Tasks() {
         </div>
       )}
     </AppLayout>
+  );
+}
+
+/* ── Modale édition/création d'une colonne Kanban personnalisée ── */
+function ColumnEditor({
+  column,
+  onSave,
+  onDelete,
+  onClose,
+  saving,
+}: {
+  column: { id: string; name: string; color: string; base_status: string; is_default: boolean; position: number } | null;
+  onSave: (patch: { id?: string; name: string; color: string; base_status: string }) => void;
+  onDelete: (col: { id: string; name: string; color: string; base_status: string; is_default: boolean; position: number }) => void;
+  onClose: () => void;
+  saving: boolean;
+}) {
+  const [name, setName] = useState(column?.name ?? '');
+  const [color, setColor] = useState(column?.color ?? '#6366f1');
+  const [baseStatus, setBaseStatus] = useState(column?.base_status ?? 'a_faire');
+
+  const PRESETS = ['#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#22c55e', '#14b8a6', '#ef4444'];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-background rounded-2xl max-w-md w-full p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-base font-bold">{column ? 'Modifier la colonne' : 'Nouvelle colonne Kanban'}</h3>
+        <div>
+          <Label>Nom</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: À valider, Bloqué…" autoFocus />
+        </div>
+        <div>
+          <Label>Couleur</Label>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {PRESETS.map(c => (
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                className={`h-8 w-8 rounded-lg border-2 transition-all ${color === c ? 'border-foreground scale-110' : 'border-transparent'}`}
+                style={{ backgroundColor: c }}
+                aria-label={c}
+              />
+            ))}
+          </div>
+        </div>
+        <div>
+          <Label>Statut de référence</Label>
+          <select
+            value={baseStatus}
+            onChange={(e) => setBaseStatus(e.target.value)}
+            className="w-full h-10 px-3 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="a_faire">À faire</option>
+            <option value="en_cours">En cours</option>
+            <option value="terminee">Terminée</option>
+            <option value="annulee">Annulée</option>
+          </select>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Détermine le statut "officiel" assigné aux tâches déposées dans cette colonne. Garde le bon mapping pour que les filtres et rappels fonctionnent.
+          </p>
+        </div>
+        <div className="flex gap-2 pt-2">
+          {column && !column.is_default && (
+            <button
+              onClick={() => onDelete(column)}
+              disabled={saving}
+              className="px-3 py-2.5 rounded-xl bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-semibold disabled:opacity-50 hover:bg-red-500/20"
+            >
+              Supprimer
+            </button>
+          )}
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl bg-muted text-foreground text-sm font-semibold">Annuler</button>
+          <button
+            onClick={() => onSave({ id: column?.id, name: name.trim() || 'Sans titre', color, base_status: baseStatus })}
+            disabled={!name.trim() || saving}
+            className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-50"
+          >
+            {saving ? '…' : column ? 'Enregistrer' : 'Créer'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

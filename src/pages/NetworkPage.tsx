@@ -546,8 +546,24 @@ function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onS
     recrues_objectif_mois: objective.recrues_objectif_mois || 0,
     recrues_objectif_3mois: objective.recrues_objectif_3mois || 0,
     recrues_objectif_1an: objective.recrues_objectif_1an || 0,
+    start_date: objective.start_date || new Date().toISOString().slice(0, 10),
   });
   const [saving, setSaving] = useState(false);
+
+  // Dates de rappel calculées à partir de start_date (le trigger DB calcule aussi côté serveur)
+  const followUp1mo = form.start_date ? new Date(new Date(form.start_date).setMonth(new Date(form.start_date).getMonth() + 1)) : null;
+  const followUp3mo = form.start_date ? new Date(new Date(form.start_date).setMonth(new Date(form.start_date).getMonth() + 3)) : null;
+  const today = new Date();
+  const isFollowUp1moDue = followUp1mo && followUp1mo <= today && !objective.follow_up_1mo_done_at;
+  const isFollowUp3moDue = followUp3mo && followUp3mo <= today && !objective.follow_up_3mo_done_at;
+
+  const markFollowUpDone = async (which: '1mo' | '3mo') => {
+    const field = which === '1mo' ? 'follow_up_1mo_done_at' : 'follow_up_3mo_done_at';
+    await supabase.from('member_objectives').update({ [field]: new Date().toISOString() }).eq('id', objective.id);
+    queryClient.invalidateQueries({ queryKey: ['member-objective', member.id] });
+    queryClient.invalidateQueries({ queryKey: ['follow-ups-due'] });
+    toast({ title: 'Suivi marqué comme fait' });
+  };
 
   // Load custom questions
   const { data: formConfig } = useQuery({
@@ -614,6 +630,51 @@ function ObjectifsView({ objective, member, formUrl, hasContent, onCopyLink, onS
           En attente — envoie le formulaire à {member.first_name}
         </div>
       )}
+
+      {/* Date de départ + rappels manager */}
+      <div className="border border-blue-200 dark:border-blue-800 rounded-xl p-3 bg-blue-50/50 dark:bg-blue-950/20 space-y-2">
+        <div className="flex items-center gap-2">
+          <Clock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+          <p className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider flex-1">Date de départ + rappels</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={form.start_date}
+            onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+            className="text-xs h-9 px-2 rounded-lg border border-border bg-card focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+          <p className="text-[10px] text-muted-foreground flex-1">
+            Détermine quand on fait le point à 1 mois / 3 mois.
+          </p>
+        </div>
+        {form.start_date && (
+          <div className="grid grid-cols-2 gap-2">
+            <div className={`rounded-lg p-2 border ${isFollowUp1moDue ? 'bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700' : objective.follow_up_1mo_done_at ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/30 dark:border-emerald-700' : 'bg-card border-border'}`}>
+              <p className="text-[9px] text-muted-foreground font-bold uppercase">Point à 1 mois</p>
+              <p className="text-xs font-semibold text-foreground">{followUp1mo ? followUp1mo.toLocaleDateString('fr-FR') : '—'}</p>
+              {objective.follow_up_1mo_done_at ? (
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">✓ Fait le {new Date(objective.follow_up_1mo_done_at).toLocaleDateString('fr-FR')}</p>
+              ) : isFollowUp1moDue ? (
+                <button onClick={() => markFollowUpDone('1mo')} className="mt-1 text-[10px] text-amber-700 dark:text-amber-300 underline">Marquer comme fait</button>
+              ) : (
+                <p className="text-[10px] text-muted-foreground mt-0.5">À venir</p>
+              )}
+            </div>
+            <div className={`rounded-lg p-2 border ${isFollowUp3moDue ? 'bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700' : objective.follow_up_3mo_done_at ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/30 dark:border-emerald-700' : 'bg-card border-border'}`}>
+              <p className="text-[9px] text-muted-foreground font-bold uppercase">Point à 3 mois</p>
+              <p className="text-xs font-semibold text-foreground">{followUp3mo ? followUp3mo.toLocaleDateString('fr-FR') : '—'}</p>
+              {objective.follow_up_3mo_done_at ? (
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">✓ Fait le {new Date(objective.follow_up_3mo_done_at).toLocaleDateString('fr-FR')}</p>
+              ) : isFollowUp3moDue ? (
+                <button onClick={() => markFollowUpDone('3mo')} className="mt-1 text-[10px] text-amber-700 dark:text-amber-300 underline">Marquer comme fait</button>
+              ) : (
+                <p className="text-[10px] text-muted-foreground mt-0.5">À venir</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Objectifs blocks — tout éditable directement */}
       {blocks.map(({ key, label, tone }) => {

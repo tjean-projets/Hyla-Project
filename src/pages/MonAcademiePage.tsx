@@ -13,11 +13,13 @@ import { useToast } from '@/components/ui/use-toast';
 import {
   GraduationCap, Plus, Upload, Link as LinkIcon, FileText, Video, Image as ImageIcon,
   FileBox, Trash2, Users, Settings, Copy, ExternalLink, X, Eye, FolderPlus,
-  Folder, Edit2, TrendingUp, CheckCircle2, GripVertical,
+  Folder, Edit2, TrendingUp, CheckCircle2, GripVertical, MapPin, UserPlus,
 } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Map, Overlay } from 'pigeon-maps';
+import { osm } from 'pigeon-maps/providers';
 
 type AcademyFile = {
   id: string;
@@ -80,9 +82,10 @@ export default function MonAcademiePage() {
 
   const isPro = plan === 'manager' || isLegacy || isSuperAdmin(user?.email);
 
-  const [tab, setTab] = useState<'contenu' | 'acces' | 'stats' | 'parametres'>('contenu');
+  const [tab, setTab] = useState<'contenu' | 'acces' | 'carte' | 'stats' | 'parametres'>('contenu');
   const [createForm, setCreateForm] = useState({ name: '', description: '' });
   const [editAcademyForm, setEditAcademyForm] = useState<{ name: string; description: string } | null>(null);
+  const [showQuickGrant, setShowQuickGrant] = useState(false);
   const [grantEmail, setGrantEmail] = useState('');
   const [editingSection, setEditingSection] = useState<AcademySection | null>(null);
   const [showSectionForm, setShowSectionForm] = useState(false);
@@ -551,6 +554,14 @@ export default function MonAcademiePage() {
               <h1 className="text-xl font-bold truncate">{academy.name}</h1>
               {academy.description && <p className="text-xs text-muted-foreground line-clamp-2">{academy.description}</p>}
             </div>
+            {/* Bouton vert prominent : ajouter un membre à la formation */}
+            <button
+              onClick={() => setShowQuickGrant(true)}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-md shadow-emerald-500/20 transition-colors"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Ajouter un membre
+            </button>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-3 flex-wrap">
             <span>{sections.length} section{sections.length > 1 ? 's' : ''}</span>
@@ -574,6 +585,7 @@ export default function MonAcademiePage() {
           {([
             { key: 'contenu', label: 'Contenu', icon: FileText },
             { key: 'acces', label: 'Accès', icon: Users },
+            { key: 'carte', label: 'Carte', icon: MapPin },
             { key: 'stats', label: 'Stats', icon: TrendingUp },
             { key: 'parametres', label: 'Paramètres', icon: Settings },
           ] as const).map(({ key, label, icon: Icon }) => (
@@ -583,6 +595,38 @@ export default function MonAcademiePage() {
             </button>
           ))}
         </div>
+
+        {/* Quick-add member dialog (depuis le bouton vert du header) */}
+        {showQuickGrant && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setShowQuickGrant(false)}>
+            <div className="bg-background rounded-2xl max-w-md w-full p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <UserPlus className="h-4 w-4 text-emerald-600" />
+                Ajouter un membre à l'académie
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Donne accès à un membre par son email Triibu. Il aura un accès <strong>lecture seule</strong> et recevra une notification.
+              </p>
+              <Input
+                placeholder="email@exemple.com"
+                value={grantEmail}
+                onChange={(e) => setGrantEmail(e.target.value)}
+                type="email"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button onClick={() => setShowQuickGrant(false)} className="flex-1 py-2.5 rounded-xl bg-muted text-foreground text-sm font-semibold">Annuler</button>
+                <button
+                  onClick={() => grantAccess.mutate(undefined, { onSuccess: () => setShowQuickGrant(false) })}
+                  disabled={!grantEmail || grantAccess.isPending}
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold disabled:opacity-50"
+                >
+                  {grantAccess.isPending ? '…' : 'Accorder'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tab : Contenu */}
         {tab === 'contenu' && (
@@ -764,6 +808,11 @@ export default function MonAcademiePage() {
               ))}
             </div>
           </div>
+        )}
+
+        {/* Tab : Carte des membres */}
+        {tab === 'carte' && (
+          <AcademyMapTab ownerUserId={user!.id} />
         )}
 
         {/* Tab : Stats */}
@@ -1030,6 +1079,68 @@ function SortableSection({ id, children }: { id: string; children: (handle: Reac
   return (
     <div ref={setNodeRef} style={style as React.CSSProperties}>
       {children(handle)}
+    </div>
+  );
+}
+
+/* ── Onglet Carte : embed pigeon-maps + membres équipe + invités académie ── */
+function AcademyMapTab({ ownerUserId }: { ownerUserId: string }) {
+  // Members de l'équipe du owner (avec lat/lng) — réutilise la table team_members enrichie par /map
+  const { data: members = [] } = useQuery({
+    queryKey: ['academy-map-members', ownerUserId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('team_members')
+        .select('id, first_name, last_name, hyla_level, lat, lng, status')
+        .eq('user_id', ownerUserId);
+      return (data || []).filter((m: any) => m.lat != null && m.lng != null) as Array<{
+        id: string; first_name: string; last_name: string; hyla_level: string | null;
+        lat: number; lng: number; status: string;
+      }>;
+    },
+  });
+
+  // Centre la carte sur la moyenne des positions, sinon France
+  const center: [number, number] = members.length > 0
+    ? [
+        members.reduce((s, m) => s + m.lat, 0) / members.length,
+        members.reduce((s, m) => s + m.lng, 0) / members.length,
+      ]
+    : [46.5, 2.3];
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-card border border-border rounded-2xl p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <MapPin className="h-4 w-4 text-blue-500" />
+          <p className="text-sm font-semibold flex-1">Carte des membres ({members.length} géolocalisés)</p>
+          <a href="/map" className="text-[11px] text-blue-500 hover:text-blue-400 underline">Voir en plein écran</a>
+        </div>
+        {members.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-8">
+            Aucun membre géolocalisé pour l'instant. Ajoute une adresse aux membres de l'équipe pour qu'ils apparaissent ici.
+          </p>
+        ) : (
+          <div className="rounded-xl overflow-hidden border border-border" style={{ height: 400 }}>
+            <Map provider={osm} defaultCenter={center} defaultZoom={members.length > 1 ? 6 : 10}>
+              {members.map((m) => (
+                <Overlay key={m.id} anchor={[m.lat, m.lng]} offset={[12, 24]}>
+                  <div
+                    title={`${m.first_name} ${m.last_name}${m.hyla_level ? ' — ' + m.hyla_level : ''}`}
+                    className="h-6 w-6 rounded-full border-2 border-white shadow-lg cursor-pointer flex items-center justify-center text-[9px] font-bold text-white"
+                    style={{ backgroundColor: m.status === 'actif' ? '#3b82f6' : '#94a3b8' }}
+                  >
+                    {(m.first_name?.[0] || '?').toUpperCase()}
+                  </div>
+                </Overlay>
+              ))}
+            </Map>
+          </div>
+        )}
+        <p className="text-[10px] text-muted-foreground mt-2">
+          La carte affiche les membres de ton équipe (table <code>team_members</code>) avec coordonnées renseignées. Pour ajouter une adresse, va dans <a href="/network" className="text-blue-500 underline">Équipe</a>.
+        </p>
+      </div>
     </div>
   );
 }

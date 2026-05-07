@@ -200,7 +200,7 @@ export default function Dashboard() {
         .is('sponsor_id', null)
         .maybeSingle();
       if (!tm) return null;
-      // Récupère les objectifs liés
+      // Récupère les objectifs liés (incluant start_date + dates de rappel)
       const { data: obj } = await supabase
         .from('member_objectives')
         .select('*')
@@ -625,8 +625,41 @@ export default function Dashboard() {
                 )}
               </div>
             )}
+            {/* Rappels (point à 1 mois / 3 mois) */}
+            {myRecruitObjective.start_date && (
+              <div className="grid grid-cols-2 gap-2">
+                {(() => {
+                  const sd = new Date(myRecruitObjective.start_date);
+                  const f1 = new Date(sd); f1.setMonth(f1.getMonth() + 1);
+                  const f3 = new Date(sd); f3.setMonth(f3.getMonth() + 3);
+                  const today = new Date();
+                  const f1Done = !!myRecruitObjective.follow_up_1mo_done_at;
+                  const f3Done = !!myRecruitObjective.follow_up_3mo_done_at;
+                  const f1Due = f1 <= today && !f1Done;
+                  const f3Due = f3 <= today && !f3Done;
+                  return (
+                    <>
+                      <div className={`rounded-xl p-2.5 border text-[10px] ${f1Done ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700' : f1Due ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700' : 'bg-card border-border'}`}>
+                        <p className="font-bold uppercase tracking-wider text-muted-foreground">Point à 1 mois</p>
+                        <p className="text-xs font-semibold text-foreground mt-0.5">{f1.toLocaleDateString('fr-FR')}</p>
+                        <p className="mt-0.5">{f1Done ? '✓ Fait avec ton manager' : f1Due ? '⏰ À programmer avec ton manager' : 'À venir'}</p>
+                      </div>
+                      <div className={`rounded-xl p-2.5 border text-[10px] ${f3Done ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700' : f3Due ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700' : 'bg-card border-border'}`}>
+                        <p className="font-bold uppercase tracking-wider text-muted-foreground">Point à 3 mois</p>
+                        <p className="text-xs font-semibold text-foreground mt-0.5">{f3.toLocaleDateString('fr-FR')}</p>
+                        <p className="mt-0.5">{f3Done ? '✓ Fait avec ton manager' : f3Due ? '⏰ À programmer avec ton manager' : 'À venir'}</p>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         )}
+
+        {/* ── Suivis à faire (côté manager) ── */}
+        <FollowUpsManagerWidget effectiveId={effectiveId} />
+
 
         {/* ── Mes défis personnels ── */}
         {personalChallenges.length > 0 && (
@@ -1062,6 +1095,75 @@ export default function Dashboard() {
 
       <OnboardingGuide />
     </AppLayout>
+  );
+}
+
+/* ── Widget côté manager : objectifs où un point 1mo / 3mo est dû ── */
+function FollowUpsManagerWidget({ effectiveId }: { effectiveId: string | undefined }) {
+  const { data: dueFollowUps = [] } = useQuery({
+    queryKey: ['follow-ups-due', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: objs } = await supabase
+        .from('member_objectives')
+        .select('id, team_member_id, follow_up_1mo_at, follow_up_3mo_at, follow_up_1mo_done_at, follow_up_3mo_done_at')
+        .eq('user_id', effectiveId)
+        .or(`follow_up_1mo_at.lte.${today},follow_up_3mo_at.lte.${today}`);
+      const filtered = (objs || []).filter((o: any) =>
+        (o.follow_up_1mo_at && o.follow_up_1mo_at <= today && !o.follow_up_1mo_done_at) ||
+        (o.follow_up_3mo_at && o.follow_up_3mo_at <= today && !o.follow_up_3mo_done_at)
+      );
+      if (filtered.length === 0) return [];
+      const memberIds = Array.from(new Set(filtered.map((o: any) => o.team_member_id)));
+      const { data: members } = await supabase
+        .from('team_members')
+        .select('id, first_name, last_name')
+        .in('id', memberIds);
+      return filtered.map((o: any) => ({
+        ...o,
+        member: members?.find((m: any) => m.id === o.team_member_id) || null,
+      }));
+    },
+    enabled: !!effectiveId,
+    staleTime: 60000,
+  });
+
+  if (dueFollowUps.length === 0) return null;
+
+  return (
+    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 space-y-2">
+      <div className="flex items-center gap-2">
+        <span className="text-amber-600 dark:text-amber-400">⏰</span>
+        <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">Suivis à faire ({dueFollowUps.length})</h3>
+      </div>
+      <p className="text-[11px] text-amber-700 dark:text-amber-300">
+        Le moment de faire le point sur les objectifs avec ces membres :
+      </p>
+      <div className="space-y-1.5">
+        {dueFollowUps.map((f: any) => {
+          const today = new Date().toISOString().slice(0, 10);
+          const due1 = f.follow_up_1mo_at && f.follow_up_1mo_at <= today && !f.follow_up_1mo_done_at;
+          const due3 = f.follow_up_3mo_at && f.follow_up_3mo_at <= today && !f.follow_up_3mo_done_at;
+          return (
+            <a
+              key={f.id}
+              href="/network"
+              className="flex items-center justify-between px-3 py-2 rounded-xl bg-card border border-amber-200 dark:border-amber-800 hover:bg-amber-100/50 dark:hover:bg-amber-950/50 transition-colors"
+            >
+              <span className="text-xs font-semibold text-foreground">
+                {f.member?.first_name || '?'} {f.member?.last_name || ''}
+              </span>
+              <span className="text-[10px] text-amber-700 dark:text-amber-300 font-medium">
+                {due1 && '⏱ Point 1 mois'}
+                {due1 && due3 && ' · '}
+                {due3 && '⏱ Point 3 mois'}
+              </span>
+            </a>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

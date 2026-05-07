@@ -81,9 +81,22 @@ Port par défaut : 5174
 
 ### Académies privées
 - Tables : `academies`, `academy_sections`, `academy_files`, `academy_access`, `academy_file_progress`, `academy_lesson_comments` (RLS owner-all + invitees-read).
-- `MonAcademiePage` (créateur) : édition complète, **renommer dans Paramètres → l'onglet sidebar reflète le nouveau nom**, Accès, Stats.
+- **RLS recursion fix** (mig. `20260507_fix_academies_rls_recursion.sql`) : helpers `is_academy_owner()` / `has_academy_access()` SECURITY DEFINER pour briser le cycle academies ↔ academy_access.
+- `MonAcademiePage` (créateur) : édition complète, **renommer dans Paramètres → l'onglet sidebar reflète le nouveau nom**, Accès, **Carte** (mini-map pigeon-maps des `team_members` géolocalisés), Stats. Bouton vert prominent "Ajouter un membre" dans le header (modal rapide qui réutilise `grantAccess`).
+- Upload : accept `video/*,image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt` — vidéos et PDFs supportés directement.
 - `AcademieViewPage` (`/academie/:slug`) : vue lecture seule pour les invités (suivi progression + commentaires).
 - Sidebar : section "Mes académies" (AppLayout) — liste les académies possédées + celles partagées via `academy_access`. Query `accessible-academies-nav` invalidée à chaque mutation (création / accès accordé / révoqué) pour refresh immédiat.
+
+### Objectifs membres — dates de suivi & dashboard
+- Mig. `20260507_member_objectives_followups.sql` : ajoute `start_date`, `follow_up_1mo_at`, `follow_up_3mo_at`, `follow_up_1mo_done_at`, `follow_up_3mo_done_at`. Trigger `member_objectives_compute_followups` calcule auto `+1mo` et `+3mo` à partir de `start_date`.
+- NetworkPage `ObjectifsView` : input date de départ + cartes "Point à 1 mois" / "Point à 3 mois" avec bouton "Marquer comme fait" quand la date est échue.
+- Dashboard côté **recrue** (`myRecruitObjective`) : affiche les rappels à 1 mois / 3 mois (couleurs : à venir / dû / fait).
+- Dashboard côté **manager** : nouveau widget `FollowUpsManagerWidget` qui liste les membres dont un point 1mo/3mo est dû (lien direct vers `/network`).
+
+### Tâches — colonnes Kanban personnalisables
+- Mig. `20260507_task_columns.sql` : table `task_columns(id, user_id, name, position, color, base_status, is_default)` mirror de `pipeline_stages`. Ajout `tasks.column_id` FK nullable. Seed automatique des 3 colonnes par défaut (À faire / En cours / Terminée) à la création du user (trigger `seed_task_columns_on_user_create`). Backfill des tâches existantes.
+- Tasks.tsx : Kanban dynamique qui rend les colonnes depuis `task_columns`. Bouton "+ Ajouter une colonne" en bout de Kanban. Modale `ColumnEditor` pour créer/renommer/supprimer + choisir une couleur et un `base_status` (le statut "officiel" assigné aux tâches déposées dans la colonne — garde la cohérence avec les filtres et les rappels).
+- Suppression d'une colonne custom : les tâches qu'elle contient sont réassignées à la colonne par défaut correspondant à `base_status`. Les colonnes par défaut (`is_default = true`) ne peuvent pas être supprimées (renommables uniquement).
 
 ### Dashboard — widgets cliquables
 Toutes les KPI cards sont des `<a href>` :
