@@ -211,6 +211,18 @@ function ContactLinksSection({ inviteCode, userId }: { inviteCode?: string | nul
           </button>
         </div>
       </div>
+
+      {/* Accès aux campagnes événementielles */}
+      <a
+        href="/social"
+        className="mt-3 flex items-center justify-between gap-2 bg-card border border-pink-200 dark:border-pink-800 rounded-xl px-3 py-2.5 hover:bg-pink-50/50 dark:hover:bg-pink-950/30 transition-colors"
+      >
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-foreground">🎉 Campagnes événementielles</p>
+          <p className="text-[11px] text-muted-foreground">Crée un lien tracké par événement (fête des mères, Noël, salon…) avec stats détaillées</p>
+        </div>
+        <span className="text-xs font-semibold text-pink-600 dark:text-pink-400 flex-shrink-0">Gérer →</span>
+      </a>
     </div>
   );
 }

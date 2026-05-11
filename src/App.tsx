@@ -122,7 +122,7 @@ function AppRoutes() {
         <Route path="/imports" element={<Navigate to="/finance" replace />} />
         <Route path="/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-        <Route path="/social" element={<Navigate to="/settings" replace />} />
+        <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
         <Route path="/formation" element={<ProtectedRoute><FormationPage /></ProtectedRoute>} />
         <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} />
         <Route path="/academie" element={<ProtectedRoute><RespireAcademiePage /></ProtectedRoute>} />

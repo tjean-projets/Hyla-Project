@@ -120,6 +120,13 @@ Vue Kanban par défaut. Drop sur une colonne appelle `applyStatusUpdate()` qui :
 ### Support / SAV
 Section "Support & suggestions" en bas de `SettingsPage` — formulaire simple (type + message) qui ouvre un `mailto:contact@triibu.fr` pré-rempli avec contexte technique (URL, user-agent, profil). Pas de table dédiée, géré côté mail.
 
+### Campagnes événementielles (liens trackés + stats)
+- Mig. `20260508_campaigns.sql` : table `campaigns(id, owner_id, name, slug, tag, color, start_date, end_date, status)` + ajout `campaign_id` FK nullable sur `public_leads`, `contact_link_clicks`, `contacts`. Suppression des CHECK constraints rigides sur les colonnes `source` (acceptent désormais n'importe quel slug). RPC `campaign_stats(p_campaign_id)` SECURITY DEFINER qui retourne clics/leads/conversions + graphique clics par jour.
+- `SocialPage` → onglet **Campagnes** (route `/social` restaurée — était redirigée vers /settings) : CRUD complet (modale `CampaignEditor` avec slug auto-dérivé du nom, choix de couleur, période). Pour chaque campagne : lien tracké à copier (`?src=<slug>`), KPIs résumés (clics / leads / conversions / taux), section dépliable `CampaignStatsDetail` avec entonnoir de conversion + bar chart clics/jour.
+- `PublicProfilePage` : accepte `?src=<slug>` libre, résout la campagne par `owner_id + slug + status='active'`, lie le clic + le lead à `campaign_id`.
+- Conversion lead → contact dans SocialPage : si `lead.campaign_id` présent, récupère le tag de la campagne et l'applique automatiquement à `contacts.tags[]` + remplit `contacts.campaign_id` pour le filtrage pipeline.
+- Lien d'accès depuis `SettingsPage` > ContactLinksSection (bouton "🎉 Campagnes événementielles → Gérer").
+
 ## Projets connexes (ne pas confondre)
 - `portfolio-navigator-6180a241-main` → CRM Courtage Thomas Jean (assurance) — projet SÉPARÉ
 - `thomas-jean-courtage-main` → Lead Connector (autre projet SÉPARÉ)

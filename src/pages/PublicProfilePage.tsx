@@ -14,10 +14,13 @@ interface ProfileData {
 export default function PublicProfilePage() {
   const { inviteCode } = useParams<{ inviteCode: string }>();
   const [searchParams] = useSearchParams();
-  const source = (searchParams.get('src') as 'bio' | 'story') || 'direct';
+  // src peut être un legacy (bio/story/direct) OU un slug de campagne custom (ex "fete-des-meres-2026")
+  const source = searchParams.get('src') || 'direct';
 
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [campaignId, setCampaignId] = useState<string | null>(null);
+  const [campaignName, setCampaignName] = useState<string | null>(null);
   const [intent, setIntent] = useState<Intent | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -36,15 +39,41 @@ export default function PublicProfilePage() {
     loadProfile();
   }, [inviteCode]);
 
-  // Track le clic dès que le profil est chargé (immutable, fire-and-forget)
+  // Si src ressemble à un slug custom (pas legacy), tente de résoudre une campagne
   useEffect(() => {
     if (!profileData) return;
-    (supabase as any).from('contact_link_clicks').insert({
-      profile_owner_id: profileData.id,
-      source,
-      user_agent: navigator.userAgent.slice(0, 200),
-    }).then(() => {});
+    const isLegacy = ['bio', 'story', 'direct'].includes(source);
+    if (isLegacy) return;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from('campaigns')
+        .select('id, name, tag')
+        .eq('owner_id', profileData.id)
+        .eq('slug', source)
+        .eq('status', 'active')
+        .maybeSingle();
+      if (data) {
+        setCampaignId(data.id);
+        setCampaignName(data.name);
+      }
+    })();
   }, [profileData, source]);
+
+  // Track le clic dès que le profil est chargé (immutable, fire-and-forget)
+  // Refait quand campaignId change (pour avoir la bonne campagne dans la ligne click)
+  useEffect(() => {
+    if (!profileData) return;
+    // Petit délai pour laisser la résolution campagne se faire avant d'insérer
+    const t = setTimeout(() => {
+      (supabase as any).from('contact_link_clicks').insert({
+        profile_owner_id: profileData.id,
+        source,
+        campaign_id: campaignId,
+        user_agent: navigator.userAgent.slice(0, 200),
+      }).then(() => {});
+    }, 400);
+    return () => clearTimeout(t);
+  }, [profileData, source, campaignId]);
 
   async function loadProfile() {
     const { data } = await supabase
@@ -74,6 +103,7 @@ export default function PublicProfilePage() {
         message: form.message.trim() || null,
         intent,
         source,
+        campaign_id: campaignId,
         status: 'nouveau',
       });
 
