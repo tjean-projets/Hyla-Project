@@ -1,12 +1,15 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { registerSW } from "virtual:pwa-register";
 
 createRoot(document.getElementById("root")!).render(<App />);
 
-// Register service worker for PWA
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  });
-}
+// PWA : enregistrement du service worker généré par vite-plugin-pwa
+// autoUpdate → mise à jour silencieuse en background (nouveau SW actif au refresh)
+registerSW({
+  immediate: true,
+  onRegisterError(err) {
+    console.warn("SW registration failed:", err);
+  },
+});

@@ -702,6 +702,12 @@ export default function Dashboard() {
         {/* ── Badges débloqués ── */}
         <BadgesWidget kpis={k} teamCount={teamMembers.length} />
 
+        {/* ── Objectif du mois décomposé (jour/semaine) ── */}
+        <MonthlyRhythmWidget
+          salesTarget={parseInt((userSettings as any)?.monthly_sales_target || '0', 10)}
+          actualSales={k.ventes_signees || 0}
+        />
+
 
         {/* ── Mes défis personnels ── */}
         {personalChallenges.length > 0 && (
@@ -1218,6 +1224,101 @@ function FollowUpsManagerWidget({ effectiveId }: { effectiveId: string | undefin
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/* ── Widget rythme mensuel : décompose l'objectif en rythme quotidien/hebdo ── */
+function MonthlyRhythmWidget({ salesTarget, actualSales }: { salesTarget: number; actualSales: number }) {
+  if (!salesTarget || salesTarget <= 0) return null;
+
+  const now = new Date();
+  const dayOfMonth = now.getDate();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysRemaining = daysInMonth - dayOfMonth;
+  const workDaysDone = Math.max(1, dayOfMonth);
+
+  const perDay = salesTarget / daysInMonth;
+  const perWeek = perDay * 7;
+  const expectedSoFar = perDay * workDaysDone;
+  const remaining = Math.max(0, salesTarget - actualSales);
+  const perDayNeeded = daysRemaining > 0 ? remaining / daysRemaining : 0;
+
+  // Statut : à l'heure, en avance, en retard
+  const diff = actualSales - expectedSoFar;
+  let status: { label: string; icon: string; color: string; bg: string };
+  if (actualSales >= salesTarget) {
+    status = { label: 'Objectif atteint !', icon: '🎉', color: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-100 dark:bg-emerald-950/40' };
+  } else if (diff >= 0.5) {
+    status = { label: `En avance de ${diff.toFixed(1)} vente${Math.abs(diff) > 1 ? 's' : ''}`, icon: '🚀', color: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-100 dark:bg-emerald-950/40' };
+  } else if (diff >= -0.5) {
+    status = { label: 'Pile dans le rythme', icon: '✅', color: 'text-blue-700 dark:text-blue-300', bg: 'bg-blue-100 dark:bg-blue-950/40' };
+  } else {
+    status = { label: `${Math.abs(diff).toFixed(1)} vente${Math.abs(diff) > 1 ? 's' : ''} de retard`, icon: '⚠️', color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-100 dark:bg-amber-950/40' };
+  }
+
+  const progressPct = Math.min(100, Math.round((actualSales / salesTarget) * 100));
+  const timePct = Math.round((dayOfMonth / daysInMonth) * 100);
+
+  return (
+    <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-indigo-600 dark:text-indigo-400">🎯</span>
+        <h3 className="text-sm font-bold text-foreground">Rythme du mois</h3>
+        <span className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full ${status.color} ${status.bg}`}>
+          {status.icon} {status.label}
+        </span>
+      </div>
+
+      {/* Barre de progression avec marqueur de temps */}
+      <div className="relative">
+        <div className="h-3 rounded-full bg-muted overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${progressPct >= timePct ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'}`}
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+        {/* Marqueur "où on devrait être" */}
+        <div
+          className="absolute top-0 h-3 w-0.5 bg-foreground/60"
+          style={{ left: `${timePct}%` }}
+          title={`Jour ${dayOfMonth}/${daysInMonth}`}
+        />
+        <div className="flex justify-between text-[9px] text-muted-foreground mt-1">
+          <span>{actualSales} / {salesTarget} ventes ({progressPct}%)</span>
+          <span>Jour {dayOfMonth}/{daysInMonth}</span>
+        </div>
+      </div>
+
+      {/* Décomposition jour / semaine / restant */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-muted/40 rounded-xl p-2.5 text-center">
+          <p className="text-[9px] uppercase font-bold text-muted-foreground">Par jour</p>
+          <p className="text-lg font-black text-foreground mt-0.5">{perDay.toFixed(1)}</p>
+          <p className="text-[9px] text-muted-foreground">vente/jour cible</p>
+        </div>
+        <div className="bg-muted/40 rounded-xl p-2.5 text-center">
+          <p className="text-[9px] uppercase font-bold text-muted-foreground">Par semaine</p>
+          <p className="text-lg font-black text-foreground mt-0.5">{perWeek.toFixed(1)}</p>
+          <p className="text-[9px] text-muted-foreground">ventes/semaine</p>
+        </div>
+        <div className={`rounded-xl p-2.5 text-center ${remaining > 0 ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white' : 'bg-emerald-100 dark:bg-emerald-950/40'}`}>
+          <p className={`text-[9px] uppercase font-bold ${remaining > 0 ? 'opacity-80' : 'text-emerald-700 dark:text-emerald-300'}`}>Reste</p>
+          <p className={`text-lg font-black mt-0.5 ${remaining > 0 ? 'text-white' : 'text-emerald-700 dark:text-emerald-300'}`}>{remaining}</p>
+          <p className={`text-[9px] ${remaining > 0 ? 'opacity-80' : 'text-emerald-700 dark:text-emerald-300'}`}>
+            {remaining > 0 && daysRemaining > 0
+              ? `~${perDayNeeded.toFixed(1)}/j sur ${daysRemaining}j`
+              : remaining === 0 ? '✓ atteint' : `${daysRemaining}j restants`}
+          </p>
+        </div>
+      </div>
+
+      {/* Astuce actionnable */}
+      {remaining > 0 && daysRemaining > 0 && perDayNeeded > perDay * 1.5 && (
+        <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 rounded-xl px-3 py-2">
+          💡 Pour rattraper : il te faudrait <strong>{perDayNeeded.toFixed(1)} ventes/jour</strong> sur les {daysRemaining} jours restants. Vise davantage de démos cette semaine.
+        </p>
+      )}
     </div>
   );
 }
