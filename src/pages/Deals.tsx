@@ -432,7 +432,7 @@ export default function Deals() {
   const [showForm, setShowForm] = useState(false);
   const [editingDeal, setEditingDeal] = useState<any | null>(null);
   // Vue Kanban par défaut (au lieu de la liste) — la liste reste accessible via le toggle
-  const [view, setView] = useState<'list' | 'kanban'>('kanban');
+  const [view, setView] = useState<'list' | 'kanban' | 'funnel'>('kanban');
 
   const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
   const [drawerDeal, setDrawerDeal] = useState<any | null>(null);
@@ -761,6 +761,7 @@ export default function Deals() {
           <div className="flex gap-1 bg-muted rounded-lg p-1">
             <button onClick={() => setView('list')} className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'list' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}>Liste</button>
             <button onClick={() => setView('kanban')} className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'kanban' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}>Kanban</button>
+            <button onClick={() => setView('funnel')} className={`px-3 py-1.5 text-sm font-medium rounded-md ${view === 'funnel' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}>Tunnel</button>
           </div>
         </div>
 
@@ -941,6 +942,11 @@ export default function Deals() {
             })}
           </div>
         )}
+
+        {/* Tunnel de vente — regroupe TOUS les deals (pas de filtre période) par statut avec taux */}
+        {view === 'funnel' && !isLoading && (
+          <FunnelView deals={deals} onDealClick={(d) => setDrawerDeal(d)} />
+        )}
       </div>
       <DealDrawer
         deal={drawerDeal}
@@ -950,5 +956,135 @@ export default function Deals() {
         onStatusChange={handleStatusChange}
       />
     </AppLayout>
+  );
+}
+
+/* ── Vue Tunnel : cascade des ventes par statut avec taux de conversion ── */
+function FunnelView({ deals, onDealClick }: { deals: any[]; onDealClick: (d: any) => void }) {
+  // Étapes ordonnées, du plus "haut" au plus "bas" du tunnel
+  const STEPS: Array<{ key: string; label: string; color: string; bg: string }> = [
+    { key: 'en_cours',       label: 'En cours',        color: '#3b82f6', bg: 'bg-blue-500' },
+    { key: 'en_attente',     label: 'En attente',      color: '#f59e0b', bg: 'bg-amber-500' },
+    { key: 'signee',         label: 'Signée',          color: '#22c55e', bg: 'bg-emerald-500' },
+    { key: 'en_financement', label: 'En financement',  color: '#6366f1', bg: 'bg-indigo-500' },
+    { key: 'livree',         label: 'Livrée',          color: '#14b8a6', bg: 'bg-teal-500' },
+  ];
+
+  const totalTop = deals.filter(d => STEPS.some(s => s.key === d.status)).length || 1;
+  const perdus = deals.filter(d => d.status === 'annulee').length;
+
+  const rows = STEPS.map((step, idx) => {
+    const count = deals.filter(d => d.status === step.key).length;
+    // Taux vs étape juste au-dessus (ou vs total en top)
+    const above = idx === 0 ? totalTop : deals.filter(d => d.status === STEPS[idx - 1].key).length;
+    const conversion = above > 0 ? Math.round((count / above) * 100) : 0;
+    const width = Math.max(15, Math.round((count / totalTop) * 100));
+    return { ...step, count, conversion, width, idx };
+  });
+
+  const globalConversion = totalTop > 0
+    ? Math.round((deals.filter(d => d.status === 'livree').length / totalTop) * 100)
+    : 0;
+
+  return (
+    <div className="space-y-4">
+      {/* Header stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <p className="text-[10px] uppercase font-semibold text-muted-foreground">Total pipeline</p>
+          <p className="text-2xl font-black text-foreground mt-1">{totalTop}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">deals actifs</p>
+        </div>
+        <div className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl p-4 text-white">
+          <p className="text-[10px] uppercase font-semibold opacity-80">Taux conversion</p>
+          <p className="text-2xl font-black mt-1">{globalConversion}%</p>
+          <p className="text-[10px] opacity-80 mt-0.5">en cours → livrée</p>
+        </div>
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <p className="text-[10px] uppercase font-semibold text-muted-foreground">Perdues</p>
+          <p className="text-2xl font-black text-red-500 mt-1">{perdus}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">annulées</p>
+        </div>
+      </div>
+
+      {/* Le tunnel */}
+      <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
+        <p className="text-sm font-semibold text-foreground mb-2">Ton pipeline étape par étape</p>
+        {rows.map((r) => (
+          <div key={r.key}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-semibold text-foreground">{r.label}</span>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="font-bold text-foreground">{r.count}</span>
+                {r.idx > 0 && r.count > 0 && (
+                  <span className={`font-semibold ${r.conversion >= 50 ? 'text-emerald-600 dark:text-emerald-400' : r.conversion >= 25 ? 'text-amber-500' : 'text-red-500'}`}>
+                    {r.conversion}%
+                  </span>
+                )}
+              </div>
+            </div>
+            <div
+              className={`h-10 rounded-lg ${r.bg} opacity-90 hover:opacity-100 transition-all flex items-center px-3 text-white text-xs font-semibold shadow-md ${r.count === 0 ? 'opacity-30' : 'cursor-pointer'}`}
+              style={{ width: `${r.width}%` }}
+              title={`${r.count} deal${r.count > 1 ? 's' : ''} · ${r.conversion}% depuis l'étape précédente`}
+            >
+              {r.count > 0 && `${r.count} deal${r.count > 1 ? 's' : ''}`}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Insights : où ça coince */}
+      {(() => {
+        // Étape avec le plus gros drop
+        const drops = rows.slice(1).map((r) => ({
+          from: rows[r.idx - 1],
+          to: r,
+          loss: (rows[r.idx - 1].count - r.count),
+          rate: r.conversion,
+        })).filter(d => d.from.count > 0);
+        const worst = drops.sort((a, b) => a.rate - b.rate)[0];
+        if (!worst || worst.rate >= 70) return null;
+        return (
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl p-4">
+            <p className="text-xs font-bold text-amber-900 dark:text-amber-200 mb-1">💡 Point de vigilance</p>
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              Tu perds <strong>{Math.round(100 - worst.rate)}%</strong> des deals entre <strong>{worst.from.label}</strong> et <strong>{worst.to.label}</strong>.
+              C'est ici qu'il faut concentrer tes efforts (relances, argumentaire, offres).
+            </p>
+          </div>
+        );
+      })()}
+
+      {/* Deals en cours par étape (cliquables) */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-border">
+          <p className="text-sm font-semibold text-foreground">Deals à faire avancer</p>
+        </div>
+        <div className="divide-y divide-border max-h-96 overflow-y-auto">
+          {deals
+            .filter(d => d.status === 'en_cours' || d.status === 'en_attente')
+            .slice(0, 15)
+            .map((d: any) => (
+              <button key={d.id} onClick={() => onDealClick(d)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors text-left">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {d.contacts ? `${d.contacts.first_name} ${d.contacts.last_name}` : '—'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {d.product || 'Sans produit'} · {(d.amount || 0).toLocaleString('fr-FR')} €
+                  </p>
+                </div>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${d.status === 'en_cours' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'}`}>
+                  {d.status === 'en_cours' ? 'En cours' : 'En attente'}
+                </span>
+              </button>
+            ))}
+          {deals.filter(d => d.status === 'en_cours' || d.status === 'en_attente').length === 0 && (
+            <p className="p-6 text-center text-xs text-muted-foreground">Aucun deal en cours actuellement.</p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

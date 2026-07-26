@@ -1,9 +1,11 @@
 import { AppLayout } from '@/components/AppLayout';
-import { HYLA_LEVELS, getPersonalSaleCommission, getGroupPrime } from '@/lib/supabase';
+import { supabase, HYLA_LEVELS, getPersonalSaleCommission, getGroupPrime } from '@/lib/supabase';
 import type { HylaLevel } from '@/lib/supabase';
 import { useState, useMemo } from 'react';
-import { Calculator } from 'lucide-react';
+import { Calculator, Sparkles } from 'lucide-react';
 import { useAmounts } from '@/contexts/AmountsContext';
+import { useEffectiveUserId } from '@/hooks/useEffectiveUser';
+import { useQuery } from '@tanstack/react-query';
 
 export default function SimulateurPage() {
   return (
@@ -31,6 +33,31 @@ export function CommissionCalculator() {
   const [nbRecrues, setNbRecrues] = useState(3);
   const [ventesMoyRecrue, setVentesMoyRecrue] = useState(2);
   const [simLevel, setSimLevel] = useState<HylaLevel>('manager');
+  const [usingReal, setUsingReal] = useState(false);
+
+  // ── Vraies data user pour "Utiliser mes vraies stats" ──
+  const effectiveId = useEffectiveUserId();
+  const { data: myStats } = useQuery({
+    queryKey: ['sim-my-stats', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return null;
+      const [{ data: kpis }, { data: settings }, { data: team }] = await Promise.all([
+        supabase.rpc('get_dashboard_kpis', { p_user_id: effectiveId }),
+        supabase.from('user_settings').select('hyla_level').eq('user_id', effectiveId).maybeSingle(),
+        supabase.from('team_members').select('id').eq('user_id', effectiveId).eq('status', 'actif'),
+      ]);
+      const k = (kpis as any) || {};
+      const activeMembers = team?.length || 0;
+      const level = ((settings as any)?.hyla_level as HylaLevel) || 'vendeur';
+      return {
+        ventes: k.ventes_signees || 0,
+        recrues: activeMembers,
+        level,
+      };
+    },
+    enabled: !!effectiveId,
+    staleTime: 60000,
+  });
 
   const { visible, mask } = useAmounts();
 
@@ -106,6 +133,51 @@ export function CommissionCalculator() {
             <p className="text-[10px] text-muted-foreground">total estimé/mois</p>
           </div>
         </div>
+
+        {/* "Utiliser mes vraies stats" — pré-remplit avec les données réelles + comparaison */}
+        {myStats && (
+          <button
+            onClick={() => {
+              setNbVentes(Math.max(1, myStats.ventes));
+              setNbRecrues(myStats.recrues);
+              setSimLevel(myStats.level);
+              setUsingReal(true);
+            }}
+            className={`w-full mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+              usingReal
+                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                : 'bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:opacity-90 shadow-md shadow-blue-500/20'
+            }`}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            {usingReal
+              ? `✓ Sur tes vraies stats (${myStats.ventes} ventes · ${myStats.recrues} recrues · ${HYLA_LEVELS.find(l => l.value === myStats.level)?.shortLabel})`
+              : `📊 Utiliser mes vraies stats (${myStats.ventes} ventes · ${myStats.recrues} recrues actives)`}
+          </button>
+        )}
+
+        {/* Bandeau "Et si tu fais +X ventes ?" quand basé sur les vraies stats */}
+        {usingReal && myStats && nbVentes !== myStats.ventes && (() => {
+          const diff = nbVentes - myStats.ventes;
+          // Calcule commission actuelle vs projetée
+          const realComPerso = myStats.ventes * getPersonalSaleCommission(myStats.ventes);
+          const gain = totalPerso - realComPerso;
+          return (
+            <div className="mb-3 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">
+                  {diff > 0 ? `Si tu fais +${diff} vente${diff > 1 ? 's' : ''}` : `Si tu fais ${diff} vente${diff < -1 ? 's' : ''}`} ce mois
+                </p>
+                <p className={`text-sm font-black ${gain >= 0 ? 'text-emerald-600' : 'text-red-500'} transition-all ${!visible ? 'blur-sm select-none' : ''}`}>
+                  {gain >= 0 ? '+' : ''}{fmt(gain)} €
+                </p>
+              </div>
+              <p className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-0.5">
+                Passe de {fmt(realComPerso)} € à <strong>{fmt(totalPerso)} €</strong> en commission perso
+              </p>
+            </div>
+          );
+        })()}
 
         {/* Level selector */}
         <div className="mb-3">

@@ -699,6 +699,9 @@ export default function Dashboard() {
         {/* ── Contacts froids (>21j sans contact) ── */}
         <ColdContactsWidget effectiveId={effectiveId} />
 
+        {/* ── Badges débloqués ── */}
+        <BadgesWidget kpis={k} teamCount={teamMembers.length} />
+
 
         {/* ── Mes défis personnels ── */}
         {personalChallenges.length > 0 && (
@@ -1215,6 +1218,56 @@ function FollowUpsManagerWidget({ effectiveId }: { effectiveId: string | undefin
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/* ── Widget badges : gamification simple basée sur les data existantes ── */
+function BadgesWidget({ kpis, teamCount }: { kpis: Record<string, number>; teamCount: number }) {
+  type Badge = { id: string; icon: string; label: string; hint: string; unlocked: boolean; date?: string };
+  const badges: Badge[] = [
+    { id: 'first-sale',   icon: '🎉', label: '1ère vente',          hint: 'Signer 1 vente',                      unlocked: (kpis.ventes_signees || 0) >= 1 || (kpis.ca_annee || 0) > 0 },
+    { id: 'five-sales',   icon: '🔥', label: '5 ventes ce mois',    hint: 'Atteindre 5 ventes en un mois',       unlocked: (kpis.ventes_signees || 0) >= 5 },
+    { id: 'top-month',    icon: '🏆', label: 'Top mois',             hint: '8 ventes ou plus ce mois',            unlocked: (kpis.ventes_signees || 0) >= 8 },
+    { id: 'first-recrue', icon: '🤝', label: '1ère recrue',          hint: 'Recruter 1 personne',                 unlocked: (kpis.nouvelles_recrues || 0) >= 1 || teamCount >= 1 },
+    { id: 'three-recrues',icon: '⭐', label: '3 recrues ce mois',    hint: '3 recrues ce mois-ci',                unlocked: (kpis.nouvelles_recrues || 0) >= 3 },
+    { id: 'team-active',  icon: '👥', label: 'Équipe active',        hint: '5 membres actifs',                    unlocked: (kpis.equipe_active || 0) >= 5 },
+    { id: 'team-manager', icon: '💼', label: 'Manager',              hint: 'Équipe de 10 personnes',              unlocked: (kpis.equipe_active || 0) >= 10 },
+    { id: 'contacts-fill',icon: '📇', label: '20 contacts',          hint: '20 contacts créés',                   unlocked: (kpis.contacts_total || 0) >= 20 },
+    { id: 'contacts-lots',icon: '📚', label: '100 contacts',          hint: '100 contacts dans ton fichier',       unlocked: (kpis.contacts_total || 0) >= 100 },
+    { id: 'ca-elite',     icon: '💎', label: 'CA 10k€ / mois',       hint: '10 000 € de CA en un mois',           unlocked: (kpis.ca_mois || 0) >= 10000 },
+  ];
+  const unlocked = badges.filter(b => b.unlocked);
+  const locked = badges.filter(b => !b.unlocked);
+  if (unlocked.length === 0) return null; // Ne rien afficher si aucun badge
+
+  return (
+    <div className="bg-gradient-to-br from-violet-50 via-fuchsia-50 to-pink-50 dark:from-violet-950/30 dark:via-fuchsia-950/30 dark:to-pink-950/30 border border-violet-200 dark:border-violet-800 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-violet-600 dark:text-violet-400">🎖</span>
+        <h3 className="text-sm font-bold text-violet-900 dark:text-violet-200">
+          Tes trophées ({unlocked.length}/{badges.length})
+        </h3>
+      </div>
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+        {unlocked.map(b => (
+          <div key={b.id} className="bg-card border border-violet-200 dark:border-violet-800 rounded-xl p-2.5 text-center shadow-sm">
+            <div className="text-2xl mb-1">{b.icon}</div>
+            <p className="text-[10px] font-bold text-foreground leading-tight">{b.label}</p>
+          </div>
+        ))}
+        {locked.slice(0, 5).map(b => (
+          <div key={b.id} className="bg-muted/40 border border-dashed border-border rounded-xl p-2.5 text-center opacity-40" title={b.hint}>
+            <div className="text-2xl mb-1 grayscale">{b.icon}</div>
+            <p className="text-[10px] text-muted-foreground leading-tight">{b.label}</p>
+          </div>
+        ))}
+      </div>
+      {locked.length > 0 && (
+        <p className="text-[10px] text-violet-700 dark:text-violet-300 text-center italic">
+          Prochain à débloquer : <strong>{locked[0].label}</strong> — {locked[0].hint}
+        </p>
+      )}
     </div>
   );
 }

@@ -2377,6 +2377,11 @@ export default function NetworkPage() {
           </div>
         )}
 
+        {/* ── Comparateur d'équipe : Top vendeuses + À booster ── */}
+        {members.length >= 2 && (
+          <TeamComparatorWidget members={members} effectiveId={effectiveId!} />
+        )}
+
         {reseauDeals.length > 0 && (() => {
           // Count deals per user_id
           const byUser: Record<string, number> = {};
@@ -3311,6 +3316,134 @@ function MemberDownlineModalContent({
           })
         )}
       </div>
+    </div>
+  );
+}
+
+/* ── Comparateur d'équipe : Top 3 vendeuses ce mois + Membres à booster ── */
+function TeamComparatorWidget({ members, effectiveId }: { members: any[]; effectiveId: string }) {
+  const monthStart = useMemo(() => {
+    const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }, []);
+
+  // Deals du mois : soit signés par un linked_user (le membre lui-même a saisi sa vente),
+  // soit crédités via sold_by (le manager a saisi et attribué à ce membre)
+  const linkedUserIds = members.filter(m => m.linked_user_id).map(m => m.linked_user_id);
+  const memberIds = members.map(m => m.id);
+
+  const { data: monthDeals = [] } = useQuery({
+    queryKey: ['team-comparator', effectiveId, monthStart, members.length],
+    queryFn: async () => {
+      const results: any[] = [];
+      if (linkedUserIds.length > 0) {
+        const { data: linked } = await supabase.from('deals')
+          .select('user_id, amount, signed_at')
+          .in('user_id', linkedUserIds)
+          .eq('status', 'signee')
+          .gte('signed_at', monthStart);
+        (linked || []).forEach((d: any) => results.push({ ...d, matchKey: 'user_id' }));
+      }
+      const { data: soldBy } = await supabase.from('deals')
+        .select('sold_by, amount, signed_at')
+        .eq('user_id', effectiveId)
+        .in('sold_by', memberIds)
+        .eq('status', 'signee')
+        .gte('signed_at', monthStart);
+      (soldBy || []).forEach((d: any) => results.push({ ...d, matchKey: 'sold_by' }));
+      return results;
+    },
+    enabled: !!effectiveId && members.length > 0,
+    staleTime: 60000,
+  });
+
+  // Compte les ventes + CA par membre
+  const byMember = new Map<string, { count: number; ca: number }>();
+  members.forEach(m => byMember.set(m.id, { count: 0, ca: 0 }));
+  monthDeals.forEach((d: any) => {
+    const m = members.find(mem =>
+      (d.matchKey === 'user_id' && mem.linked_user_id === d.user_id) ||
+      (d.matchKey === 'sold_by' && mem.id === d.sold_by)
+    );
+    if (m) {
+      const cur = byMember.get(m.id) || { count: 0, ca: 0 };
+      byMember.set(m.id, { count: cur.count + 1, ca: cur.ca + (d.amount || 0) });
+    }
+  });
+
+  // Top 3 vendeuses du mois
+  const activeMembers = members.filter(m => m.status === 'actif');
+  const ranked = activeMembers
+    .map(m => ({ member: m, ...byMember.get(m.id)! }))
+    .sort((a, b) => b.count - a.count || b.ca - a.ca);
+  const top3 = ranked.filter(r => r.count > 0).slice(0, 3);
+  const toBoost = ranked.filter(r => r.count === 0).slice(0, 5);
+
+  if (top3.length === 0 && toBoost.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+      {/* Podium Top 3 */}
+      {top3.length > 0 && (
+        <div className="bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 dark:from-amber-950/30 dark:via-yellow-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Trophy className="h-4 w-4 text-amber-500" />
+            <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">Podium du mois</h3>
+          </div>
+          <div className="space-y-2">
+            {top3.map((r, idx) => {
+              const medals = ['🥇', '🥈', '🥉'];
+              const bg = idx === 0 ? 'bg-gradient-to-r from-amber-400/20 to-yellow-400/10' : 'bg-card/60';
+              return (
+                <div key={r.member.id} className={`flex items-center gap-3 px-3 py-2 rounded-xl ${bg} border border-amber-200/50 dark:border-amber-800/50`}>
+                  <span className="text-xl flex-shrink-0">{medals[idx]}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {r.member.first_name} {r.member.last_name}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {r.count} vente{r.count > 1 ? 's' : ''} · {r.ca.toLocaleString('fr-FR')} €
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex-shrink-0">
+                    #{idx + 1}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Membres à booster */}
+      {toBoost.length > 0 && (
+        <div className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-orange-600 dark:text-orange-400">🎯</span>
+            <h3 className="text-sm font-bold text-orange-900 dark:text-orange-200">
+              Membres à booster ({toBoost.length})
+            </h3>
+          </div>
+          <p className="text-[11px] text-orange-700 dark:text-orange-300 mb-2">
+            Aucune vente ce mois — prends un moment pour les coacher.
+          </p>
+          <div className="space-y-1.5">
+            {toBoost.map((r) => (
+              <div key={r.member.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-orange-200 dark:border-orange-800">
+                <div className="h-6 w-6 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center text-[10px] font-bold text-orange-700 dark:text-orange-300 flex-shrink-0">
+                  {r.member.first_name[0]}{r.member.last_name[0]}
+                </div>
+                <span className="text-xs font-semibold text-foreground truncate flex-1">
+                  {r.member.first_name} {r.member.last_name}
+                </span>
+                <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                  {r.member.hyla_level || 'vendeur'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -449,6 +449,34 @@ export default function SocialPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaigns'] }),
   });
 
+  // ── Distribution de leads : team_members pour le dropdown "Affecter à" ──
+  const { data: teamForAssign = [] } = useQuery({
+    queryKey: ['team-for-assign', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      const { data } = await supabase.from('team_members')
+        .select('id, first_name, last_name')
+        .eq('user_id', effectiveId)
+        .eq('status', 'actif')
+        .order('first_name');
+      return (data || []) as Array<{ id: string; first_name: string; last_name: string }>;
+    },
+    enabled: !!effectiveId,
+    staleTime: 120000,
+  });
+
+  const assignLead = useMutation({
+    mutationFn: async ({ leadId, memberId }: { leadId: string; memberId: string | null }) => {
+      const { error } = await (supabase as any).from('public_leads').update({
+        assigned_to_member_id: memberId,
+        assigned_at: memberId ? new Date().toISOString() : null,
+      }).eq('id', leadId);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['public-leads'] }),
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
   const { data: surveys = [] } = useQuery<Survey[]>({
     queryKey: ['social-surveys', effectiveId],
     queryFn: async () => {
@@ -1031,14 +1059,34 @@ export default function SocialPage() {
                           </div>
                         </div>
                         {lead.status === 'nouveau' && (
-                          <button
-                            onClick={() => convertLead.mutate(lead)}
-                            disabled={convertLead.isPending}
-                            className="mt-2 flex items-center gap-1 text-[11px] font-medium text-blue-500 hover:text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50 dark:bg-blue-950/30"
-                          >
-                            <UserPlus className="h-3 w-3" />
-                            Créer contact
-                          </button>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <button
+                              onClick={() => convertLead.mutate(lead)}
+                              disabled={convertLead.isPending}
+                              className="flex items-center gap-1 text-[11px] font-medium text-blue-500 hover:text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50 dark:bg-blue-950/30"
+                            >
+                              <UserPlus className="h-3 w-3" />
+                              Créer contact
+                            </button>
+                            {teamForAssign.length > 0 && (
+                              <select
+                                value={(lead as any).assigned_to_member_id || ''}
+                                onChange={(e) => assignLead.mutate({ leadId: lead.id, memberId: e.target.value || null })}
+                                className="text-[11px] px-2 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                                title="Affecter à un membre de l'équipe"
+                              >
+                                <option value="">👤 Affecter à…</option>
+                                {teamForAssign.map(m => (
+                                  <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>
+                                ))}
+                              </select>
+                            )}
+                            {(lead as any).assigned_to_member_id && (
+                              <span className="text-[10px] text-violet-600 dark:text-violet-400 font-medium">
+                                → {teamForAssign.find(m => m.id === (lead as any).assigned_to_member_id)?.first_name || 'affecté'}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                     );
