@@ -73,11 +73,17 @@ const INTENT_LABELS = {
   devenir_conseiller: { label: 'Recrut.', color: 'bg-violet-100 text-violet-700' },
   en_savoir_plus: { label: 'Info', color: 'bg-blue-100 text-blue-700' },
 };
-const SOURCE_LABELS = {
+const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
   bio: { label: 'Bio', color: 'bg-pink-100 text-pink-700' },
   story: { label: 'Story', color: 'bg-orange-100 text-orange-700' },
   direct: { label: 'Direct', color: 'bg-gray-100 text-gray-600' },
 };
+
+// Fallback pour les sources custom (slugs de campagnes)
+function getSourceLabel(src: string | null | undefined): { label: string; color: string } {
+  if (!src) return { label: 'Direct', color: 'bg-gray-100 text-gray-600' };
+  return SOURCE_LABELS[src] || { label: src.length > 18 ? src.slice(0, 15) + '…' : src, color: 'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300' };
+}
 
 function genId() { return Math.random().toString(36).slice(2, 8); }
 
@@ -529,6 +535,8 @@ export default function SocialPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['public-leads'] });
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['campaign-counts'] });
+      queryClient.invalidateQueries({ queryKey: ['campaign-stats'] });
       toast({ title: 'Contact créé !' });
     },
     onError: () => toast({ title: 'Erreur lors de la conversion', variant: 'destructive' }),
@@ -541,11 +549,15 @@ export default function SocialPage() {
   };
 
   // ── Computed stats ──
-  const leadsBySource = { bio: 0, story: 0, direct: 0 };
+  const leadsBySource: Record<string, number> = { bio: 0, story: 0, direct: 0 };
   const leadsByIntent = { acheter: 0, devenir_conseiller: 0, en_savoir_plus: 0 };
   leads.forEach(l => {
-    leadsBySource[l.source]++;
-    leadsByIntent[l.intent]++;
+    // Les leads issus d'une campagne custom ont une source = slug de campagne → on les
+    // agrège sous 'direct' pour l'affichage bio/story/direct legacy (les vraies stats par
+    // campagne sont dans l'onglet Campagnes).
+    const src = (['bio', 'story', 'direct'] as const).includes(l.source as any) ? l.source : 'direct';
+    leadsBySource[src] = (leadsBySource[src] || 0) + 1;
+    if (leadsByIntent[l.intent] !== undefined) leadsByIntent[l.intent]++;
   });
 
   const expandedSurveyData = surveys.find(s => s.id === expandedSurvey);
@@ -988,7 +1000,7 @@ export default function SocialPage() {
                 <div className="divide-y divide-border">
                   {leads.map(lead => {
                     const intent = INTENT_LABELS[lead.intent];
-                    const source = SOURCE_LABELS[lead.source];
+                    const source = getSourceLabel(lead.source);
                     const date = new Date(lead.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
                     return (
                       <div key={lead.id} className="px-4 py-3">
