@@ -454,16 +454,39 @@ export function ContactDrawer({ contact, onClose, onEdit }: ContactDrawerProps) 
                     <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 whitespace-pre-wrap">
                       {applyVars(tpl.body, contact)}
                     </p>
-                    <button
-                      onClick={() => copyTemplate(tpl)}
-                      className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
-                        copiedId === tpl.id
-                          ? 'bg-green-500 text-white'
-                          : 'bg-[#3b82f6] text-white hover:bg-[#3b82f6]/90 active:scale-[0.98]'
-                      }`}
-                    >
-                      {copiedId === tpl.id ? <><Check className="h-3.5 w-3.5" />Copié !</> : <><Copy className="h-3.5 w-3.5" />Copier le message</>}
-                    </button>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <a
+                        href={`https://wa.me/${(contact.phone || '').replace(/[^\d]/g, '').replace(/^0/, '33')}?text=${encodeURIComponent(applyVars(tpl.body, contact))}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => { if (!contact.phone) { e.preventDefault(); toast({ title: 'Téléphone manquant', variant: 'destructive' }); } }}
+                        className="flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-semibold bg-green-500 text-white hover:bg-green-600 active:scale-[0.98] transition-all"
+                        title="Envoyer via WhatsApp"
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        WhatsApp
+                      </a>
+                      <a
+                        href={`sms:${contact.phone || ''}?body=${encodeURIComponent(applyVars(tpl.body, contact))}`}
+                        onClick={(e) => { if (!contact.phone) { e.preventDefault(); toast({ title: 'Téléphone manquant', variant: 'destructive' }); } }}
+                        className="flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-semibold bg-blue-500 text-white hover:bg-blue-600 active:scale-[0.98] transition-all"
+                        title="Envoyer par SMS"
+                      >
+                        <Send className="h-3 w-3" />
+                        SMS
+                      </a>
+                      <button
+                        onClick={() => copyTemplate(tpl)}
+                        className={`flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+                          copiedId === tpl.id
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-muted text-foreground hover:bg-muted/80 active:scale-[0.98]'
+                        }`}
+                        title="Copier dans le presse-papier"
+                      >
+                        {copiedId === tpl.id ? <><Check className="h-3 w-3" />OK</> : <><Copy className="h-3 w-3" />Copier</>}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -106,6 +106,16 @@ export default function OnboardingGuide() {
       setOpen(true);
       sessionStorage.setItem(STORAGE_KEY, 'true');
     }
+    // Permet de rouvrir le guide depuis n'importe où (ex : icône ⓘ dans le header)
+    const reopen = () => {
+      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(STORAGE_KEY);
+      setMode('choice');
+      setStep(0);
+      setOpen(true);
+    };
+    window.addEventListener('triibu:open-onboarding', reopen);
+    return () => window.removeEventListener('triibu:open-onboarding', reopen);
   }, []);
 
   const steps = mode === 'beginner' ? BEGINNER_STEPS : VETERAN_STEPS;

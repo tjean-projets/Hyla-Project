@@ -36,7 +36,7 @@ import { useEffectiveUserId, useEffectiveProfile } from '@/hooks/useEffectiveUse
 import { usePlan } from '@/hooks/usePlan';
 import { useThemeSafe } from '@/hooks/useTheme';
 import { useAmounts } from '@/contexts/AmountsContext';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, HelpCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -476,7 +476,7 @@ function GlobalSearch({ isDark }: { isDark: boolean }) {
                   <div>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-1">Tâches</p>
                     {(tasks as any[]).map((t: any) => (
-                      <button key={t.id} onClick={() => { navigate('/tasks'); setOpen(false); setQuery(''); }}
+                      <button key={t.id} onClick={() => { navigate(`/tasks?taskId=${t.id}`); setOpen(false); setQuery(''); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors text-left">
                         <div className="h-7 w-7 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center flex-shrink-0 dark:text-violet-400">
                           <CheckSquare className="h-3.5 w-3.5" />
@@ -888,6 +888,13 @@ export function AppLayout({ title, children, actions, variant = 'light', hideBan
               </button>
             )}
             <GlobalSearch isDark={isDark} />
+            <button
+              onClick={() => window.dispatchEvent(new Event('triibu:open-onboarding'))}
+              className="p-2 rounded-xl transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
+              title="Rouvrir le guide de démarrage"
+            >
+              <HelpCircle className="h-[18px] w-[18px]" />
+            </button>
             <NotificationCenter user={user} profile={profile} isDark={isDark} />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

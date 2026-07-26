@@ -40,6 +40,27 @@ export default function Dashboard() {
     staleTime: 30000,
   });
 
+  // KPIs du mois précédent → pour afficher les deltas ↗ ↘
+  const { data: kpisPrev } = useQuery({
+    queryKey: ['dashboard-kpis-prev', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return null;
+      const now = new Date();
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const prevStart = new Date(firstOfMonth); prevStart.setMonth(prevStart.getMonth() - 1);
+      const prevEnd = new Date(firstOfMonth.getTime() - 24 * 60 * 60 * 1000); // dernier jour mois précédent
+      const { data, error } = await supabase.rpc('get_dashboard_kpis', {
+        p_user_id: effectiveId,
+        p_period_start: prevStart.toISOString().slice(0, 10),
+        p_period_end: prevEnd.toISOString().slice(0, 10),
+      });
+      if (error) return null;
+      return data as Record<string, number>;
+    },
+    enabled: !!effectiveId,
+    staleTime: 300000, // 5min — le mois précédent ne bouge quasi jamais
+  });
+
   // Auto-generate relance tasks for inactive prospects (runs once per session)
   useQuery({
     queryKey: ['auto-relances', effectiveId],
@@ -347,7 +368,22 @@ export default function Dashboard() {
   });
 
   const k = kpis || {} as Record<string, number>;
+  const kPrev = kpisPrev || {} as Record<string, number>;
   const nbSignees = deals.length;
+
+  // Petit helper : delta absolu + label ↗ ↘ ou = pour un KPI mois vs mois précédent
+  const deltaLabel = (current: number, previous: number, isAmount = false): { text: string; color: string } | null => {
+    if (previous === 0 && current === 0) return null;
+    const diff = current - previous;
+    if (previous === 0) return { text: `↗ Nouveau ce mois`, color: 'text-emerald-600 dark:text-emerald-400' };
+    if (diff === 0) return { text: `= identique`, color: 'text-muted-foreground' };
+    const arrow = diff > 0 ? '↗' : '↘';
+    const color = diff > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400';
+    const val = isAmount
+      ? `${diff > 0 ? '+' : ''}${diff.toLocaleString('fr-FR')}€`
+      : `${diff > 0 ? '+' : ''}${diff}`;
+    return { text: `${arrow} ${val} vs mois dernier`, color };
+  };
   const commDirecte = k.commissions_mois_directe || 0;
   const commReseau = k.commissions_mois_reseau || 0;
   const commTotal = commDirecte + commReseau;
@@ -660,6 +696,9 @@ export default function Dashboard() {
         {/* ── Suivis à faire (côté manager) ── */}
         <FollowUpsManagerWidget effectiveId={effectiveId} />
 
+        {/* ── Contacts froids (>21j sans contact) ── */}
+        <ColdContactsWidget effectiveId={effectiveId} />
+
 
         {/* ── Mes défis personnels ── */}
         {personalChallenges.length > 0 && (
@@ -831,8 +870,12 @@ export default function Dashboard() {
                 <TrendingUp className="h-4 w-4 text-emerald-500" />
               </div>
               <p className={`text-xl font-bold text-foreground transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(k.ca_mois || 0)} <span className="text-sm text-muted-foreground">€</span></p>
+              {(() => {
+                const d = deltaLabel(k.ca_mois || 0, kPrev.ca_mois || 0, true);
+                return d ? <p className={`text-[10px] font-semibold mt-1 ${d.color} ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{d.text}</p> : null;
+              })()}
               {(k.commissions_annee || 0) > 0 && (
-                <p className={`text-[9px] text-muted-foreground mt-1 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(k.commissions_annee || 0)}€ cette année</p>
+                <p className={`text-[9px] text-muted-foreground mt-0.5 transition-all ${!amountsVisible ? 'blur-sm select-none' : ''}`}>{fmtAmt(k.commissions_annee || 0)}€ cette année</p>
               )}
             </a>
             {/* Ventes → /deals */}
@@ -842,6 +885,10 @@ export default function Dashboard() {
                 <ShoppingBag className="h-4 w-4 text-violet-500" />
               </div>
               <p className="text-xl font-bold text-foreground">{nbSignees}</p>
+              {(() => {
+                const d = deltaLabel(k.ventes_signees || 0, kPrev.ventes_signees || 0);
+                return d ? <p className={`text-[10px] font-semibold mt-1 ${d.color}`}>{d.text}</p> : null;
+              })()}
             </a>
             {/* Équipe → /network */}
             <a href="/network" className="bg-card rounded-2xl p-4 shadow-sm border border-border sm:col-span-2 hover-lift animate-stagger-in cursor-pointer hover:border-blue-300 transition-colors block">
@@ -850,6 +897,11 @@ export default function Dashboard() {
                 <Users className="h-4 w-4 text-blue-500" />
               </div>
               <p className="text-xl font-bold text-foreground">{k.equipe_active || 0}</p>
+              {(() => {
+                // Pour équipe on compare le nombre de NOUVELLES recrues ce mois vs mois précédent
+                const d = deltaLabel(k.nouvelles_recrues || 0, kPrev.nouvelles_recrues || 0);
+                return d ? <p className={`text-[10px] font-semibold mt-1 ${d.color}`}>{d.text} (nouvelles recrues)</p> : null;
+              })()}
             </a>
           </div>
           {/* Commissions — pleine largeur → /commissions */}
@@ -1162,6 +1214,77 @@ function FollowUpsManagerWidget({ effectiveId }: { effectiveId: string | undefin
             </a>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Widget contacts froids : prospects/clientes non contactés depuis 21j+ ── */
+function ColdContactsWidget({ effectiveId }: { effectiveId: string | undefined }) {
+  const { data: coldContacts = [] } = useQuery({
+    queryKey: ['cold-contacts', effectiveId],
+    queryFn: async () => {
+      if (!effectiveId) return [];
+      // 21 jours en arrière
+      const threshold = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString();
+      // Contacts prospects/clientes dont last_contacted_at est null OU < threshold
+      // On limite à 5 pour le widget (les plus anciens en premier)
+      const { data } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, phone, status, last_contacted_at')
+        .eq('user_id', effectiveId)
+        .in('status', ['prospect', 'cliente'])
+        .or(`last_contacted_at.is.null,last_contacted_at.lt.${threshold}`)
+        .order('last_contacted_at', { ascending: true, nullsFirst: true })
+        .limit(5);
+      return data || [];
+    },
+    enabled: !!effectiveId,
+    staleTime: 60000,
+  });
+
+  if (coldContacts.length === 0) return null;
+
+  const daysSince = (dateStr: string | null): string => {
+    if (!dateStr) return 'jamais contacté';
+    const d = Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+    return `${d}j`;
+  };
+
+  return (
+    <div className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-2xl p-4 space-y-2">
+      <div className="flex items-center gap-2">
+        <span className="text-orange-600 dark:text-orange-400">❄️</span>
+        <h3 className="text-sm font-bold text-orange-900 dark:text-orange-200">
+          Contacts à réchauffer ({coldContacts.length})
+        </h3>
+      </div>
+      <p className="text-[11px] text-orange-700 dark:text-orange-300">
+        Sans échange depuis 21 jours+ — ne les laisse pas dormir.
+      </p>
+      <div className="space-y-1.5">
+        {coldContacts.map((c: any) => (
+          <a
+            key={c.id}
+            href="/contacts"
+            className="flex items-center justify-between px-3 py-2 rounded-xl bg-card border border-orange-200 dark:border-orange-800 hover:bg-orange-100/50 dark:hover:bg-orange-950/50 transition-colors"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="h-6 w-6 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center text-[10px] font-bold text-orange-700 dark:text-orange-300 flex-shrink-0">
+                {c.first_name[0]}{c.last_name[0]}
+              </div>
+              <span className="text-xs font-semibold text-foreground truncate">
+                {c.first_name} {c.last_name}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                · {c.status === 'cliente' ? 'Cliente' : 'Prospect'}
+              </span>
+            </div>
+            <span className="text-[10px] text-orange-700 dark:text-orange-300 font-medium flex-shrink-0 ml-2">
+              {daysSince(c.last_contacted_at)}
+            </span>
+          </a>
+        ))}
       </div>
     </div>
   );

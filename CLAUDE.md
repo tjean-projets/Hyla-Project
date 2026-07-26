@@ -124,8 +124,18 @@ Section "Support & suggestions" en bas de `SettingsPage` — formulaire simple (
 - Mig. `20260508_campaigns.sql` : table `campaigns(id, owner_id, name, slug, tag, color, start_date, end_date, status)` + ajout `campaign_id` FK nullable sur `public_leads`, `contact_link_clicks`, `contacts`. Suppression des CHECK constraints rigides sur les colonnes `source` (acceptent désormais n'importe quel slug). RPC `campaign_stats(p_campaign_id)` SECURITY DEFINER qui retourne clics/leads/conversions + graphique clics par jour.
 - `SocialPage` → onglet **Campagnes** (route `/social` restaurée — était redirigée vers /settings) : CRUD complet (modale `CampaignEditor` avec slug auto-dérivé du nom, choix de couleur, période). Pour chaque campagne : lien tracké à copier (`?src=<slug>`), KPIs résumés (clics / leads / conversions / taux), section dépliable `CampaignStatsDetail` avec entonnoir de conversion + bar chart clics/jour.
 - `PublicProfilePage` : accepte `?src=<slug>` libre, résout la campagne par `owner_id + slug + status='active'`, lie le clic + le lead à `campaign_id`.
-- Conversion lead → contact dans SocialPage : si `lead.campaign_id` présent, récupère le tag de la campagne et l'applique automatiquement à `contacts.tags[]` + remplit `contacts.campaign_id` pour le filtrage pipeline.
+- Conversion lead → contact dans SocialPage : si `lead.campaign_id` présent, récupère le tag de la campagne et l'applique automatiquement à `contacts.tags[]` + remplit `contacts.campaign_id` pour le filtrage pipeline. Le composant utilise `getSourceLabel()` avec fallback violet pour les slugs custom (évite le crash "Cannot read properties of undefined" quand la source n'est pas bio/story/direct).
 - Lien d'accès depuis `SettingsPage` > ContactLinksSection (bouton "🎉 Campagnes événementielles → Gérer").
+
+### Chargement du profile (`useAuth.fetchProfile`)
+Récupère tous les champs nécessaires au fonctionnement de l'app en une seule query : `full_name, avatar_url, invite_code, sponsor_user_id, role, email, plan, plan_status, trial_ends_at, challenge_start_date, onboarding_completed_at`. Sans `plan/plan_status/trial_ends_at`, `usePlan()` considère l'user comme trial invalide → paywall permanent sur /network /finance /stats pour tout non super-admin. À ne surtout pas amputer.
+
+### Quick wins récents (juillet 2026)
+- **Recherche globale ⌘K** (`components/AppLayout.tsx > GlobalSearch`) : commande palette avec fuzzy search sur contacts + deals + tâches + team_members. Cmd+K binding global. Deep-link vers `/tasks?taskId=xxx` pour ouvrir directement l'édition d'une tâche.
+- **Templates WhatsApp/SMS** (`components/ContactDrawer.tsx`) : 5 templates par défaut + custom en localStorage. Sur chaque template, 3 boutons : **WhatsApp** (ouvre `wa.me/33...?text=` en normalisant les 06XX → 336XX), **SMS** (ouvre `sms:...?body=`), **Copier**. Variables `{{prénom}}`, `{{nom}}`, `{{date}}` substituées. Mig. `20260726_message_templates.sql` ajoute `user_settings.message_templates JSONB` pour sync cross-device future (pas encore utilisée par le code).
+- **Widget "Contacts à réchauffer"** (`pages/Dashboard.tsx > ColdContactsWidget`) : liste les 5 prospects/clientes non contactés depuis 21j+ (null ou < now-21j sur `last_contacted_at`), triés par plus ancien.
+- **Deltas mois vs mois précédent** sur Dashboard : nouvelle query `dashboard-kpis-prev` qui rappelle le RPC `get_dashboard_kpis` avec dates du mois précédent. Helper `deltaLabel(current, previous, isAmount)` qui formate ↗/↘/= avec couleur. Deltas sur CA (€), Ventes (unités), Équipe (nouvelles recrues).
+- **Onboarding rouvrable à la demande** : icône `HelpCircle` dans le header (desktop + mobile) qui dispatch `window` event `triibu:open-onboarding`. `OnboardingGuide` écoute l'event → purge storage + reset state + réouvre.
 
 ## Projets connexes (ne pas confondre)
 - `portfolio-navigator-6180a241-main` → CRM Courtage Thomas Jean (assurance) — projet SÉPARÉ
